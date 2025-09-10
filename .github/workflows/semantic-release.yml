@@ -11,6 +11,9 @@ jobs:
   semantic-release:
     name: Semantic Release
     runs-on: ubuntu-latest
+    outputs:
+      new_release: ${{ steps.release_info.outputs.new_release }}
+      latest_tag: ${{ steps.release_info.outputs.latest_tag }}
 
     steps:
       - name: Checkout code
@@ -30,3 +33,31 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: npx semantic-release
+
+      - name: Get release info
+        id: release_info
+        run: |
+          # Check if semantic-release created a new tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+          
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+          
+          if [ "$LATEST_TAG" != "$PREVIOUS_TAG" ] && [ -n "$LATEST_TAG" ]; then
+            echo "new_release=true" >> $GITHUB_OUTPUT
+            echo "New release detected: $LATEST_TAG"
+          else
+            echo "new_release=false" >> $GITHUB_OUTPUT
+            echo "No new release created"
+          fi
+
+  trigger-deployment:
+    name: Trigger Application Deployment
+    needs: semantic-release
+    if: needs.semantic-release.outputs.new_release == 'true'
+    uses: ./.github/workflows/application.yml
+    with:
+      environment: dev
+      image_tag: ${{ needs.semantic-release.outputs.latest_tag }}
+    secrets: inherit
