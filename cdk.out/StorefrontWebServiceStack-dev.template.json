@@ -1,0 +1,364 @@
+{
+ "Resources": {
+  "WebServiceWebServiceLogGroup66067B9E": {
+   "Type": "AWS::Logs::LogGroup",
+   "Properties": {
+    "RetentionInDays": 7
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "StorefrontWebServiceStack-dev/WebService/WebServiceLogGroup/Resource"
+   }
+  },
+  "WebServiceWebServiceTaskDefTaskRoleB3375CD7": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "StorefrontWebServiceStack-dev/WebService/WebServiceTaskDef/TaskRole/Resource"
+   }
+  },
+  "WebServiceWebServiceTaskDefC062C902": {
+   "Type": "AWS::ECS::TaskDefinition",
+   "Properties": {
+    "ContainerDefinitions": [
+     {
+      "Environment": [
+       {
+        "Name": "ENV",
+        "Value": "production"
+       }
+      ],
+      "Essential": true,
+      "Image": {
+       "Fn::Join": [
+        "",
+        [
+         {
+          "Fn::Select": [
+           4,
+           {
+            "Fn::Split": [
+             ":",
+             {
+              "Fn::ImportValue": "StorefrontECRStack:ExportsOutputFnGetAttWebRepo9D56C0A3ArnD23AE5E7"
+             }
+            ]
+           }
+          ]
+         },
+         ".dkr.ecr.",
+         {
+          "Fn::Select": [
+           3,
+           {
+            "Fn::Split": [
+             ":",
+             {
+              "Fn::ImportValue": "StorefrontECRStack:ExportsOutputFnGetAttWebRepo9D56C0A3ArnD23AE5E7"
+             }
+            ]
+           }
+          ]
+         },
+         ".",
+         {
+          "Ref": "AWS::URLSuffix"
+         },
+         "/",
+         {
+          "Fn::ImportValue": "StorefrontECRStack:ExportsOutputRefWebRepo9D56C0A3B9D0FCB6"
+         }
+        ]
+       ]
+      },
+      "LogConfiguration": {
+       "LogDriver": "awslogs",
+       "Options": {
+        "awslogs-group": {
+         "Ref": "WebServiceWebServiceLogGroup66067B9E"
+        },
+        "awslogs-stream-prefix": "WebService",
+        "awslogs-region": "us-east-1"
+       }
+      },
+      "Name": "WebService",
+      "PortMappings": [
+       {
+        "ContainerPort": 3000,
+        "Protocol": "tcp"
+       }
+      ]
+     }
+    ],
+    "Cpu": "256",
+    "ExecutionRoleArn": {
+     "Fn::GetAtt": [
+      "WebServiceWebServiceTaskDefExecutionRoleB500430A",
+      "Arn"
+     ]
+    },
+    "Family": "StorefrontWebServiceStackdevWebServiceWebServiceTaskDefF53C626B",
+    "Memory": "512",
+    "NetworkMode": "awsvpc",
+    "RequiresCompatibilities": [
+     "FARGATE"
+    ],
+    "TaskRoleArn": {
+     "Fn::GetAtt": [
+      "WebServiceWebServiceTaskDefTaskRoleB3375CD7",
+      "Arn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "StorefrontWebServiceStack-dev/WebService/WebServiceTaskDef/Resource"
+   }
+  },
+  "WebServiceWebServiceTaskDefExecutionRoleB500430A": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "StorefrontWebServiceStack-dev/WebService/WebServiceTaskDef/ExecutionRole/Resource"
+   }
+  },
+  "WebServiceWebServiceTaskDefExecutionRoleDefaultPolicyC3CFA380": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "WebServiceWebServiceLogGroup66067B9E",
+         "Arn"
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "WebServiceWebServiceTaskDefExecutionRoleDefaultPolicyC3CFA380",
+    "Roles": [
+     {
+      "Ref": "WebServiceWebServiceTaskDefExecutionRoleB500430A"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "StorefrontWebServiceStack-dev/WebService/WebServiceTaskDef/ExecutionRole/DefaultPolicy/Resource"
+   }
+  },
+  "WebServiceWebServiceServiceB97F16A9": {
+   "Type": "AWS::ECS::Service",
+   "Properties": {
+    "Cluster": {
+     "Fn::ImportValue": "StorefrontSharedStack:ExportsOutputRefStorefrontCluster1CB51083B1694AAB"
+    },
+    "DeploymentConfiguration": {
+     "Alarms": {
+      "AlarmNames": [],
+      "Enable": false,
+      "Rollback": false
+     },
+     "MaximumPercent": 200,
+     "MinimumHealthyPercent": 50
+    },
+    "DesiredCount": 2,
+    "EnableECSManagedTags": false,
+    "HealthCheckGracePeriodSeconds": 60,
+    "LaunchType": "FARGATE",
+    "LoadBalancers": [
+     {
+      "ContainerName": "WebService",
+      "ContainerPort": 3000,
+      "TargetGroupArn": {
+       "Fn::ImportValue": "StorefrontWebAlbStack:ExportsOutputRefStorefrontALBHttpsListenerWebServiceRuleGroupD117B9884FDCA7EF"
+      }
+     },
+     {
+      "ContainerName": "WebService",
+      "ContainerPort": 3000,
+      "TargetGroupArn": {
+       "Fn::ImportValue": "StorefrontWebAlbStack:ExportsOutputRefStorefrontALBHttpsListenerWebServiceTargetGroupGroup04413661A6212557"
+      }
+     }
+    ],
+    "NetworkConfiguration": {
+     "AwsvpcConfiguration": {
+      "AssignPublicIp": "DISABLED",
+      "SecurityGroups": [
+       {
+        "Fn::GetAtt": [
+         "WebServiceWebServiceServiceSecurityGroup01ED3C6D",
+         "GroupId"
+        ]
+       }
+      ],
+      "Subnets": [
+       {
+        "Fn::ImportValue": "StorefrontNetworkStack:ExportsOutputRefStorefrontVPCprivateSubnet1Subnet45E3C49A2466390C"
+       },
+       {
+        "Fn::ImportValue": "StorefrontNetworkStack:ExportsOutputRefStorefrontVPCprivateSubnet2Subnet748F9E51CDB8E869"
+       }
+      ]
+     }
+    },
+    "TaskDefinition": {
+     "Ref": "WebServiceWebServiceTaskDefC062C902"
+    }
+   },
+   "DependsOn": [
+    "WebServiceWebServiceTaskDefTaskRoleB3375CD7"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "StorefrontWebServiceStack-dev/WebService/WebServiceService/Service"
+   }
+  },
+  "WebServiceWebServiceServiceSecurityGroup01ED3C6D": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "StorefrontWebServiceStack-dev/WebService/WebServiceService/SecurityGroup",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow all outbound traffic by default",
+      "IpProtocol": "-1"
+     }
+    ],
+    "VpcId": {
+     "Fn::ImportValue": "StorefrontNetworkStack:ExportsOutputRefStorefrontVPC669C7EECD0143642"
+    }
+   },
+   "DependsOn": [
+    "WebServiceWebServiceTaskDefTaskRoleB3375CD7"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "StorefrontWebServiceStack-dev/WebService/WebServiceService/SecurityGroup/Resource"
+   }
+  },
+  "WebServiceWebServiceServiceSecurityGroupfromStorefrontWebAlbStackStorefrontALBSecurityGroup30D604973000001DD0AB": {
+   "Type": "AWS::EC2::SecurityGroupIngress",
+   "Properties": {
+    "Description": "Load balancer to target",
+    "FromPort": 3000,
+    "GroupId": {
+     "Fn::GetAtt": [
+      "WebServiceWebServiceServiceSecurityGroup01ED3C6D",
+      "GroupId"
+     ]
+    },
+    "IpProtocol": "tcp",
+    "SourceSecurityGroupId": {
+     "Fn::ImportValue": "StorefrontWebAlbStack:ExportsOutputFnGetAttStorefrontALBSecurityGroup7B1A8D11GroupId7B9037BA"
+    },
+    "ToPort": 3000
+   },
+   "DependsOn": [
+    "WebServiceWebServiceTaskDefTaskRoleB3375CD7"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "StorefrontWebServiceStack-dev/WebService/WebServiceService/SecurityGroup/from StorefrontWebAlbStackStorefrontALBSecurityGroup30D60497:3000"
+   }
+  },
+  "WebServiceWebServiceServiceSecurityGroupStorefrontWebAlbStackStorefrontALBSecurityGroup30D604973000fromE9DEDBB9": {
+   "Type": "AWS::EC2::SecurityGroupEgress",
+   "Properties": {
+    "Description": "Load balancer to target",
+    "DestinationSecurityGroupId": {
+     "Fn::GetAtt": [
+      "WebServiceWebServiceServiceSecurityGroup01ED3C6D",
+      "GroupId"
+     ]
+    },
+    "FromPort": 3000,
+    "GroupId": {
+     "Fn::ImportValue": "StorefrontWebAlbStack:ExportsOutputFnGetAttStorefrontALBSecurityGroup7B1A8D11GroupId7B9037BA"
+    },
+    "IpProtocol": "tcp",
+    "ToPort": 3000
+   },
+   "DependsOn": [
+    "WebServiceWebServiceTaskDefTaskRoleB3375CD7"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "StorefrontWebServiceStack-dev/WebService/WebServiceService/SecurityGroup/StorefrontWebAlbStackStorefrontALBSecurityGroup30D60497:3000 from"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/32QTQvCMAyGf4v3ruqGB89+IXgYm3epNZtxWyNtp4zR/+4+RRQ8vW+eJOQlPp8HSz6biKfx5CXzcjzzOrZCZqxBpzqn1PD6QOlOU3lnq0SN3jGQTWsrdCosHIXJ1pCgQouk2rlvQsoKVKA/2LAbg36ghHZpsI6hKHgdUd7RTkPKUVZt2bv2vt9kBVlqtNU733+wV6kGY374psPOsQgMlbpPM3rHwspeSU2D5lt8MbkZRE+XymIBPOr1Bek/BoZJAQAA"
+   },
+   "Metadata": {
+    "aws:cdk:path": "StorefrontWebServiceStack-dev/CDKMetadata/Default"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,24 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+    commands:
+      - echo "Installing CDK and dependencies..."
+      - npm install -g aws-cdk
+      - pip install -r requirements.txt
+
+  pre_build:
+    commands:
+      - echo "Starting CDK-based ECS service deployment..."
+      - echo "Environment: $ENVIRONMENT"
+      - echo "Image Tag: ${IMAGE_TAG:-latest}"
+      - echo "Stack: $STACK_NAME"
+
+  build:
+    commands:
+      - cdk deploy "$STACK_NAME" --require-approval never
+
+  post_build:
+    commands:
+      - echo "✅ CDK deploy complete"

@@ -1,0 +1,20 @@
+{
+  "version": "36.0.0",
+  "files": {
+    "db20a3976dcdcb2c12e769cfa1f96445e69f5e6532bd50176fcdbce1de49f737": {
+      "source": {
+        "path": "CertStack-040992-xyz.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "156041439702-us-east-1": {
+          "bucketName": "cdk-hnb659fds-assets-156041439702-us-east-1",
+          "objectKey": "db20a3976dcdcb2c12e769cfa1f96445e69f5e6532bd50176fcdbce1de49f737.json",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::156041439702:role/cdk-hnb659fds-file-publishing-role-156041439702-us-east-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

@@ -1,0 +1,86 @@
+{
+ "Resources": {
+  "DomainCert6E523D14": {
+   "Type": "AWS::CertificateManager::Certificate",
+   "Properties": {
+    "DomainName": "040992.xyz",
+    "DomainValidationOptions": [
+     {
+      "DomainName": "040992.xyz",
+      "HostedZoneId": "Z0712487222ZIRBN0AQ6Z"
+     },
+     {
+      "DomainName": "dev.040992.xyz",
+      "HostedZoneId": "Z0712487222ZIRBN0AQ6Z"
+     }
+    ],
+    "SubjectAlternativeNames": [
+     "dev.040992.xyz"
+    ],
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "CertStack-040992-xyz/DomainCert"
+     }
+    ],
+    "ValidationMethod": "DNS"
+   },
+   "Metadata": {
+    "aws:cdk:path": "CertStack-040992-xyz/DomainCert/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/zPSMzS21DNQTCwv1k1OydbNyUzSqw4uSUzO1glKLc4vLUpO1QHKxSenFpVkpmUmJ5ak5ibmJaanFulVOyPEdJzT8pC4tSA+TH+tTkBlSUZ+nr4x0C49U8Ws4sxM3aLSvJLM3FS9IAgNAFK5A4yHAAAA"
+   },
+   "Metadata": {
+    "aws:cdk:path": "CertStack-040992-xyz/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "ExportsOutputRefDomainCert6E523D1437130CFB": {
+   "Value": {
+    "Ref": "DomainCert6E523D14"
+   },
+   "Export": {
+    "Name": "CertStack-040992-xyz:ExportsOutputRefDomainCert6E523D1437130CFB"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}
