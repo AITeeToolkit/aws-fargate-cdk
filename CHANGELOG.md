@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.7.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.7.0...v1.7.1) (2025-09-10)
+
+
+### 🐛 Bug Fixes
+
+* remove unnecessary dependency between network and IAM stacks ([369fc86](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/369fc86d7812bc8e480563bbe0a3bf1b6dd3f46c))
+
 ## [1.7.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.6.0...v1.7.0) (2025-09-10)
 
 
