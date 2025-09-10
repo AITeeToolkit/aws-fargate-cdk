@@ -48,6 +48,12 @@ jobs:
     needs: login-to-aws
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Checkout storefront repository
+        uses: actions/checkout@v4
+        with:
+          repository: AITeeToolkit/storefront
+          path: storefront
 
       - name: Build API Docker Image
         run: docker build -t $ECR_REGISTRY/api:${IMAGE_TAG} ./storefront/api
@@ -61,6 +67,12 @@ jobs:
     needs: login-to-aws
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Checkout storefront repository
+        uses: actions/checkout@v4
+        with:
+          repository: AITeeToolkit/storefront
+          path: storefront
 
       - name: Build Web Docker Image
         run: docker build -t $ECR_REGISTRY/web:${IMAGE_TAG} ./storefront/multisite
