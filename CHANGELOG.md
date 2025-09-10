@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.7.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.6.0...v1.7.0) (2025-09-10)
+
+
+### 🚀 Features
+
+* expand IAM permissions to support CDK bootstrap and deployment ([3e8ebfa](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/3e8ebfaab8ccbe53b792bcbcf25c946f955ea9b1))
+
 ## [1.6.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.5.0...v1.6.0) (2025-09-10)
 
 
