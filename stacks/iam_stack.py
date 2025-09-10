@@ -20,7 +20,8 @@ class IAMStack(Stack):
             self, "FargateApplicationCIUser",
             user_name="fargate-application-ci",
             managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2ContainerRegistryPowerUser")
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2ContainerRegistryPowerUser"),
+                iam.ManagedPolicy.from_aws_managed_policy_name("PowerUserAccess")
             ]
         )
 
@@ -55,33 +56,66 @@ class IAMStack(Stack):
                         f"arn:aws:iam::{self.account}:role/cdk-hnb659fds-lookup-role-*"
                     ]
                 ),
-                # CloudFormation read access
+                # CloudFormation full access for CDK bootstrap and deployment
                 iam.PolicyStatement(
-                    sid="CloudFormationReadAccess",
+                    sid="CloudFormationFullAccess",
                     effect=iam.Effect.ALLOW,
                     actions=[
-                        "cloudformation:DescribeStacks",
-                        "cloudformation:DescribeStackEvents",
-                        "cloudformation:DescribeStackResources",
-                        "cloudformation:GetTemplate",
-                        "cloudformation:ListStacks",
-                        "cloudformation:ListStackResources"
+                        "cloudformation:*"
                     ],
                     resources=["*"]
                 ),
-                # S3 CDK Assets access
+                # IAM permissions for CDK bootstrap
                 iam.PolicyStatement(
-                    sid="S3CDKAssetsAccess",
+                    sid="IAMBootstrapAccess",
                     effect=iam.Effect.ALLOW,
                     actions=[
-                        "s3:GetObject",
-                        "s3:PutObject",
-                        "s3:ListBucket"
+                        "iam:CreateRole",
+                        "iam:DeleteRole",
+                        "iam:GetRole",
+                        "iam:PassRole",
+                        "iam:AttachRolePolicy",
+                        "iam:DetachRolePolicy",
+                        "iam:PutRolePolicy",
+                        "iam:DeleteRolePolicy",
+                        "iam:GetRolePolicy",
+                        "iam:TagRole",
+                        "iam:UntagRole"
+                    ],
+                    resources=[
+                        f"arn:aws:iam::{self.account}:role/cdk-*"
+                    ]
+                ),
+                # S3 full access for CDK bootstrap and assets
+                iam.PolicyStatement(
+                    sid="S3CDKFullAccess",
+                    effect=iam.Effect.ALLOW,
+                    actions=[
+                        "s3:*"
                     ],
                     resources=[
                         f"arn:aws:s3:::cdk-hnb659fds-assets-{self.account}-*",
-                        f"arn:aws:s3:::cdk-hnb659fds-assets-{self.account}-*/*"
+                        f"arn:aws:s3:::cdk-hnb659fds-assets-{self.account}-*/*",
+                        "arn:aws:s3:::cdktoolkit-stagingbucket-*",
+                        "arn:aws:s3:::cdktoolkit-stagingbucket-*/*"
                     ]
+                ),
+                # Additional permissions for CDK bootstrap
+                iam.PolicyStatement(
+                    sid="CDKBootstrapMiscAccess",
+                    effect=iam.Effect.ALLOW,
+                    actions=[
+                        "ecr:CreateRepository",
+                        "ecr:DescribeRepositories",
+                        "kms:CreateKey",
+                        "kms:DescribeKey",
+                        "kms:CreateAlias",
+                        "kms:DeleteAlias",
+                        "kms:ListAliases",
+                        "kms:TagResource",
+                        "kms:UntagResource"
+                    ],
+                    resources=["*"]
                 ),
                 # CodeBuild permissions for CI/CD
                 iam.PolicyStatement(
