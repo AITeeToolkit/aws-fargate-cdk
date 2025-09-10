@@ -17,8 +17,8 @@ env = cdk.Environment(account="156041439702", region="us-east-1")
 env_name = app.node.try_get_context("env") or "dev"
 domains = ["040992.xyz"]
 
-# IAM Stack for CI/CD permissions - deploy this first to bootstrap permissions
-iam_stack = IAMStack(app, "StorefrontIAMStack", env=env)
+# # IAM Stack for CI/CD permissions - deploy this first to bootstrap permissions
+# iam_stack = IAMStack(app, "StorefrontIAMStack", env=env)
 
 # Network and ECS Cluster
 network_stack = NetworkStack(app, "StorefrontNetworkStack", env=env)
