@@ -18,11 +18,11 @@ phases:
         if [ "$SERVICE_TYPE" = "api" ]; then
           DOCKERFILE_PATH="api/Dockerfile"
           BUILD_CONTEXT="api"
-          ECR_REPO="api"
+          ECR_REPO="${PROJECT_NAME}/${ENVIRONMENT}/api"
         elif [ "$SERVICE_TYPE" = "web" ]; then
           DOCKERFILE_PATH="multisite/Dockerfile"
           BUILD_CONTEXT="multisite"
-          ECR_REPO="web"
+          ECR_REPO="${PROJECT_NAME}/${ENVIRONMENT}/web"
         else
           echo \"❌ Unknown SERVICE_TYPE: $SERVICE_TYPE\"
           exit 1
