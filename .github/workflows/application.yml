@@ -56,6 +56,16 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           path: storefront
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_CODEBUILD_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        run: aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+
       - name: Build API Docker Image
         run: docker build -t $ECR_REGISTRY/api:${IMAGE_TAG} ./storefront/api
 
@@ -75,6 +85,16 @@ jobs:
           repository: AITeeToolkit/storefront
           token: ${{ secrets.GH_TOKEN }}
           path: storefront
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_CODEBUILD_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        run: aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
 
       - name: Build Web Docker Image
         run: docker build -t $ECR_REGISTRY/web:${IMAGE_TAG} ./storefront/multisite
