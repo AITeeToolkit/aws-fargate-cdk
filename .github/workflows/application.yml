@@ -21,47 +21,31 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  PYTHON_VERSION: "3.11"
   ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
   IMAGE_TAG: ${{ github.event.inputs.image_tag || github.ref_name }}
+  PYTHON_VERSION: "3.11"
 
 jobs:
-  deploy-infrastructure:
-    name: Deploy CDK Infrastructure
+  login-to-aws:
+    name: Login to AWS & ECR
     runs-on: ubuntu-latest
+    outputs:
+      login-done: "true"
     steps:
-      - uses: actions/checkout@v4
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_CODEBUILD_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ secrets.AWS_CLOUD_BUILD_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_CLOUD_BUILD_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install CDK dependencies
-        run: |
-          python -m venv .venv
-          source .venv/bin/activate
-          pip install -r requirements.txt
-
-      - name: Deploy infrastructure stacks (ECR, Network, Shared)
-        env:
-          CDK_IMAGE_TAG: ${{ env.IMAGE_TAG }}
-          CDK_ENV: ${{ github.event.inputs.environment || 'dev' }}
-        run: |
-          source .venv/bin/activate
-          cdk deploy StorefrontNetworkStack StorefrontSharedStack --require-approval never
+      - name: Login to ECR
+        run: aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
 
   build-and-push-api:
     name: Build & Push API Image
     runs-on: ubuntu-latest
-    needs: deploy-infrastructure
+    needs: login-to-aws
     steps:
       - uses: actions/checkout@v4
       
@@ -71,16 +55,6 @@ jobs:
           repository: AITeeToolkit/storefront
           token: ${{ secrets.GH_TOKEN }}
           path: storefront
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_CODEBUILD_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to ECR
-        run: aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
 
       - name: Build API Docker Image
         run: docker build -t $ECR_REGISTRY/api:${IMAGE_TAG} ./storefront/api
@@ -91,7 +65,7 @@ jobs:
   build-and-push-web:
     name: Build & Push Web Image
     runs-on: ubuntu-latest
-    needs: deploy-infrastructure
+    needs: login-to-aws
     steps:
       - uses: actions/checkout@v4
       
@@ -101,16 +75,6 @@ jobs:
           repository: AITeeToolkit/storefront
           token: ${{ secrets.GH_TOKEN }}
           path: storefront
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_CODEBUILD_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to ECR
-        run: aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
 
       - name: Build Web Docker Image
         run: docker build -t $ECR_REGISTRY/web:${IMAGE_TAG} ./storefront/multisite
@@ -128,8 +92,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_CODEBUILD_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ secrets.AWS_CLOUD_BUILD_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_CLOUD_BUILD_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Python
