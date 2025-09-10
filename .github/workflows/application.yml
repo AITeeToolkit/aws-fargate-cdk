@@ -149,7 +149,12 @@ jobs:
           source .venv/bin/activate
           pip install -r requirements.txt
 
-      - name: CDK Deploy
+      - name: CDK Bootstrap
+        run: |
+          source .venv/bin/activate
+          cdk bootstrap aws://${{ secrets.AWS_ACCOUNT_ID }}/us-east-1
+
+      - name: CDK Deploy All Stacks
         env:
           CDK_IMAGE_TAG: ${{ env.IMAGE_TAG }}
         run: |
