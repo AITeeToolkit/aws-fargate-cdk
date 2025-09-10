@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.6.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.5.0...v1.6.0) (2025-09-10)
+
+
+### 🚀 Features
+
+* add CDK bootstrap step before deployment in GitHub Actions workflow ([f0aabd8](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/f0aabd8f6c60dba6a1bf0b363d1729c048c2b601))
+* add dependency between IAM and network stacks to enforce deployment order ([85391bc](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/85391bc634270f38acf8679370b56056937d741c))
+
 ## [1.5.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.4.0...v1.5.0) (2025-09-10)
 
 
