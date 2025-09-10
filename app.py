@@ -22,7 +22,7 @@ domains = ["040992.xyz"]
 
 # Network and ECS Cluster
 network_stack = NetworkStack(app, "StorefrontNetworkStack", env=env)
-network_stack.add_dependency(iam_stack)
+# network_stack.add_dependency(iam_stack)
 shared_stack = SharedStack(app, "StorefrontSharedStack", env=env, vpc=network_stack.vpc)
 
 # Reuse the ALB for all domains (single entry point)
