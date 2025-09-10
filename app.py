@@ -9,12 +9,16 @@ from stacks.web_alb_stack import WebAlbStack
 from stacks.ecr_stack import ECRStack
 from stacks.database_stack import DatabaseStack
 from stacks.web_service_stack import WebServiceStack
+from stacks.iam_stack import IAMStack
 
 app = cdk.App()
 
 env = cdk.Environment(account="156041439702", region="us-east-1")
 env_name = app.node.try_get_context("env") or "dev"
 domains = ["040992.xyz"]
+
+# IAM Stack for CI/CD permissions
+iam_stack = IAMStack(app, "StorefrontIAMStack", env=env)
 
 # Network and ECS Cluster
 network_stack = NetworkStack(app, "StorefrontNetworkStack", env=env)
