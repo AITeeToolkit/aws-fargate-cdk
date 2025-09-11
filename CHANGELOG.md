@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.15.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.14.1...v1.15.0) (2025-09-11)
+
+
+### 🚀 Features
+
+* add configurable subnet group selection for RDS instance deployment ([057c7f9](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/057c7f997f8522ed85f1c9c44cdeefa146b2aa02))
+
 ## [1.14.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.14.0...v1.14.1) (2025-09-11)
 
 
