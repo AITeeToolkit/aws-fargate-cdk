@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.11.0...v1.11.1) (2025-09-11)
+
+
+### ♻️ Code Refactoring
+
+* remove unused ParametersStack import from app.py ([19d5adf](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/19d5adf5dcca1e4a0e3ef5f032a73db00f47ce34))
+
 ## [1.11.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.10.0...v1.11.0) (2025-09-11)
 
 
