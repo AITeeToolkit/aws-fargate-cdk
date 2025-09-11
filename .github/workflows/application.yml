@@ -165,13 +165,14 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const imageTag = '${{ needs.semantic-release.outputs.new-release-version || github.event.inputs.image_tag || 'latest' }}';
+            const imageTag = '${{ env.IMAGE_TAG }}';
+            const environment = '${{ env.CDK_ENV }}';
             github.rest.repos.createCommitComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               commit_sha: context.sha,
-              body: `🎉 **Application Deployed to Production**\n\n` +
-                    `- **Environment**: production\n` +
+              body: `🎉 **Application Deployed Successfully**\n\n` +
+                    `- **Environment**: ${environment}\n` +
                     `- **Image Tag**: ${imageTag}\n` +
                     `- **Status**: ✅ Success\n` +
                     `- **Timestamp**: ${new Date().toISOString()}`
