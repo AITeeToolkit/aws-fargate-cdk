@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.12.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.11.4...v1.12.0) (2025-09-11)
+
+
+### 🚀 Features
+
+* enable public access to RDS database instance in public subnet ([082d91d](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/082d91d10738ae66e7689d7433a768e712fa7349))
+
 ## [1.11.4](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.11.3...v1.11.4) (2025-09-11)
 
 
