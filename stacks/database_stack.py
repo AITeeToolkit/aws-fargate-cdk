@@ -26,6 +26,18 @@ class DatabaseStack(Stack):
             secret_name=f"storefront/{environment}/rds-credentials"
         )
 
+        # Create public subnet group only (private one already exists from previous deployment)
+        public_subnet_group = rds.SubnetGroup(
+            self, f"StorefrontPostgres{environment.title()}PublicSubnetGroup",
+            description=f"Subnet group for StorefrontPostgres-{environment} database (public)",
+            vpc=vpc,
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC)
+        )
+        
+        # Choose which subnet group to use (change this line to switch)
+        # For private: use vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS)
+        # For public: use subnet_group=public_subnet_group
+        use_public_subnets = True
 
         # Create a PostgreSQL database instance
         self.db_instance = rds.DatabaseInstance(
@@ -35,8 +47,8 @@ class DatabaseStack(Stack):
             ),
             vpc=vpc,
             credentials=credentials,
-            # vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
+            subnet_group=public_subnet_group if use_public_subnets else None,
+            vpc_subnets=None if use_public_subnets else ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
             multi_az=False,
             allocated_storage=20,
             max_allocated_storage=100,
