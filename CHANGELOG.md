@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.13.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.12.0...v1.13.0) (2025-09-11)
+
+
+### 🚀 Features
+
+* add production deployment and detailed deployment summary to release workflow ([bb278b1](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/bb278b1b28fdeef4ee5a4e59c181d462d7126ffd))
+
 ## [1.12.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.11.4...v1.12.0) (2025-09-11)
 
 
