@@ -14,6 +14,7 @@ jobs:
     outputs:
       new_release: ${{ steps.release_info.outputs.new_release }}
       latest_tag: ${{ steps.release_info.outputs.latest_tag }}
+      new-release-version: ${{ steps.release_info.outputs.latest_tag }}
 
     steps:
       - name: Checkout code

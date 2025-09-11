@@ -4,6 +4,17 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_call:
+    inputs:
+      environment:
+        description: Environment
+        required: true
+        default: dev
+        type: string
+      image_tag:
+        description: Docker image tag (e.g., v1.2.3)
+        required: false
+        type: string
   workflow_dispatch:
     inputs:
       environment:
@@ -20,24 +31,12 @@ on:
         required: false
         type: string
 
-  workflow_call:
-    inputs:
-      environment:
-        description: Environment
-        required: true
-        default: dev
-        type: string
-      image_tag:
-        description: Docker image tag (e.g., v1.2.3)
-        required: false
-        type: string
-
 env:
   AWS_REGION: us-east-1
-  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/storefront/${{ github.event.inputs.environment || 'dev' }}
-  IMAGE_TAG: ${{ github.event.inputs.image_tag || github.ref_name }}
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/storefront/${{ inputs.environment || github.event.inputs.environment || 'dev' }}
+  IMAGE_TAG: ${{ inputs.image_tag || github.event.inputs.image_tag || github.ref_name }}
   PYTHON_VERSION: "3.11"
-  CDK_ENV: ${{ github.event.inputs.environment || 'dev' }}
+  CDK_ENV: ${{ inputs.environment || github.event.inputs.environment || 'dev' }}
 
 jobs:
   login-to-aws:
@@ -160,3 +159,20 @@ jobs:
         run: |
           source .venv/bin/activate
           cdk deploy --require-approval never --all
+
+          
+      - name: Post deployment notification
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const imageTag = '${{ needs.semantic-release.outputs.new-release-version || github.event.inputs.image_tag || 'latest' }}';
+            github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: `🎉 **Application Deployed to Production**\n\n` +
+                    `- **Environment**: production\n` +
+                    `- **Image Tag**: ${imageTag}\n` +
+                    `- **Status**: ✅ Success\n` +
+                    `- **Timestamp**: ${new Date().toISOString()}`
+            });
