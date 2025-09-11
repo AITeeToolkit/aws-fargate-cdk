@@ -46,7 +46,8 @@ class APIServiceStack(Stack):
             "POSTGRES_USER": f"/storefront-{environment}/database/username",
             "POSTGRES_PASSWORD": f"/storefront-{environment}/database/password",
             "REDIS_URL": f"/storefront-{environment}/redis-url",
-            "POSTGRES_DB": f"/storefront-{environment}/database/name"
+            "POSTGRES_DB": f"/storefront-{environment}/database/name",
+            "DATABASE_URL": f"/storefront-{environment}/database/url"
         }
 
         # Use the Fargate service construct for consistency
