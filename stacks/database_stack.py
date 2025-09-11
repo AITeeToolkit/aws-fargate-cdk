@@ -30,7 +30,7 @@ class DatabaseStack(Stack):
         self.db_instance = rds.DatabaseInstance(
             self, f"StorefrontPostgres-{environment}",
             engine=rds.DatabaseInstanceEngine.postgres(
-                version=rds.PostgresEngineVersion.VER_15_2
+                version=rds.PostgresEngineVersion.VER_16_2
             ),
             vpc=vpc,
             credentials=credentials,
