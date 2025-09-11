@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.4](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.11.3...v1.11.4) (2025-09-11)
+
+
+### 🐛 Bug Fixes
+
+* create execution role explicitly to avoid NoneType error ([510fa04](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/510fa045c876f21c0878c8485ddf8fbe65f0b452))
+
 ## [1.11.3](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.11.2...v1.11.3) (2025-09-11)
 
 
