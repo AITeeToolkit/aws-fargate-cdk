@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.9.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.8.2...v1.9.0) (2025-09-11)
+
+
+### 🚀 Features
+
+* make ALB listener configuration optional for private Fargate services ([d12690d](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/d12690d36afbb2ac03c29ecbe01564e7059c0f8a))
+
 ## [1.8.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.8.1...v1.8.2) (2025-09-11)
 
 
