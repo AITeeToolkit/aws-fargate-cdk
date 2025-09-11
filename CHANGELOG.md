@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.8.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.7.1...v1.8.0) (2025-09-11)
+
+
+### 🚀 Features
+
+* add API service stack and integrate secrets management for web/API services ([3ecb368](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/3ecb3680290acba3bd4bfbd542dbe8ddd074fe37))
+
 ## [1.7.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.7.0...v1.7.1) (2025-09-10)
 
 
