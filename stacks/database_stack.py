@@ -48,7 +48,7 @@ class DatabaseStack(Stack):
             vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC)
         )
 
-        # Choose subnet group based on toggle
+        # Choose subnet group based on toggle switch
         selected_subnet_group = public_subnet_group if use_public_subnets else private_subnet_group
 
         # Create the RDS PostgreSQL instance
