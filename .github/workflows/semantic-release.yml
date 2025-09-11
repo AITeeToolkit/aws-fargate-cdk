@@ -2,7 +2,7 @@ name: Semantic Release
 
 on:
   push:
-    branches: [main]
+    branches: ['**']  # Run on all branches
 
 env:
   GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
@@ -11,6 +11,7 @@ jobs:
   semantic-release:
     name: Semantic Release
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'  # Only run semantic-release on main branch
     outputs:
       new_release: ${{ steps.release_info.outputs.new_release }}
       latest_tag: ${{ steps.release_info.outputs.latest_tag }}
@@ -53,19 +54,40 @@ jobs:
             echo "No new release created"
           fi
 
-  trigger-deployment:
-    name: Trigger Application Deployment
-    needs: semantic-release
-    if: needs.semantic-release.outputs.new_release == 'true'
-    uses: ./.github/workflows/application.yml
-    with:
-      environment: dev
-      image_tag: ${{ needs.semantic-release.outputs.latest_tag }}
-    secrets: inherit
+  dev-deployment:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.tag.outputs.image_tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate image tag
+        id: tag
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            # Use latest tag for main branch
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "latest")
+            echo "image_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          else
+            # Use branch name and short SHA for feature branches
+            BRANCH_NAME=${GITHUB_REF#refs/heads/}
+            CLEAN_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]')
+            SHORT_SHA=${GITHUB_SHA:0:7}
+            echo "image_tag=${CLEAN_BRANCH}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy to Development
+        uses: ./.github/workflows/application.yml
+        with:
+          environment: dev
+          image_tag: ${{ steps.tag.outputs.image_tag }}
+        secrets: inherit
 
   deploy-production:
     name: Deploy to Production
-    needs: [semantic-release, trigger-deployment]
+    needs: [semantic-release, dev-deployment]
     if: needs.semantic-release.outputs.new_release == 'true'
     uses: ./.github/workflows/application.yml
     with:
@@ -75,7 +97,7 @@ jobs:
 
   deployment-summary:
     name: Deployment Summary
-    needs: [semantic-release, trigger-deployment, deploy-production]
+    needs: [semantic-release, dev-deployment, deploy-production]
     if: needs.semantic-release.outputs.new_release == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -85,7 +107,7 @@ jobs:
       - name: Generate Deployment Summary
         env:
           VERSION: ${{ needs.semantic-release.outputs.latest_tag }}
-          DEV_STATUS: ${{ needs.trigger-deployment.result }}
+          DEV_STATUS: ${{ needs.dev-deployment.result }}
           PROD_STATUS: ${{ needs.deploy-production.result }}
         run: |
           echo "# 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY

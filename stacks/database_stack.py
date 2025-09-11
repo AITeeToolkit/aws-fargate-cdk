@@ -8,6 +8,7 @@ from aws_cdk import (
 )
 from constructs import Construct
 
+
 class DatabaseStack(Stack):
     def __init__(
         self,
@@ -16,39 +17,50 @@ class DatabaseStack(Stack):
         *,
         vpc: ec2.IVpc,
         environment: str = "dev",
+        use_public_subnets: bool = False,  # set to True to make DB public
         **kwargs
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # RDS credentials stored in Secrets Manager
+        # Optionally allow override from context
+        context_override = self.node.try_get_context("public_db")
+        if context_override is not None:
+            use_public_subnets = str(context_override).lower() == "true"
+
+        # Store RDS credentials in Secrets Manager
         credentials = rds.Credentials.from_generated_secret(
             username="dbadmin",
             secret_name=f"storefront/{environment}/rds-credentials"
         )
 
-        # Create public subnet group only (private one already exists from previous deployment)
+        # Define subnet groups
+        private_subnet_group = rds.SubnetGroup(
+            self, f"StorefrontPostgres{environment.title()}PrivateSubnetGroup",
+            description="Private subnet group for RDS",
+            vpc=vpc,
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS)
+        )
+
         public_subnet_group = rds.SubnetGroup(
             self, f"StorefrontPostgres{environment.title()}PublicSubnetGroup",
-            description=f"Subnet group for StorefrontPostgres-{environment} database (public)",
+            description="Public subnet group for RDS",
             vpc=vpc,
             vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC)
         )
-        
-        # Choose which subnet group to use (change this line to switch)
-        # For private: use vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS)
-        # For public: use subnet_group=public_subnet_group
-        use_public_subnets = True
 
-        # Create a PostgreSQL database instance
+        # Choose subnet group based on toggle
+        selected_subnet_group = public_subnet_group if use_public_subnets else private_subnet_group
+
+        # Create the RDS PostgreSQL instance
         self.db_instance = rds.DatabaseInstance(
             self, f"StorefrontPostgres-{environment}",
-            engine = rds.DatabaseInstanceEngine.postgres(
-                version=rds.PostgresEngineVersion.of("17.6", "17")
+            engine=rds.DatabaseInstanceEngine.postgres(
+                version=rds.PostgresEngineVersion.of("17.6", "17")  # update as needed
             ),
             vpc=vpc,
+            subnet_group=selected_subnet_group,
+            publicly_accessible=use_public_subnets,
             credentials=credentials,
-            subnet_group=public_subnet_group if use_public_subnets else None,
-            vpc_subnets=None if use_public_subnets else ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
             multi_az=False,
             allocated_storage=20,
             max_allocated_storage=100,
@@ -59,9 +71,8 @@ class DatabaseStack(Stack):
             backup_retention=Duration.days(7),
             removal_policy=RemovalPolicy.SNAPSHOT,
             delete_automated_backups=True,
-            publicly_accessible=True,
-            # publicly_accessible=True,
             database_name=f"storefront_{environment}"
         )
 
+        # Expose the secret for downstream use
         self.secret = self.db_instance.secret
