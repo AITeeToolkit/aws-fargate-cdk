@@ -26,6 +26,7 @@ class DatabaseStack(Stack):
             secret_name=f"storefront/{environment}/rds-credentials"
         )
 
+
         # Create a PostgreSQL database instance
         self.db_instance = rds.DatabaseInstance(
             self, f"StorefrontPostgres-{environment}",
@@ -34,7 +35,8 @@ class DatabaseStack(Stack):
             ),
             vpc=vpc,
             credentials=credentials,
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
+            # vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
             multi_az=False,
             allocated_storage=20,
             max_allocated_storage=100,
@@ -45,7 +47,8 @@ class DatabaseStack(Stack):
             backup_retention=Duration.days(7),
             removal_policy=RemovalPolicy.SNAPSHOT,
             delete_automated_backups=True,
-            publicly_accessible=False,
+            publicly_accessible=True,
+            # publicly_accessible=True,
             database_name=f"storefront_{environment}"
         )
 
