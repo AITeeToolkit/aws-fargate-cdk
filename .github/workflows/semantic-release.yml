@@ -62,3 +62,67 @@ jobs:
       environment: dev
       image_tag: ${{ needs.semantic-release.outputs.latest_tag }}
     secrets: inherit
+
+  deploy-production:
+    name: Deploy to Production
+    needs: [semantic-release, trigger-deployment]
+    if: needs.semantic-release.outputs.new_release == 'true'
+    uses: ./.github/workflows/application.yml
+    with:
+      environment: prod
+      image_tag: ${{ needs.semantic-release.outputs.latest_tag }}
+    secrets: inherit
+
+  deployment-summary:
+    name: Deployment Summary
+    needs: [semantic-release, trigger-deployment, deploy-production]
+    if: needs.semantic-release.outputs.new_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate Deployment Summary
+        env:
+          VERSION: ${{ needs.semantic-release.outputs.latest_tag }}
+          DEV_STATUS: ${{ needs.trigger-deployment.result }}
+          PROD_STATUS: ${{ needs.deploy-production.result }}
+        run: |
+          echo "# 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Release Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** \`$VERSION\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | Status | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          
+          # Development status
+          if [ "$DEV_STATUS" = "success" ]; then
+            echo "| Development | ✅ Success | Deployed successfully |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Development | ❌ Failed | Deployment failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Production status
+          if [ "$PROD_STATUS" = "success" ]; then
+            echo "| Production | ✅ Success | Deployed successfully |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Production | ❌ Failed | Deployment failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Infrastructure Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **AWS Region:** us-east-1" >> $GITHUB_STEP_SUMMARY
+          echo "- **ECS Cluster:** Storefront" >> $GITHUB_STEP_SUMMARY
+          echo "- **Database:** PostgreSQL on RDS" >> $GITHUB_STEP_SUMMARY
+          echo "- **Container Registry:** ECR" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## Quick Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [Release Notes](https://github.com/${{ github.repository }}/releases/tag/$VERSION)" >> $GITHUB_STEP_SUMMARY
+          echo "- [AWS Console](https://console.aws.amazon.com/ecs/home?region=us-east-1#/clusters)" >> $GITHUB_STEP_SUMMARY
+          echo "- [CloudWatch Logs](https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups)" >> $GITHUB_STEP_SUMMARY
