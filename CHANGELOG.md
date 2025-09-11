@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.15.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.15.0...v1.15.1) (2025-09-11)
+
+
+### ♻️ Code Refactoring
+
+* add feature branch support and configurable public/private DB subnet selection ([d72a2ec](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/d72a2ec2ed0956ac2ad0cd2cd2525c19f0817eab))
+* split image tag generation into separate reusable workflow job ([6ce1b88](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/6ce1b889e74fa91a24342756afa641e47b43a291))
+
 ## [1.15.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.14.1...v1.15.0) (2025-09-11)
 
 
