@@ -54,14 +54,16 @@ jobs:
             echo "No new release created"
           fi
 
-  dev-deployment:
-    name: Deploy to Development
+  generate-tag:
+    name: Generate Image Tag
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.tag.outputs.image_tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Generate image tag
         id: tag
@@ -78,12 +80,14 @@ jobs:
             echo "image_tag=${CLEAN_BRANCH}-${SHORT_SHA}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Deploy to Development
-        uses: ./.github/workflows/application.yml
-        with:
-          environment: dev
-          image_tag: ${{ steps.tag.outputs.image_tag }}
-        secrets: inherit
+  dev-deployment:
+    name: Deploy to Development
+    needs: generate-tag
+    uses: ./.github/workflows/application.yml
+    with:
+      environment: dev
+      image_tag: ${{ needs.generate-tag.outputs.image_tag }}
+    secrets: inherit
 
   deploy-production:
     name: Deploy to Production
