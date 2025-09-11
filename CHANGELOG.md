@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.14.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.14.0...v1.14.1) (2025-09-11)
+
+
+### ♻️ Code Refactoring
+
+* simplify RDS subnet configuration by removing subnet group abstraction ([07bd591](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/07bd591145dea7e49c9c02e50a0083bb8519d3a5))
+
 ## [1.14.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.13.0...v1.14.0) (2025-09-11)
 
 
