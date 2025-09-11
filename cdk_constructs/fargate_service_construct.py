@@ -3,11 +3,10 @@
 from aws_cdk import (
     aws_ecs as ecs,
     aws_ec2 as ec2,
-    aws_iam as iam,
     aws_elasticloadbalancingv2 as elbv2,
     aws_logs as logs,
-    Duration,
-    RemovalPolicy,
+    aws_ssm as ssm,
+    RemovalPolicy
 )
 from constructs import Construct
 
@@ -27,6 +26,7 @@ class FargateServiceConstruct(Construct):
         path_pattern: str = "/*",
         priority: int = 100,
         environment: dict = {},
+        secrets: dict = {},
     ) -> None:
         super().__init__(scope, id)
 
@@ -42,12 +42,22 @@ class FargateServiceConstruct(Construct):
             cpu=256
         )
 
+        # Convert secrets dict to ECS secrets format
+        ecs_secrets = {}
+        for name, value_from in secrets.items():
+            ecs_secrets[name] = ecs.Secret.from_ssm_parameter(
+                ssm.StringParameter.from_string_parameter_name(
+                    self, f"{name}Param", value_from
+                )
+            )
+
         container = task_def.add_container(
             f"{id}Container",
             image=container_image,
             container_name=id,
             port_mappings=[ecs.PortMapping(container_port=container_port)],
             environment=environment,
+            secrets=ecs_secrets,
             logging=ecs.LogDriver.aws_logs(
                 stream_prefix=id,
                 log_group=log_group

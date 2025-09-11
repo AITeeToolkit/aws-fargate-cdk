@@ -9,6 +9,7 @@ from stacks.web_alb_stack import WebAlbStack
 from stacks.ecr_stack import ECRStack
 from stacks.database_stack import DatabaseStack
 from stacks.web_service_stack import WebServiceStack
+from stacks.api_service_stack import APIServiceStack
 from stacks.iam_stack import IAMStack
 
 app = cdk.App()
@@ -60,14 +61,27 @@ database_stack = DatabaseStack(
     environment=env_name
 )
 
-# Deploy the service FIRST without attaching to listener
+# Deploy API service (internal only)
+api_service = APIServiceStack(
+    app, f"StorefrontAPIServiceStack-{env_name}",
+    env=env,
+    vpc=network_stack.vpc,
+    cluster=shared_stack.cluster,
+    image_uri=ecr_stack.repositories["api"].repository_uri,
+    db_secret=database_stack.secret,
+    environment=env_name
+)
+
+# Deploy web service (public-facing)
 web_service = WebServiceStack(
     app, f"StorefrontWebServiceStack-{env_name}",
     env=env,
     vpc=network_stack.vpc,
     cluster=shared_stack.cluster,
     listener=web_alb_stack.listener,
-    image_uri=ecr_stack.repositories["web"].repository_uri
+    image_uri=ecr_stack.repositories["web"].repository_uri,
+    db_secret=database_stack.secret,
+    environment=env_name
 )
 
 # THEN attach it in WebAlbStack
