@@ -6,6 +6,7 @@ from aws_cdk import (
     aws_elasticloadbalancingv2 as elbv2,
     aws_logs as logs,
     aws_ssm as ssm,
+    aws_iam as iam,
     RemovalPolicy
 )
 from constructs import Construct
@@ -40,6 +41,24 @@ class FargateServiceConstruct(Construct):
             self, f"{id}TaskDef",
             memory_limit_mib=512,
             cpu=256
+        )
+
+        # Add ECR permissions to task role
+        task_def.task_role.add_managed_policy(
+            iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2ContainerRegistryReadOnlyAccess")
+        )
+
+        # Add SSM permissions for parameter store access
+        task_def.task_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "ssm:GetParameter",
+                    "ssm:GetParameters",
+                    "ssm:GetParametersByPath"
+                ],
+                resources=[f"arn:aws:ssm:*:*:parameter/storefront-*"]
+            )
         )
 
         # Convert secrets dict to ECS secrets format

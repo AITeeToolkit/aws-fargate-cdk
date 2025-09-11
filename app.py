@@ -23,11 +23,11 @@ domains = ["040992.xyz"]
 # iam_stack = IAMStack(app, "StorefrontIAMStack", env=env)
 
 # Parameters Stack - deploy this first to create Parameter Store values
-parameters_stack = ParametersStack(
-    app, f"StorefrontParametersStack-{env_name}",
-    env=env,
-    environment=env_name
-)
+# parameters_stack = ParametersStack(
+#     app, f"StorefrontParametersStack-{env_name}",
+#     env=env,
+#     environment=env_name
+# )
 
 # Network and ECS Cluster
 network_stack = NetworkStack(app, "StorefrontNetworkStack", env=env)
