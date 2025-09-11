@@ -73,18 +73,20 @@ class FargateServiceConstruct(Construct):
             vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS)
         )
 
-        listener.add_targets(
-            f"{id}Rule",
-            port=container_port,
-            protocol=elbv2.ApplicationProtocol.HTTP,
-            targets=[service],
-            conditions=[
-                elbv2.ListenerCondition.path_patterns([path_pattern]),
-                *([elbv2.ListenerCondition.host_headers([host_header])] if host_header else [])
-            ],
-            priority=priority,
-            health_check=elbv2.HealthCheck(path="/")
-        )
+        # Only configure ALB targets if a listener is provided (for public-facing services)
+        if listener:
+            listener.add_targets(
+                f"{id}Rule",
+                port=container_port,
+                protocol=elbv2.ApplicationProtocol.HTTP,
+                targets=[service],
+                conditions=[
+                    elbv2.ListenerCondition.path_patterns([path_pattern]),
+                    *([elbv2.ListenerCondition.host_headers([host_header])] if host_header else [])
+                ],
+                priority=priority,
+                health_check=elbv2.HealthCheck(path="/")
+            )
 
         # Expose the service so it can be referenced externally (e.g. in WebServiceStack)
         self.service = service
