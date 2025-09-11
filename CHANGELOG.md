@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.10.0...v1.11.0) (2025-09-11)
+
+
+### 🚀 Features
+
+* add ECR and SSM parameter store permissions to Fargate task role ([4f0830f](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/4f0830ff2d5dde5abc4e87e8f9fc436c290565c5))
+
 ## [1.10.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.9.0...v1.10.0) (2025-09-11)
 
 
