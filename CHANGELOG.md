@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.3](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.11.2...v1.11.3) (2025-09-11)
+
+
+### 🐛 Bug Fixes
+
+* add comprehensive IAM permissions for ECS Fargate services ([7c9b639](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/7c9b639540bdbb9015e6fd7bb714653443010ac9))
+
 ## [1.11.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.11.1...v1.11.2) (2025-09-11)
 
 
