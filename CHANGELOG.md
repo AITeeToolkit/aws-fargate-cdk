@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.10.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.9.0...v1.10.0) (2025-09-11)
+
+
+### 🚀 Features
+
+* add comprehensive README documentation ([8c58cbd](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/8c58cbd0613b238d6cdae13ad8e61d274d68fdea))
+
 ## [1.9.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.8.2...v1.9.0) (2025-09-11)
 
 
