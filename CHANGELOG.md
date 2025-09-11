@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.8.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.8.0...v1.8.1) (2025-09-11)
+
+
+### ♻️ Code Refactoring
+
+* update workflow inputs structure and add post-deployment notification ([20d5101](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/20d510154ac7823c1d91e4187704682a6afd2178))
+
 ## [1.8.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.7.1...v1.8.0) (2025-09-11)
 
 
