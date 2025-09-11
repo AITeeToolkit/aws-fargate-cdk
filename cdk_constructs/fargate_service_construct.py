@@ -37,10 +37,47 @@ class FargateServiceConstruct(Construct):
             retention=logs.RetentionDays.ONE_WEEK
         )
 
+        # Create execution role explicitly
+        execution_role = iam.Role(
+            self, f"{id}ExecutionRole",
+            assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AmazonECSTaskExecutionRolePolicy")
+            ]
+        )
+
+        # Add ECR permissions to execution role for image pulling
+        execution_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "ecr:GetAuthorizationToken",
+                    "ecr:BatchCheckLayerAvailability",
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:BatchGetImage"
+                ],
+                resources=["*"]
+            )
+        )
+
+        # Add SSM permissions to execution role for secrets retrieval
+        execution_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "ssm:GetParameter",
+                    "ssm:GetParameters",
+                    "ssm:GetParametersByPath"
+                ],
+                resources=[f"arn:aws:ssm:*:*:parameter/storefront-*"]
+            )
+        )
+
         task_def = ecs.FargateTaskDefinition(
             self, f"{id}TaskDef",
             memory_limit_mib=512,
-            cpu=256
+            cpu=256,
+            execution_role=execution_role
         )
 
         # Add ECR permissions to task role for pulling images
@@ -84,38 +121,6 @@ class FargateServiceConstruct(Construct):
                     "secretsmanager:DescribeSecret"
                 ],
                 resources=[f"arn:aws:secretsmanager:*:*:secret:storefront/*"]
-            )
-        )
-
-        # Add execution role permissions for ECS agent
-        task_def.execution_role.add_managed_policy(
-            iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AmazonECSTaskExecutionRolePolicy")
-        )
-
-        # Add ECR permissions to execution role for image pulling
-        task_def.execution_role.add_to_policy(
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                actions=[
-                    "ecr:GetAuthorizationToken",
-                    "ecr:BatchCheckLayerAvailability",
-                    "ecr:GetDownloadUrlForLayer",
-                    "ecr:BatchGetImage"
-                ],
-                resources=["*"]
-            )
-        )
-
-        # Add SSM permissions to execution role for secrets retrieval
-        task_def.execution_role.add_to_policy(
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                actions=[
-                    "ssm:GetParameter",
-                    "ssm:GetParameters",
-                    "ssm:GetParametersByPath"
-                ],
-                resources=[f"arn:aws:ssm:*:*:parameter/storefront-*"]
             )
         )
 
