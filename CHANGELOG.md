@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.8.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.8.1...v1.8.2) (2025-09-11)
+
+
+### 🐛 Bug Fixes
+
+* downgrade Postgres version from 15.8 to 15.2 in database stack ([72ecf7e](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/72ecf7e1e62a3662d6d58f0d37ce938b1c9dc85f))
+
 ## [1.8.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.8.0...v1.8.1) (2025-09-11)
 
 
