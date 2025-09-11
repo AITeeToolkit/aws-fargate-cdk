@@ -43,13 +43,71 @@ class FargateServiceConstruct(Construct):
             cpu=256
         )
 
-        # Add ECR permissions to task role
+        # Add ECR permissions to task role for pulling images
         task_def.task_role.add_managed_policy(
-            iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2ContainerRegistryReadOnlyAccess")
+            iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2ContainerRegistryReadOnly")
         )
 
         # Add SSM permissions for parameter store access
         task_def.task_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "ssm:GetParameter",
+                    "ssm:GetParameters",
+                    "ssm:GetParametersByPath"
+                ],
+                resources=[f"arn:aws:ssm:*:*:parameter/storefront-*"]
+            )
+        )
+
+        # Add CloudWatch Logs permissions for logging
+        task_def.task_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                    "logs:DescribeLogStreams"
+                ],
+                resources=["arn:aws:logs:*:*:*"]
+            )
+        )
+
+        # Add Secrets Manager permissions if using RDS secrets
+        task_def.task_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "secretsmanager:GetSecretValue",
+                    "secretsmanager:DescribeSecret"
+                ],
+                resources=[f"arn:aws:secretsmanager:*:*:secret:storefront/*"]
+            )
+        )
+
+        # Add execution role permissions for ECS agent
+        task_def.execution_role.add_managed_policy(
+            iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AmazonECSTaskExecutionRolePolicy")
+        )
+
+        # Add ECR permissions to execution role for image pulling
+        task_def.execution_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "ecr:GetAuthorizationToken",
+                    "ecr:BatchCheckLayerAvailability",
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:BatchGetImage"
+                ],
+                resources=["*"]
+            )
+        )
+
+        # Add SSM permissions to execution role for secrets retrieval
+        task_def.execution_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
                 actions=[
