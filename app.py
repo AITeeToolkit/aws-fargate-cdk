@@ -24,7 +24,7 @@ domains = ["040992.xyz"]
 image_tag = os.environ.get("CDK_IMAGE_TAG", "latest")
 
 # # IAM Stack for CI/CD permissions - deploy this first to bootstrap permissions
-iam_stack = IAMStack(app, "StorefrontIAMStack", env=env)
+# iam_stack = IAMStack(app, "StorefrontIAMStack", env=env)
 
 # Network and ECS Cluster
 network_stack = NetworkStack(app, "StorefrontNetworkStack", env=env)
