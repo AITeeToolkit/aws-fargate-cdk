@@ -5,6 +5,7 @@ from aws_cdk import (
     aws_rds as rds,
     aws_ec2 as ec2,
     aws_secretsmanager as secretsmanager,
+    aws_ssm as ssm,
 )
 from constructs import Construct
 
@@ -87,3 +88,25 @@ class DatabaseStack(Stack):
         )
 
         self.secret = self.db_instance.secret
+
+        # Write database connection details to SSM Parameter Store
+        # This eliminates CloudFormation export dependencies
+        ssm.StringParameter(
+            self, f"DatabaseHost-{environment}",
+            parameter_name=f"/storefront-{environment}/database/host",
+            string_value=self.db_instance.instance_endpoint.hostname,
+            description=f"Database hostname for storefront {environment}"
+        )
+
+        ssm.StringParameter(
+            self, f"DatabasePort-{environment}",
+            parameter_name=f"/storefront-{environment}/database/port",
+            string_value=str(self.db_instance.instance_endpoint.port),
+            description=f"Database port for storefront {environment}"
+        )
+
+        # Expose properties for direct CDK references (no CloudFormation exports)
+        self.database_host = self.db_instance.instance_endpoint.hostname
+        self.database_port = self.db_instance.instance_endpoint.port
+        self.database_name = f"storefront_{environment}"
+        self.database_username = "postgres"

@@ -66,12 +66,12 @@ database_stack = DatabaseStack(
     environment=env_name
 )
 
-# Parameters Stack - create after database stack to get real connection details
+# Parameters Stack - independent of database stack
 # parameters_stack = ParametersStack(
 #     app, f"StorefrontParametersStack-{env_name}",
 #     env=env,
 #     environment=env_name,
-#     database_stack=database_stack
+#     database_stack=None
 # )
 
 # Deploy API service (internal only)
