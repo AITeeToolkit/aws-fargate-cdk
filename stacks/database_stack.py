@@ -47,6 +47,21 @@ class DatabaseStack(Stack):
             vpc_subnets=mixed_subnets
         )
 
+        # Create database security group
+        self.db_security_group = ec2.SecurityGroup(
+            self, f"DatabaseSecurityGroup-{environment}",
+            vpc=vpc,
+            description=f"Security group for RDS PostgreSQL instance - {environment}",
+            allow_all_outbound=False
+        )
+
+        # Allow PostgreSQL connections from VPC
+        self.db_security_group.add_ingress_rule(
+            peer=ec2.Peer.ipv4(vpc.vpc_cidr_block),
+            connection=ec2.Port.tcp(5432),
+            description="Allow PostgreSQL access from VPC"
+        )
+
         # Create the RDS DB instance
         self.db_instance = rds.DatabaseInstance(
             self, f"StorefrontPostgres-{environment}",
@@ -67,7 +82,8 @@ class DatabaseStack(Stack):
             backup_retention=Duration.days(7),
             removal_policy=RemovalPolicy.SNAPSHOT,
             delete_automated_backups=True,
-            database_name=f"storefront_{environment}"
+            database_name=f"storefront_{environment}",
+            security_groups=[self.db_security_group]
         )
 
         self.secret = self.db_instance.secret
