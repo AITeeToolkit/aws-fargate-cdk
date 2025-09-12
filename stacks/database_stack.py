@@ -28,7 +28,7 @@ class DatabaseStack(Stack):
 
         # Store credentials in Secrets Manager
         credentials = rds.Credentials.from_generated_secret(
-            username="dbadmin",
+            username="postgres",
             secret_name=f"storefront/{environment}/rds-credentials"
         )
 
