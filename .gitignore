@@ -1,5 +1,6 @@
 parameters_stack.py
 parameter-backup.json
+latest-postgres-backup.gz
 cdk.out/
 **/__pycache__/
 *.pyc
