@@ -12,7 +12,7 @@ from stacks.database_stack import DatabaseStack
 from stacks.web_service_stack import WebServiceStack
 from stacks.api_service_stack import APIServiceStack
 from stacks.iam_stack import IAMStack
-from stacks.parameters_stack import ParametersStack
+# from stacks.parameters_stack import ParametersStack
 
 app = cdk.App()
 
@@ -67,12 +67,12 @@ database_stack = DatabaseStack(
 )
 
 # Parameters Stack - independent of database stack
-parameters_stack = ParametersStack(
-    app, f"StorefrontParametersStack-{env_name}",
-    env=env,
-    environment=env_name,
-    database_stack=None
-)
+# parameters_stack = ParametersStack(
+#     app, f"StorefrontParametersStack-{env_name}",
+#     env=env,
+#     environment=env_name,
+#     database_stack=None
+# )
 
 # Deploy API service (internal only)
 api_service = APIServiceStack(
