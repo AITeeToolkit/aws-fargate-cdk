@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import aws_cdk as cdk
 from stacks.network_stack import NetworkStack
 from stacks.shared_stack import SharedStack
@@ -18,6 +19,9 @@ app = cdk.App()
 env = cdk.Environment(account="156041439702", region="us-east-1")
 env_name = app.node.try_get_context("env") or "dev"
 domains = ["040992.xyz"]
+
+# Get the image tag from environment variable (set by CI/CD) or default to 'latest'
+image_tag = os.environ.get("CDK_IMAGE_TAG", "latest")
 
 # # IAM Stack for CI/CD permissions - deploy this first to bootstrap permissions
 # iam_stack = IAMStack(app, "StorefrontIAMStack", env=env)
@@ -75,7 +79,7 @@ api_service = APIServiceStack(
     env=env,
     vpc=network_stack.vpc,
     cluster=shared_stack.cluster,
-    image_uri=ecr_stack.repositories["api"].repository_uri,
+    image_uri=f"{ecr_stack.repositories['api'].repository_uri}:{image_tag}",
     db_secret=database_stack.secret,
     environment=env_name
 )
@@ -87,7 +91,7 @@ web_service = WebServiceStack(
     vpc=network_stack.vpc,
     cluster=shared_stack.cluster,
     listener=web_alb_stack.listener,
-    image_uri=ecr_stack.repositories["web"].repository_uri,
+    image_uri=f"{ecr_stack.repositories['web'].repository_uri}:{image_tag}",
     db_secret=database_stack.secret,
     environment=env_name
 )
