@@ -24,14 +24,7 @@ domains = ["040992.xyz"]
 image_tag = os.environ.get("CDK_IMAGE_TAG", "latest")
 
 # # IAM Stack for CI/CD permissions - deploy this first to bootstrap permissions
-# iam_stack = IAMStack(app, "StorefrontIAMStack", env=env)
-
-# Parameters Stack - deploy this first to create Parameter Store values
-# parameters_stack = ParametersStack(
-#     app, f"StorefrontParametersStack-{env_name}",
-#     env=env,
-#     environment=env_name
-# )
+iam_stack = IAMStack(app, "StorefrontIAMStack", env=env)
 
 # Network and ECS Cluster
 network_stack = NetworkStack(app, "StorefrontNetworkStack", env=env)
@@ -72,6 +65,14 @@ database_stack = DatabaseStack(
     vpc=network_stack.vpc,
     environment=env_name
 )
+
+# Parameters Stack - create after database stack to get real connection details
+# parameters_stack = ParametersStack(
+#     app, f"StorefrontParametersStack-{env_name}",
+#     env=env,
+#     environment=env_name,
+#     database_stack=database_stack
+# )
 
 # Deploy API service (internal only)
 api_service = APIServiceStack(
