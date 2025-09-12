@@ -152,7 +152,7 @@ class FargateServiceConstruct(Construct):
             task_definition=task_def,
             desired_count=desired_count,
             assign_public_ip=False,
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS)
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED)
         )
 
         # Only configure ALB targets if a listener is provided (for public-facing services)
