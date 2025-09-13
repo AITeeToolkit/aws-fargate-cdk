@@ -7,6 +7,7 @@ from aws_cdk import (
 from constructs import Construct
 from aws_cdk.aws_ec2 import IVpc
 
+
 class SharedStack(Stack):
 
     def __init__(self, scope: Construct, construct_id: str, vpc: IVpc, **kwargs) -> None:
@@ -44,41 +45,76 @@ class SharedStack(Stack):
             )
         )
 
+        # Create security group for ECS tasks (allow outbound)
+        self.ecs_task_sg = ec2.SecurityGroup(
+            self, "ECSTaskSecurityGroup",
+            vpc=vpc,
+            description="Security group for ECS tasks",
+            allow_all_outbound=True
+        )
+        
         # Create security group for VPC endpoints
         vpc_endpoint_sg = ec2.SecurityGroup(
             self, "VpcEndpointSecurityGroup",
             vpc=vpc,
             description="Security group for VPC endpoints",
-            allow_all_outbound=True
+            allow_all_outbound=False
         )
         
         # Allow HTTPS traffic from private subnets to VPC endpoints
         vpc_endpoint_sg.add_ingress_rule(
-            peer=ec2.Peer.ipv4(vpc.vpc_cidr_block),
+            peer=self.ecs_task_sg,
             connection=ec2.Port.tcp(443),
-            description="Allow HTTPS from VPC"
+            description="Allow HTTPS from ECS tasks"
         )
 
-        # SSM VPC endpoints for secrets retrieval (REQUIRED for ECS secrets)
+        # Allow responses back to ECS tasks
+        self.ecs_task_sg.add_ingress_rule(
+            peer=vpc_endpoint_sg,
+            connection=ec2.Port.tcp(443),
+            description="Allow HTTPS from VPC endpoints"
+        )
+        
+        # Allow VPC endpoints to respond back to ECS tasks
+        vpc_endpoint_sg.add_egress_rule(
+            peer=ec2.Peer.ipv4(vpc.vpc_cidr_block),
+            connection=ec2.Port.tcp(443),
+            description="Allow HTTPS responses to VPC"
+        )
+
         self.ssm_vpc_endpoint = ec2.InterfaceVpcEndpoint(
             self, "SSMVpcEndpoint",
             vpc=vpc,
             service=ec2.InterfaceVpcEndpointAwsService.SSM,
-            subnets=ec2.SubnetSelection(
-                subnet_type=ec2.SubnetType.PRIVATE_ISOLATED
-            ),
+            subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
             private_dns_enabled=True,
             security_groups=[vpc_endpoint_sg]
         )
 
-        # ECR VPC endpoints for container image pulling (REQUIRED for ECS)
+        self.ssm_messages_vpc_endpoint = ec2.InterfaceVpcEndpoint(
+            self, "SSMMessagesVpcEndpointV2",
+            vpc=vpc,
+            service=ec2.InterfaceVpcEndpointAwsService.SSM_MESSAGES,
+            subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
+            private_dns_enabled=True,
+            security_groups=[vpc_endpoint_sg]
+        )
+
+        self.ec2_messages_vpc_endpoint = ec2.InterfaceVpcEndpoint(
+            self, "EC2MessagesVpcEndpointV2",
+            vpc=vpc,
+            service=ec2.InterfaceVpcEndpointAwsService.EC2_MESSAGES,
+            subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
+            private_dns_enabled=True,
+            security_groups=[vpc_endpoint_sg]
+        )
+
+        # Keep ECR and CloudWatch Logs endpoints (required)
         self.ecr_api_vpc_endpoint = ec2.InterfaceVpcEndpoint(
             self, "ECRApiVpcEndpoint",
             vpc=vpc,
             service=ec2.InterfaceVpcEndpointAwsService.ECR,
-            subnets=ec2.SubnetSelection(
-                subnet_type=ec2.SubnetType.PRIVATE_ISOLATED
-            ),
+            subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
             private_dns_enabled=True,
             security_groups=[vpc_endpoint_sg]
         )
@@ -87,74 +123,25 @@ class SharedStack(Stack):
             self, "ECRDkrVpcEndpoint",
             vpc=vpc,
             service=ec2.InterfaceVpcEndpointAwsService.ECR_DOCKER,
-            subnets=ec2.SubnetSelection(
-                subnet_type=ec2.SubnetType.PRIVATE_ISOLATED
-            ),
-            private_dns_enabled=True,
-            security_groups=[vpc_endpoint_sg]
-        )
-        
-        # EC2 VPC endpoint (REQUIRED for ECS tasks to communicate with ECS service)
-        self.ec2_vpc_endpoint = ec2.InterfaceVpcEndpoint(
-            self, "EC2VpcEndpoint",
-            vpc=vpc,
-            service=ec2.InterfaceVpcEndpointAwsService.EC2,
-            subnets=ec2.SubnetSelection(
-                subnet_type=ec2.SubnetType.PRIVATE_ISOLATED
-            ),
+            subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
             private_dns_enabled=True,
             security_groups=[vpc_endpoint_sg]
         )
 
-        # ECS VPC endpoint (REQUIRED for ECS tasks to register with ECS service)
-        self.ecs_vpc_endpoint = ec2.InterfaceVpcEndpoint(
-            self, "ECSVpcEndpoint",
-            vpc=vpc,
-            service=ec2.InterfaceVpcEndpointAwsService.ECS,
-            subnets=ec2.SubnetSelection(
-                subnet_type=ec2.SubnetType.PRIVATE_ISOLATED
-            ),
-            private_dns_enabled=True,
-            security_groups=[vpc_endpoint_sg]
-        )
-
-        # S3 VPC endpoint for ECR layer downloads (Gateway endpoint - no cost)
-        self.s3_vpc_endpoint = ec2.GatewayVpcEndpoint(
-            self, "S3VpcEndpoint",
-            vpc=vpc,
-            service=ec2.GatewayVpcEndpointAwsService.S3
-        )
-
-        # CloudWatch Logs VPC endpoint (for ECS logging)
         self.logs_vpc_endpoint = ec2.InterfaceVpcEndpoint(
             self, "LogsVpcEndpoint",
             vpc=vpc,
             service=ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
-            subnets=ec2.SubnetSelection(
-                subnet_type=ec2.SubnetType.PRIVATE_ISOLATED
-            ),
+            subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
             private_dns_enabled=True,
             security_groups=[vpc_endpoint_sg]
         )
 
-        # Create security group for ECS tasks
-        self.ecs_task_sg = ec2.SecurityGroup(
-            self, "ECSTaskSecurityGroup",
+        # Gateway endpoint for S3 is correct
+        self.s3_vpc_endpoint = ec2.GatewayVpcEndpoint(
+            self, "S3VpcEndpoint",
             vpc=vpc,
-            description="Security group for ECS tasks",
-            allow_all_outbound=False
+            service=ec2.GatewayVpcEndpointAwsService.S3,
+            subnets=[ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED)]
         )
-        
-        # Allow ECS tasks to communicate with VPC endpoints
-        self.ecs_task_sg.add_egress_rule(
-            peer=ec2.Peer.ipv4(vpc.vpc_cidr_block),
-            connection=ec2.Port.tcp(443),
-            description="Allow HTTPS within VPC for VPC endpoints"
-        )
-        
-        # Allow DNS resolution for VPC endpoint private DNS
-        self.ecs_task_sg.add_egress_rule(
-            peer=ec2.Peer.ipv4(vpc.vpc_cidr_block),
-            connection=ec2.Port.udp(53),
-            description="Allow DNS within VPC"
-        )
+

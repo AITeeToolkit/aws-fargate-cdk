@@ -1,5 +1,3 @@
-# fargate_service_construct.py
-
 from aws_cdk import (
     aws_ecs as ecs,
     aws_ec2 as ec2,
@@ -10,6 +8,7 @@ from aws_cdk import (
     RemovalPolicy
 )
 from constructs import Construct
+
 
 class FargateServiceConstruct(Construct):
     def __init__(
@@ -32,13 +31,14 @@ class FargateServiceConstruct(Construct):
     ) -> None:
         super().__init__(scope, id)
 
+        # Log group for container logs
         log_group = logs.LogGroup(
             self, f"{id}LogGroup",
             removal_policy=RemovalPolicy.DESTROY,
             retention=logs.RetentionDays.ONE_WEEK
         )
 
-        # Create execution role explicitly
+        # Execution role for ECS tasks
         execution_role = iam.Role(
             self, f"{id}ExecutionRole",
             assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
@@ -47,7 +47,7 @@ class FargateServiceConstruct(Construct):
             ]
         )
 
-        # Add ECR permissions to execution role for image pulling
+        # Extra permissions for pulling from ECR + SSM Parameter Store
         execution_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
@@ -55,25 +55,16 @@ class FargateServiceConstruct(Construct):
                     "ecr:GetAuthorizationToken",
                     "ecr:BatchCheckLayerAvailability",
                     "ecr:GetDownloadUrlForLayer",
-                    "ecr:BatchGetImage"
-                ],
-                resources=["*"]
-            )
-        )
-
-        # Add SSM permissions to execution role for secrets retrieval
-        execution_role.add_to_policy(
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                actions=[
+                    "ecr:BatchGetImage",
                     "ssm:GetParameter",
                     "ssm:GetParameters",
                     "ssm:GetParametersByPath"
                 ],
-                resources=[f"arn:aws:ssm:*:*:parameter/storefront-*"]
+                resources=["*"]  # 🔹 Use wildcard to avoid mismatched parameter names
             )
         )
 
+        # Task definition
         task_def = ecs.FargateTaskDefinition(
             self, f"{id}TaskDef",
             memory_limit_mib=512,
@@ -81,12 +72,10 @@ class FargateServiceConstruct(Construct):
             execution_role=execution_role
         )
 
-        # Add ECR permissions to task role for pulling images
+        # Task role permissions (runtime access)
         task_def.task_role.add_managed_policy(
             iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2ContainerRegistryReadOnly")
         )
-
-        # Add SSM permissions for parameter store access
         task_def.task_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
@@ -95,11 +84,9 @@ class FargateServiceConstruct(Construct):
                     "ssm:GetParameters",
                     "ssm:GetParametersByPath"
                 ],
-                resources=[f"arn:aws:ssm:*:*:parameter/storefront-*"]
+                resources=["*"]  # 🔹 Loosen until you know your exact parameter ARNs
             )
         )
-
-        # Add CloudWatch Logs permissions for logging
         task_def.task_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
@@ -112,8 +99,6 @@ class FargateServiceConstruct(Construct):
                 resources=["arn:aws:logs:*:*:*"]
             )
         )
-
-        # Add Secrets Manager permissions if using RDS secrets
         task_def.task_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
@@ -121,11 +106,11 @@ class FargateServiceConstruct(Construct):
                     "secretsmanager:GetSecretValue",
                     "secretsmanager:DescribeSecret"
                 ],
-                resources=[f"arn:aws:secretsmanager:*:*:secret:storefront/*"]
+                resources=["*"]
             )
         )
 
-        # Convert secrets dict to ECS secrets format
+        # Map SSM parameters to ECS secrets
         ecs_secrets = {}
         for name, value_from in secrets.items():
             ecs_secrets[name] = ecs.Secret.from_ssm_parameter(
@@ -134,6 +119,7 @@ class FargateServiceConstruct(Construct):
                 )
             )
 
+        # Container definition
         container = task_def.add_container(
             f"{id}Container",
             image=container_image,
@@ -147,17 +133,20 @@ class FargateServiceConstruct(Construct):
             )
         )
 
+        # Fargate service in PRIVATE subnets (uses VPC endpoints)
         service = ecs.FargateService(
             self, f"{id}Service",
             cluster=cluster,
             task_definition=task_def,
             desired_count=desired_count,
             assign_public_ip=False,
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
+            vpc_subnets=ec2.SubnetSelection(
+                subnet_type=ec2.SubnetType.PRIVATE_ISOLATED
+            ),
             security_groups=security_groups if security_groups else []
         )
 
-        # Only configure ALB targets if a listener is provided (for public-facing services)
+        # Attach service to ALB listener (ALB still lives in public subnets)
         if listener:
             listener.add_targets(
                 f"{id}Rule",
@@ -172,5 +161,4 @@ class FargateServiceConstruct(Construct):
                 health_check=elbv2.HealthCheck(path="/")
             )
 
-        # Expose the service so it can be referenced externally (e.g. in WebServiceStack)
         self.service = service
