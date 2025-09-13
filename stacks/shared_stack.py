@@ -49,7 +49,7 @@ class SharedStack(Stack):
             self, "VpcEndpointSecurityGroup",
             vpc=vpc,
             description="Security group for VPC endpoints",
-            allow_all_outbound=False
+            allow_all_outbound=True
         )
         
         # Allow HTTPS traffic from private subnets to VPC endpoints
@@ -57,6 +57,18 @@ class SharedStack(Stack):
             peer=ec2.Peer.ipv4(vpc.vpc_cidr_block),
             connection=ec2.Port.tcp(443),
             description="Allow HTTPS from VPC"
+        )
+
+        # SSM VPC endpoints for secrets retrieval (REQUIRED for ECS secrets)
+        self.ssm_vpc_endpoint = ec2.InterfaceVpcEndpoint(
+            self, "SSMVpcEndpoint",
+            vpc=vpc,
+            service=ec2.InterfaceVpcEndpointAwsService.SSM,
+            subnets=ec2.SubnetSelection(
+                subnet_type=ec2.SubnetType.PRIVATE_ISOLATED
+            ),
+            private_dns_enabled=True,
+            security_groups=[vpc_endpoint_sg]
         )
 
         # ECR VPC endpoints for container image pulling (REQUIRED for ECS)
@@ -130,12 +142,19 @@ class SharedStack(Stack):
             self, "ECSTaskSecurityGroup",
             vpc=vpc,
             description="Security group for ECS tasks",
-            allow_all_outbound=True
+            allow_all_outbound=False
         )
         
         # Allow ECS tasks to communicate with VPC endpoints
         self.ecs_task_sg.add_egress_rule(
-            peer=ec2.Peer.security_group_id(vpc_endpoint_sg.security_group_id),
+            peer=ec2.Peer.ipv4(vpc.vpc_cidr_block),
             connection=ec2.Port.tcp(443),
-            description="Allow HTTPS to VPC endpoints"
+            description="Allow HTTPS within VPC for VPC endpoints"
+        )
+        
+        # Allow DNS resolution for VPC endpoint private DNS
+        self.ecs_task_sg.add_egress_rule(
+            peer=ec2.Peer.ipv4(vpc.vpc_cidr_block),
+            connection=ec2.Port.udp(53),
+            description="Allow DNS within VPC"
         )

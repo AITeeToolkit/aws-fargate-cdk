@@ -80,10 +80,13 @@ jobs:
         run: aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
 
       - name: Build API Docker Image
-        run: docker build -t $ECR_REGISTRY/api:${IMAGE_TAG} ./storefront/api
+        run: |
+          docker build -t $ECR_REGISTRY/api:${IMAGE_TAG} -t $ECR_REGISTRY/api:latest ./storefront/api
 
       - name: Push API Image
-        run: docker push $ECR_REGISTRY/api:${IMAGE_TAG}
+        run: |
+          docker push $ECR_REGISTRY/api:${IMAGE_TAG}
+          docker push $ECR_REGISTRY/api:latest
 
   build-and-push-web:
     name: Build & Push Web Image
@@ -110,10 +113,13 @@ jobs:
         run: aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
 
       - name: Build Web Docker Image
-        run: docker build -t $ECR_REGISTRY/web:${IMAGE_TAG} ./storefront/multisite
+        run: |
+          docker build -t $ECR_REGISTRY/web:${IMAGE_TAG} -t $ECR_REGISTRY/web:latest ./storefront/multisite
 
       - name: Push Web Image
-        run: docker push $ECR_REGISTRY/web:${IMAGE_TAG}
+        run: |
+          docker push $ECR_REGISTRY/web:${IMAGE_TAG}
+          docker push $ECR_REGISTRY/web:latest
 
   deploy-cdk:
     name: Deploy CDK Stacks
