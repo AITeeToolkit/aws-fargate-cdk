@@ -18,7 +18,7 @@ class DatabaseStack(Stack):
         *,
         vpc: ec2.IVpc,
         environment: str = "dev",
-        use_public_access: bool = False,  # Default: private
+        use_public_access: bool = True,  # Default: private
         **kwargs
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
