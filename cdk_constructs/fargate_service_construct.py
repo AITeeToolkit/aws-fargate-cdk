@@ -28,6 +28,7 @@ class FargateServiceConstruct(Construct):
         priority: int = 100,
         environment: dict = {},
         secrets: dict = {},
+        security_groups: list = None,
     ) -> None:
         super().__init__(scope, id)
 
@@ -152,7 +153,8 @@ class FargateServiceConstruct(Construct):
             task_definition=task_def,
             desired_count=desired_count,
             assign_public_ip=False,
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED)
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
+            security_groups=security_groups if security_groups else []
         )
 
         # Only configure ALB targets if a listener is provided (for public-facing services)

@@ -14,6 +14,7 @@ class WebServiceStack(Stack):
         image_uri: str,
         db_secret: secretsmanager.ISecret,
         environment: str = "dev",
+        ecs_task_security_group: ec2.ISecurityGroup = None,
         **kwargs
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -56,7 +57,8 @@ class WebServiceStack(Stack):
             priority=200,
             container_port=3000,
             environment=web_environment,
-            secrets=web_secrets
+            secrets=web_secrets,
+            security_groups=[ecs_task_security_group] if ecs_task_security_group else []
         )
 
         # Expose the service from this stack

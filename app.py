@@ -82,7 +82,8 @@ api_service = APIServiceStack(
     cluster=shared_stack.cluster,
     image_uri=f"{ecr_stack.repositories['api'].repository_uri}:{image_tag}",
     db_secret=database_stack.secret,
-    environment=env_name
+    environment=env_name,
+    ecs_task_security_group=shared_stack.ecs_task_sg
 )
 
 # Deploy web service (public-facing)
@@ -94,7 +95,8 @@ web_service = WebServiceStack(
     listener=web_alb_stack.listener,
     image_uri=f"{ecr_stack.repositories['web'].repository_uri}:{image_tag}",
     db_secret=database_stack.secret,
-    environment=env_name
+    environment=env_name,
+    ecs_task_security_group=shared_stack.ecs_task_sg
 )
 
 # THEN attach it in WebAlbStack

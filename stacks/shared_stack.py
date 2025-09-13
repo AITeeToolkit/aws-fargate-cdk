@@ -44,29 +44,22 @@ class SharedStack(Stack):
             )
         )
 
-        # Create VPC endpoints for SSM Parameter Store access from private subnets
-        self.ssm_vpc_endpoint = ec2.InterfaceVpcEndpoint(
-            self, "SSMVpcEndpoint",
+        # Create security group for VPC endpoints
+        vpc_endpoint_sg = ec2.SecurityGroup(
+            self, "VpcEndpointSecurityGroup",
             vpc=vpc,
-            service=ec2.InterfaceVpcEndpointAwsService.SSM,
-            subnets=ec2.SubnetSelection(
-                subnet_type=ec2.SubnetType.PRIVATE_ISOLATED
-            ),
-            private_dns_enabled=True
+            description="Security group for VPC endpoints",
+            allow_all_outbound=False
+        )
+        
+        # Allow HTTPS traffic from private subnets to VPC endpoints
+        vpc_endpoint_sg.add_ingress_rule(
+            peer=ec2.Peer.ipv4(vpc.vpc_cidr_block),
+            connection=ec2.Port.tcp(443),
+            description="Allow HTTPS from VPC"
         )
 
-        # VPC endpoint for SSM Messages (required for Session Manager)
-        self.ssm_messages_vpc_endpoint = ec2.InterfaceVpcEndpoint(
-            self, "SSMMessagesVpcEndpoint", 
-            vpc=vpc,
-            service=ec2.InterfaceVpcEndpointAwsService.SSM_MESSAGES,
-            subnets=ec2.SubnetSelection(
-                subnet_type=ec2.SubnetType.PRIVATE_ISOLATED
-            ),
-            private_dns_enabled=True
-        )
-
-        # ECR VPC endpoints for container image pulling
+        # ECR VPC endpoints for container image pulling (REQUIRED for ECS)
         self.ecr_api_vpc_endpoint = ec2.InterfaceVpcEndpoint(
             self, "ECRApiVpcEndpoint",
             vpc=vpc,
@@ -74,7 +67,8 @@ class SharedStack(Stack):
             subnets=ec2.SubnetSelection(
                 subnet_type=ec2.SubnetType.PRIVATE_ISOLATED
             ),
-            private_dns_enabled=True
+            private_dns_enabled=True,
+            security_groups=[vpc_endpoint_sg]
         )
 
         self.ecr_dkr_vpc_endpoint = ec2.InterfaceVpcEndpoint(
@@ -84,7 +78,32 @@ class SharedStack(Stack):
             subnets=ec2.SubnetSelection(
                 subnet_type=ec2.SubnetType.PRIVATE_ISOLATED
             ),
-            private_dns_enabled=True
+            private_dns_enabled=True,
+            security_groups=[vpc_endpoint_sg]
+        )
+        
+        # EC2 VPC endpoint (REQUIRED for ECS tasks to communicate with ECS service)
+        self.ec2_vpc_endpoint = ec2.InterfaceVpcEndpoint(
+            self, "EC2VpcEndpoint",
+            vpc=vpc,
+            service=ec2.InterfaceVpcEndpointAwsService.EC2,
+            subnets=ec2.SubnetSelection(
+                subnet_type=ec2.SubnetType.PRIVATE_ISOLATED
+            ),
+            private_dns_enabled=True,
+            security_groups=[vpc_endpoint_sg]
+        )
+
+        # ECS VPC endpoint (REQUIRED for ECS tasks to register with ECS service)
+        self.ecs_vpc_endpoint = ec2.InterfaceVpcEndpoint(
+            self, "ECSVpcEndpoint",
+            vpc=vpc,
+            service=ec2.InterfaceVpcEndpointAwsService.ECS,
+            subnets=ec2.SubnetSelection(
+                subnet_type=ec2.SubnetType.PRIVATE_ISOLATED
+            ),
+            private_dns_enabled=True,
+            security_groups=[vpc_endpoint_sg]
         )
 
         # S3 VPC endpoint for ECR layer downloads (Gateway endpoint - no cost)
@@ -94,7 +113,7 @@ class SharedStack(Stack):
             service=ec2.GatewayVpcEndpointAwsService.S3
         )
 
-        # CloudWatch Logs VPC endpoint
+        # CloudWatch Logs VPC endpoint (for ECS logging)
         self.logs_vpc_endpoint = ec2.InterfaceVpcEndpoint(
             self, "LogsVpcEndpoint",
             vpc=vpc,
@@ -102,5 +121,21 @@ class SharedStack(Stack):
             subnets=ec2.SubnetSelection(
                 subnet_type=ec2.SubnetType.PRIVATE_ISOLATED
             ),
-            private_dns_enabled=True
+            private_dns_enabled=True,
+            security_groups=[vpc_endpoint_sg]
+        )
+
+        # Create security group for ECS tasks
+        self.ecs_task_sg = ec2.SecurityGroup(
+            self, "ECSTaskSecurityGroup",
+            vpc=vpc,
+            description="Security group for ECS tasks",
+            allow_all_outbound=True
+        )
+        
+        # Allow ECS tasks to communicate with VPC endpoints
+        self.ecs_task_sg.add_egress_rule(
+            peer=ec2.Peer.security_group_id(vpc_endpoint_sg.security_group_id),
+            connection=ec2.Port.tcp(443),
+            description="Allow HTTPS to VPC endpoints"
         )
