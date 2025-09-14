@@ -16,17 +16,9 @@ class ECRStack(Stack):
         self.repositories = {}
 
         for name in repository_names:
-            repo = ecr.Repository(
+            # Import existing ECR repository instead of creating new one
+            repo = ecr.Repository.from_repository_name(
                 self, f"{name.capitalize()}Repo",
-                repository_name=f"storefront/{environment}/{name}",
-                removal_policy=RemovalPolicy.RETAIN,
-                image_scan_on_push=True,
-                lifecycle_rules=[
-                    ecr.LifecycleRule(
-                        rule_priority=1,
-                        tag_status=ecr.TagStatus.ANY,
-                        max_image_count=10
-                    )
-                ]
+                repository_name=f"storefront/{environment}/{name}"
             )
             self.repositories[name] = repo

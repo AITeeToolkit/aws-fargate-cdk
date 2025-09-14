@@ -51,13 +51,13 @@ class WebServiceStack(Stack):
 
         # Public-facing web service routed via ALB
         fargate_construct = FargateServiceConstruct(
-            self, "webService",
+            self, "web-service",
             cluster=cluster,
             vpc=vpc,
             container_image=ecs.ContainerImage.from_registry(image_uri),
             listener=listener,
             path_pattern="/*",
-            priority=200,
+            priority=100,
             container_port=3000,
             environment=web_environment,
             secrets=web_secrets,

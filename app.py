@@ -74,6 +74,7 @@ database_stack = DatabaseStack(
 #     database_stack=None,
 #     cluster=shared_stack.cluster,
 #     api_service_name="api-service",
+#     namespace=shared_stack.cluster.default_cloud_map_namespace
 # )
 
 # Deploy API service (internal only)

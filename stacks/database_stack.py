@@ -128,6 +128,7 @@ class DatabaseStack(Stack):
             string_value=self.db_instance.secret.secret_value_from_json("dbname").unsafe_unwrap(),
             description=f"Database name - {self.db_instance.instance_identifier}"
         )
+
         
         # Expose for other stacks (if needed)
         self.database_host = self.db_instance.instance_endpoint.hostname

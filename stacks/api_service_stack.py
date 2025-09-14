@@ -28,11 +28,15 @@ class APIServiceStack(Stack):
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
+        # Create DATABASE_URL from database instance properties
+        database_url = f"postgresql://{db_secret.secret_value_from_json('username').unsafe_unwrap()}:{db_secret.secret_value_from_json('password').unsafe_unwrap()}@{db_secret.secret_value_from_json('host').unsafe_unwrap()}:{db_secret.secret_value_from_json('port').unsafe_unwrap()}/{db_secret.secret_value_from_json('dbname').unsafe_unwrap()}?sslmode=no-verify"
+
         # Environment variables for API service (from CloudFormation template)
         api_environment = {
             "NODE_ENV": "production",
             "PORT": "3001",
-            "FORCE_UPDATE": "1"
+            "FORCE_UPDATE": "1",
+            "DATABASE_URL": database_url
         }
 
         # Secrets configuration (from CloudFormation template)
@@ -49,14 +53,15 @@ class APIServiceStack(Stack):
             "PRINTIFY_API_KEY": f"/storefront-{environment}/printify-api-key",
             "POSTGRES_USER": f"/storefront-{environment}/database/username",
             "POSTGRES_PASSWORD": f"/storefront-{environment}/database/password",
-            "REDIS_URL": f"/storefront-{environment}/redis-url",
+            "POSTGRES_HOST": f"/storefront-{environment}/database/host",
+            "POSTGRES_PORT": f"/storefront-{environment}/database/port",
             "POSTGRES_DB": f"/storefront-{environment}/database/name",
-            "DATABASE_URL": f"/storefront-{environment}/database/url"
+            "REDIS_URL": f"/storefront-{environment}/redis-url"
         }
 
         # Use the Fargate service construct for consistency
         fargate_construct = FargateServiceConstruct(
-            self, "apiService",
+            self, "api-service",
             cluster=cluster,
             vpc=vpc,
             container_image=ecs.ContainerImage.from_registry(image_uri),

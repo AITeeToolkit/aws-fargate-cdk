@@ -10,10 +10,17 @@ KUBEGRES_NAMESPACE="kubegres"
 KUBEGRES_POD_SELECTOR="app=postgres"
 BACKUP_DIR="/var/lib/backup"
 LOCAL_BACKUP_DIR="/tmp"
-RDS_HOST="storefrontdatabasestack-d-storefrontpostgresdev674-0il8e3oc1zpi.cyxas2yo0gpr.us-east-1.rds.amazonaws.com"
 RDS_PORT="5432"
 RDS_USER="postgres"
 RDS_DATABASE="postgres"
+PGPASSWORD=$(aws secretsmanager get-secret-value \
+  --secret-id storefront/dev/rds-credentials \
+  --query 'SecretString' \
+  --output text | jq -r '.password')
+RDS_HOST=$(aws secretsmanager get-secret-value \
+  --secret-id storefront/dev/rds-credentials \
+  --query 'SecretString' \
+  --output text | jq -r '.host')
 
 # Colors for output
 RED='\033[0;31m'
