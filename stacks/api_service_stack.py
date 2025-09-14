@@ -4,8 +4,10 @@ from aws_cdk import (
     aws_ec2 as ec2,
     aws_logs as logs,
     aws_secretsmanager as secretsmanager,
+    aws_servicediscovery as servicediscovery,
     RemovalPolicy
 )
+import aws_cdk as cdk
 from constructs import Construct
 from cdk_constructs.fargate_service_construct import FargateServiceConstruct
 
@@ -20,6 +22,7 @@ class APIServiceStack(Stack):
         image_uri: str,
         db_secret: secretsmanager.ISecret,
         environment: str = "dev",
+        service_name: str,
         ecs_task_security_group: ec2.ISecurityGroup = None,
         **kwargs
     ) -> None:
@@ -53,7 +56,7 @@ class APIServiceStack(Stack):
 
         # Use the Fargate service construct for consistency
         fargate_construct = FargateServiceConstruct(
-            self, "APIService",
+            self, "apiService",
             cluster=cluster,
             vpc=vpc,
             container_image=ecs.ContainerImage.from_registry(image_uri),
@@ -62,7 +65,13 @@ class APIServiceStack(Stack):
             environment=api_environment,
             secrets=api_secrets,
             desired_count=2,
-            security_groups=[ecs_task_security_group] if ecs_task_security_group else []
+            security_groups=[ecs_task_security_group] if ecs_task_security_group else [],
+            service_name=service_name,
+            cloud_map_options=ecs.CloudMapOptions(
+                name=service_name,
+                dns_record_type=servicediscovery.DnsRecordType.A,
+                dns_ttl=cdk.Duration.seconds(10)
+            )
         )
 
         # Expose the service from this stack

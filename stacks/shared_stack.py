@@ -3,6 +3,7 @@ from aws_cdk import (
     aws_ecs as ecs,
     aws_iam as iam,
     aws_ec2 as ec2,
+    aws_servicediscovery as servicediscovery,
 )
 from constructs import Construct
 from aws_cdk.aws_ec2 import IVpc
@@ -17,7 +18,11 @@ class SharedStack(Stack):
         self.cluster = ecs.Cluster(
             self, "StorefrontCluster",
             vpc=vpc,
-            container_insights=True
+            container_insights=True,
+            cluster_name="storefront-cluster",
+            default_cloud_map_namespace=ecs.CloudMapNamespaceOptions(
+                name="storefront.local"
+            ),
         )
 
         # IAM Role for ECS task execution (pulling from ECR, sending logs)
@@ -92,7 +97,7 @@ class SharedStack(Stack):
         )
 
         self.ssm_messages_vpc_endpoint = ec2.InterfaceVpcEndpoint(
-            self, "SSMMessagesVpcEndpointV2",
+            self, "SSMMessagesVpcEndpoint",
             vpc=vpc,
             service=ec2.InterfaceVpcEndpointAwsService.SSM_MESSAGES,
             subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
@@ -101,7 +106,7 @@ class SharedStack(Stack):
         )
 
         self.ec2_messages_vpc_endpoint = ec2.InterfaceVpcEndpoint(
-            self, "EC2MessagesVpcEndpointV2",
+            self, "EC2MessagesVpcEndpoint",
             vpc=vpc,
             service=ec2.InterfaceVpcEndpointAwsService.EC2_MESSAGES,
             subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),

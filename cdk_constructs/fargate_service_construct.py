@@ -1,10 +1,11 @@
 from aws_cdk import (
+    Stack,
     aws_ecs as ecs,
     aws_ec2 as ec2,
     aws_elasticloadbalancingv2 as elbv2,
     aws_logs as logs,
-    aws_ssm as ssm,
     aws_iam as iam,
+    aws_ssm as ssm,
     RemovalPolicy
 )
 from constructs import Construct
@@ -28,6 +29,8 @@ class FargateServiceConstruct(Construct):
         environment: dict = {},
         secrets: dict = {},
         security_groups: list = None,
+        service_name: str = None,
+        cloud_map_options: ecs.CloudMapOptions = None,
     ) -> None:
         super().__init__(scope, id)
 
@@ -67,6 +70,7 @@ class FargateServiceConstruct(Construct):
         # Task definition
         task_def = ecs.FargateTaskDefinition(
             self, f"{id}TaskDef",
+            family=f"{id}-taskdef",
             memory_limit_mib=512,
             cpu=256,
             execution_role=execution_role
@@ -138,12 +142,17 @@ class FargateServiceConstruct(Construct):
             self, f"{id}Service",
             cluster=cluster,
             task_definition=task_def,
-            desired_count=desired_count,
+            enable_execute_command=True,
             assign_public_ip=False,
+            desired_count=desired_count,
+            service_name=service_name,
             vpc_subnets=ec2.SubnetSelection(
                 subnet_type=ec2.SubnetType.PRIVATE_ISOLATED
             ),
-            security_groups=security_groups if security_groups else []
+            security_groups=security_groups if security_groups else [],
+            cloud_map_options=ecs.CloudMapOptions(
+                name=service_name
+            ) if service_name else None
         )
 
         # Attach service to ALB listener (ALB still lives in public subnets)

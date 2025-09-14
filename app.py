@@ -71,7 +71,9 @@ database_stack = DatabaseStack(
 #     app, f"StorefrontParametersStack-{env_name}",
 #     env=env,
 #     environment=env_name,
-#     database_stack=None
+#     database_stack=None,
+#     cluster=shared_stack.cluster,
+#     api_service_name="api-service",
 # )
 
 # Deploy API service (internal only)
@@ -83,7 +85,8 @@ api_service = APIServiceStack(
     image_uri=f"{ecr_stack.repositories['api'].repository_uri}:{image_tag}",
     db_secret=database_stack.secret,
     environment=env_name,
-    ecs_task_security_group=shared_stack.ecs_task_sg
+    ecs_task_security_group=shared_stack.ecs_task_sg,
+    service_name="api-service"
 )
 
 # Deploy web service (public-facing)
@@ -96,7 +99,8 @@ web_service = WebServiceStack(
     image_uri=f"{ecr_stack.repositories['web'].repository_uri}:{image_tag}",
     db_secret=database_stack.secret,
     environment=env_name,
-    ecs_task_security_group=shared_stack.ecs_task_sg
+    ecs_task_security_group=shared_stack.ecs_task_sg,
+    service_name="web-service"
 )
 
 # THEN attach it in WebAlbStack

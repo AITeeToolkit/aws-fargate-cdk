@@ -10,10 +10,10 @@ KUBEGRES_NAMESPACE="kubegres"
 KUBEGRES_POD_SELECTOR="app=postgres"
 BACKUP_DIR="/var/lib/backup"
 LOCAL_BACKUP_DIR="/tmp"
-RDS_HOST="storefrontdatabasestack-d-storefrontpostgresdev674-blokrk7vsrol.cyxas2yo0gpr.us-east-1.rds.amazonaws.com"
+RDS_HOST="storefrontdatabasestack-d-storefrontpostgresdev674-0il8e3oc1zpi.cyxas2yo0gpr.us-east-1.rds.amazonaws.com"
 RDS_PORT="5432"
 RDS_USER="postgres"
-RDS_DATABASE="storefront"
+RDS_DATABASE="postgres"
 
 # Colors for output
 RED='\033[0;31m'
@@ -23,15 +23,15 @@ NC='\033[0m' # No Color
 
 # Function to print colored output
 print_status() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+    echo -e "${GREEN}[INFO]${NC} $1" >&2
 }
 
 print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    echo -e "${YELLOW}[WARNING]${NC} $1" >&2
 }
 
 print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
 # Function to check if required tools are installed
@@ -99,11 +99,26 @@ copy_backup() {
     local backup_file=$2
     local local_file="$LOCAL_BACKUP_DIR/kubegres-backup-$(date +%Y%m%d_%H%M%S).gz"
     
-    kubectl cp "$KUBEGRES_NAMESPACE/$pod_name:$backup_file" "$local_file" || {
+    print_status "Copying backup from pod to local machine..."
+    
+    # Suppress all output from kubectl cp (both stdout and stderr)
+    kubectl cp "$KUBEGRES_NAMESPACE/$pod_name:$backup_file" "$local_file" >/dev/null 2>&1 || {
         print_error "Failed to copy backup file from pod"
         exit 1
     }
     
+    # Verify the file was actually copied and has content
+    if [ ! -f "$local_file" ]; then
+        print_error "Backup file was not created: $local_file"
+        exit 1
+    fi
+    
+    if [ ! -s "$local_file" ]; then
+        print_error "Backup file is empty: $local_file"
+        exit 1
+    fi
+    
+    print_status "Successfully copied backup to: $local_file"
     echo "$local_file"
 }
 
@@ -115,11 +130,38 @@ extract_backup() {
     print_status "Extracting backup file..."
     print_status "Extracting: $compressed_file -> $extracted_file"
     
-    gunzip -c "$compressed_file" > "$extracted_file" || {
-        print_error "Failed to extract backup file"
+    # Check if the compressed file exists
+    if [ ! -f "$compressed_file" ]; then
+        print_error "Compressed file not found: $compressed_file"
         exit 1
-    }
+    fi
     
+    # Simple gzip extraction
+    if gunzip -c "$compressed_file" > "$extracted_file" 2>/dev/null; then
+        print_status "Successfully extracted using gunzip"
+    else
+        print_error "Failed to extract using gunzip, trying alternative method"
+        # Try using zcat as alternative
+        if zcat "$compressed_file" > "$extracted_file" 2>/dev/null; then
+            print_status "Successfully extracted using zcat"
+        else
+            print_error "Failed to extract backup file with both gunzip and zcat"
+            exit 1
+        fi
+    fi
+    
+    # Verify the extracted file exists and has content
+    if [ ! -f "$extracted_file" ]; then
+        print_error "Failed to extract backup file: $extracted_file not found"
+        exit 1
+    fi
+    
+    if [ ! -s "$extracted_file" ]; then
+        print_error "Extracted file is empty: $extracted_file"
+        exit 1
+    fi
+    
+    print_status "Successfully extracted $(wc -l < "$extracted_file") lines to $extracted_file"
     echo "$extracted_file"
 }
 
