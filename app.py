@@ -113,7 +113,8 @@ domain_updater = DomainUpdaterStack(
     image_uri=f"{ecr_stack.repositories['domain-updater'].repository_uri}:{image_tag}",
     db_secret=database_stack.secret,
     environment=env_name,
-    ecs_task_security_group=shared_stack.ecs_task_sg
+    ecs_task_security_group=shared_stack.ecs_task_sg,
+    service_name="domain-updater"
 )
 
 multi_alb_stack.attach_service(web_service.service, port=3000)

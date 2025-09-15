@@ -97,15 +97,15 @@ class DomainUpdaterStack(Stack):
             environment={
                 "REPO": "AITeeToolkit/aws-fargate-cdk",
                 "ENVIRONMENT": environment,
+                "DB_SECRET_NAME": db_secret.secret_name,
             },
             secrets={
                 "GH_TOKEN": ecs.Secret.from_ssm_parameter(
-                    ssm.StringParameter.from_string_parameter_name(
+                    ssm.StringParameter.from_secure_string_parameter_attributes(
                         self, "GitHubTokenParam",
-                        string_parameter_name=f"/storefront-{environment}/github-token"
+                        parameter_name=f"/storefront-{environment}/github-token"
                     )
                 ),
-                "DB_SECRET_NAME": ecs.Secret.from_secrets_manager(db_secret),
             }
         )
 
