@@ -71,6 +71,13 @@ class SharedStack(Stack):
             description="Allow HTTP traffic to API service"
         )
         
+        # Allow ECS tasks to communicate with each other (service-to-service)
+        self.ecs_task_sg.add_ingress_rule(
+            peer=self.ecs_task_sg,
+            connection=ec2.Port.all_traffic(),
+            description="Allow ECS tasks to communicate with each other"
+        )
+        
         # Create security group for VPC endpoints
         vpc_endpoint_sg = ec2.SecurityGroup(
             self, "VpcEndpointSecurityGroup",
