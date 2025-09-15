@@ -1,6 +1,14 @@
-from aws_cdk import Stack, aws_ecs as ecs, aws_ec2 as ec2, aws_elasticloadbalancingv2 as elbv2, aws_secretsmanager as secretsmanager
+from aws_cdk import (
+    Stack,
+    aws_ecs as ecs,
+    aws_ec2 as ec2,
+    aws_secretsmanager as secretsmanager,
+    aws_servicediscovery as servicediscovery,
+    Duration,
+)
 from constructs import Construct
 from cdk_constructs.fargate_service_construct import FargateServiceConstruct
+
 
 class WebServiceStack(Stack):
     def __init__(
@@ -10,25 +18,35 @@ class WebServiceStack(Stack):
         *,
         vpc: ec2.IVpc,
         cluster: ecs.ICluster,
-        listener: elbv2.ApplicationListener,
         image_uri: str,
         db_secret: secretsmanager.ISecret,
         environment: str = "dev",
+        service_name: str,
+        ecs_task_security_group: ec2.ISecurityGroup = None,
         **kwargs
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # Environment variables for web service (from CloudFormation template)
+        # Environment variables for web service
         web_environment = {
             "NODE_ENV": "production",
             "PORT": "3000",
-            "API_URL": f"http://api.storefront-{environment}.local:3001",
-            "API_BASE_URL": f"http://api.storefront-{environment}.local:3001/v1/api",
-            "NEXT_PUBLIC_API_BASE_URL": f"http://api.storefront-{environment}.local:3001/v1/api"
+            "MULTI_TENANT": "true",
+            "TENANT_RESOLUTION": "full_domain",
+            "DEFAULT_TENANT": "default",
+            "ALLOW_INTERNAL_IPS": "true",
+            "TRUST_PROXY": "true",
+            "INTERNAL_IP_RANGES": "10.0.0.0/16,172.16.0.0/12,192.168.0.0/16",
+            "HEALTH_CHECK_PATH": "/health",
+            "SKIP_TENANT_RESOLUTION_FOR_HEALTH": "true",
+            "HEALTH_CHECK_BYPASS_TENANT": "true",
         }
 
-        # Secrets configuration (from CloudFormation template)
+        # Secrets (extend this if you want to pass db_secret, etc.)
         web_secrets = {
+            "API_URL": f"/storefront-{environment}/api/url",
+            "API_BASE_URL": f"/storefront-{environment}/api/base-url", 
+            "NEXT_PUBLIC_API_BASE_URL": f"/storefront-{environment}/api/base-url",
             "STRIPE_SECRET_KEY": f"/storefront-{environment}/stripe-secret-key",
             "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY": f"/storefront-{environment}/next-public-google-maps-api-key",
             "GEMINI_API_KEY": f"/storefront-{environment}/gemini-api-key",
@@ -45,19 +63,24 @@ class WebServiceStack(Stack):
             "POSTGRES_PASSWORD": f"/storefront-{environment}/database/password"
         }
 
-        # Public-facing web service routed via ALB
+        # Define Fargate service (no ALB attachment here)
         fargate_construct = FargateServiceConstruct(
-            self, "WebService",
+            self,
+            "web-service",
             cluster=cluster,
             vpc=vpc,
             container_image=ecs.ContainerImage.from_registry(image_uri),
-            listener=listener,
-            path_pattern="/*",
-            priority=200,
             container_port=3000,
             environment=web_environment,
-            secrets=web_secrets
+            secrets=web_secrets,
+            security_groups=[ecs_task_security_group] if ecs_task_security_group else [],
+            service_name=service_name,
+            cloud_map_options=ecs.CloudMapOptions(
+                name=service_name,
+                dns_record_type=servicediscovery.DnsRecordType.A,
+                dns_ttl=Duration.seconds(10),
+            ),
         )
 
-        # Expose the service from this stack
+        # Expose ECS service so other stacks can attach it
         self.service = fargate_construct.service

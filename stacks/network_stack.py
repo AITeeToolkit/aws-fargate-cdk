@@ -15,7 +15,9 @@ class NetworkStack(Stack):
             self, "StorefrontVPC",
             max_azs=2,
             ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"),
-            nat_gateways=1,
+            nat_gateways=0,
+            enable_dns_hostnames=True,
+            enable_dns_support=True,
             subnet_configuration=[
                 ec2.SubnetConfiguration(
                     name="public",
@@ -24,7 +26,7 @@ class NetworkStack(Stack):
                 ),
                 ec2.SubnetConfiguration(
                     name="private",
-                    subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS,
+                    subnet_type=ec2.SubnetType.PRIVATE_ISOLATED,
                     cidr_mask=24
                 )
             ]

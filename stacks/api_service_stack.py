@@ -4,8 +4,10 @@ from aws_cdk import (
     aws_ec2 as ec2,
     aws_logs as logs,
     aws_secretsmanager as secretsmanager,
+    aws_servicediscovery as servicediscovery,
     RemovalPolicy
 )
+import aws_cdk as cdk
 from constructs import Construct
 from cdk_constructs.fargate_service_construct import FargateServiceConstruct
 
@@ -20,15 +22,21 @@ class APIServiceStack(Stack):
         image_uri: str,
         db_secret: secretsmanager.ISecret,
         environment: str = "dev",
+        service_name: str,
+        ecs_task_security_group: ec2.ISecurityGroup = None,
         **kwargs
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
+
+        # Create DATABASE_URL from database instance properties
+        database_url = f"postgresql://{db_secret.secret_value_from_json('username').unsafe_unwrap()}:{db_secret.secret_value_from_json('password').unsafe_unwrap()}@{db_secret.secret_value_from_json('host').unsafe_unwrap()}:{db_secret.secret_value_from_json('port').unsafe_unwrap()}/{db_secret.secret_value_from_json('dbname').unsafe_unwrap()}?sslmode=no-verify"
 
         # Environment variables for API service (from CloudFormation template)
         api_environment = {
             "NODE_ENV": "production",
             "PORT": "3001",
-            "FORCE_UPDATE": "1"
+            "FORCE_UPDATE": "1",
+            "DATABASE_URL": database_url
         }
 
         # Secrets configuration (from CloudFormation template)
@@ -45,22 +53,29 @@ class APIServiceStack(Stack):
             "PRINTIFY_API_KEY": f"/storefront-{environment}/printify-api-key",
             "POSTGRES_USER": f"/storefront-{environment}/database/username",
             "POSTGRES_PASSWORD": f"/storefront-{environment}/database/password",
-            "REDIS_URL": f"/storefront-{environment}/redis-url",
+            "POSTGRES_HOST": f"/storefront-{environment}/database/host",
+            "POSTGRES_PORT": f"/storefront-{environment}/database/port",
             "POSTGRES_DB": f"/storefront-{environment}/database/name",
-            "DATABASE_URL": f"/storefront-{environment}/database/url"
+            "REDIS_URL": f"/storefront-{environment}/redis-url"
         }
 
         # Use the Fargate service construct for consistency
         fargate_construct = FargateServiceConstruct(
-            self, "APIService",
+            self, "api-service",
             cluster=cluster,
             vpc=vpc,
             container_image=ecs.ContainerImage.from_registry(image_uri),
-            listener=None,  # API service is internal, no ALB needed
             container_port=3001,
             environment=api_environment,
             secrets=api_secrets,
-            desired_count=2
+            desired_count=2,
+            security_groups=[ecs_task_security_group] if ecs_task_security_group else [],
+            service_name=service_name,
+            cloud_map_options=ecs.CloudMapOptions(
+                name=service_name,
+                dns_record_type=servicediscovery.DnsRecordType.A,
+                dns_ttl=cdk.Duration.seconds(10)
+            )
         )
 
         # Expose the service from this stack

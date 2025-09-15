@@ -99,8 +99,52 @@ jobs:
       image_tag: ${{ needs.semantic-release.outputs.latest_tag }}
     secrets: inherit
 
+  dev-summary:
+    name: Development Deployment Summary
+    needs: [generate-tag, dev-deployment]
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate Dev Summary
+        env:
+          IMAGE_TAG: ${{ needs.generate-tag.outputs.image_tag }}
+          DEV_STATUS: ${{ needs.dev-deployment.result }}
+          BRANCH_NAME: ${{ github.ref_name }}
+        run: |
+          echo "# 🔧 Development Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Branch Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** \`$BRANCH_NAME\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Tag:** \`$IMAGE_TAG\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** Development Only" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | Status | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$DEV_STATUS" = "success" ]; then
+            echo "| Development | ✅ Success | Deployed successfully |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Development | ❌ Failed | Deployment failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "- Test your changes in the development environment" >> $GITHUB_STEP_SUMMARY
+          echo "- Create a pull request to merge into main for production deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- Production deployment will trigger automatically after PR merge" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Quick Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [AWS Console](https://console.aws.amazon.com/ecs/home?region=us-east-1#/clusters)" >> $GITHUB_STEP_SUMMARY
+          echo "- [CloudWatch Logs](https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups)" >> $GITHUB_STEP_SUMMARY
+
   deployment-summary:
-    name: Deployment Summary
+    name: Production Deployment Summary
     needs: [semantic-release, dev-deployment, deploy-production]
     if: needs.semantic-release.outputs.new_release == 'true'
     runs-on: ubuntu-latest

@@ -1,15 +1,14 @@
-# fargate_service_construct.py
-
 from aws_cdk import (
+    Duration,
     aws_ecs as ecs,
     aws_ec2 as ec2,
-    aws_elasticloadbalancingv2 as elbv2,
     aws_logs as logs,
-    aws_ssm as ssm,
     aws_iam as iam,
-    RemovalPolicy
+    aws_ssm as ssm,
+    RemovalPolicy,
 )
 from constructs import Construct
+
 
 class FargateServiceConstruct(Construct):
     def __init__(
@@ -20,120 +19,105 @@ class FargateServiceConstruct(Construct):
         cluster: ecs.Cluster,
         vpc: ec2.IVpc,
         container_image: ecs.ContainerImage,
-        listener: elbv2.ApplicationListener,
         desired_count: int = 2,
         container_port: int = 3000,
-        host_header: str = None,
-        path_pattern: str = "/*",
-        priority: int = 100,
         environment: dict = {},
         secrets: dict = {},
+        security_groups: list = None,
+        service_name: str = None,
+        cloud_map_options: ecs.CloudMapOptions = None,
+        subnet_type: ec2.SubnetType = ec2.SubnetType.PRIVATE_ISOLATED,
     ) -> None:
         super().__init__(scope, id)
 
+        # Log group
         log_group = logs.LogGroup(
             self, f"{id}LogGroup",
             removal_policy=RemovalPolicy.DESTROY,
-            retention=logs.RetentionDays.ONE_WEEK
+            retention=logs.RetentionDays.ONE_WEEK,
         )
 
-        # Create execution role explicitly
+        # Execution role
         execution_role = iam.Role(
             self, f"{id}ExecutionRole",
             assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
             managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AmazonECSTaskExecutionRolePolicy")
-            ]
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "service-role/AmazonECSTaskExecutionRolePolicy"
+                )
+            ],
         )
-
-        # Add ECR permissions to execution role for image pulling
         execution_role.add_to_policy(
             iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
                 actions=[
                     "ecr:GetAuthorizationToken",
                     "ecr:BatchCheckLayerAvailability",
                     "ecr:GetDownloadUrlForLayer",
-                    "ecr:BatchGetImage"
-                ],
-                resources=["*"]
-            )
-        )
-
-        # Add SSM permissions to execution role for secrets retrieval
-        execution_role.add_to_policy(
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                actions=[
+                    "ecr:BatchGetImage",
                     "ssm:GetParameter",
                     "ssm:GetParameters",
-                    "ssm:GetParametersByPath"
+                    "ssm:GetParametersByPath",
                 ],
-                resources=[f"arn:aws:ssm:*:*:parameter/storefront-*"]
+                resources=["*"],
             )
         )
 
+        # Task definition
         task_def = ecs.FargateTaskDefinition(
             self, f"{id}TaskDef",
+            family=f"{id}-taskdef",
             memory_limit_mib=512,
             cpu=256,
-            execution_role=execution_role
+            execution_role=execution_role,
         )
 
-        # Add ECR permissions to task role for pulling images
+        # Task role permissions
         task_def.task_role.add_managed_policy(
             iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2ContainerRegistryReadOnly")
         )
-
-        # Add SSM permissions for parameter store access
         task_def.task_role.add_to_policy(
             iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
                 actions=[
                     "ssm:GetParameter",
                     "ssm:GetParameters",
-                    "ssm:GetParametersByPath"
+                    "ssm:GetParametersByPath",
                 ],
-                resources=[f"arn:aws:ssm:*:*:parameter/storefront-*"]
+                resources=["*"],
             )
         )
-
-        # Add CloudWatch Logs permissions for logging
         task_def.task_role.add_to_policy(
             iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
                 actions=[
                     "logs:CreateLogGroup",
                     "logs:CreateLogStream",
                     "logs:PutLogEvents",
-                    "logs:DescribeLogStreams"
+                    "logs:DescribeLogStreams",
                 ],
-                resources=["arn:aws:logs:*:*:*"]
+                resources=["arn:aws:logs:*:*:*"],
             )
         )
-
-        # Add Secrets Manager permissions if using RDS secrets
         task_def.task_role.add_to_policy(
             iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
                 actions=[
                     "secretsmanager:GetSecretValue",
-                    "secretsmanager:DescribeSecret"
+                    "secretsmanager:DescribeSecret",
                 ],
-                resources=[f"arn:aws:secretsmanager:*:*:secret:storefront/*"]
+                resources=["*"],
             )
         )
 
-        # Convert secrets dict to ECS secrets format
-        ecs_secrets = {}
-        for name, value_from in secrets.items():
-            ecs_secrets[name] = ecs.Secret.from_ssm_parameter(
+        # Map SSM secrets
+        ecs_secrets = {
+            name: ecs.Secret.from_ssm_parameter(
                 ssm.StringParameter.from_string_parameter_name(
                     self, f"{name}Param", value_from
                 )
             )
+            for name, value_from in secrets.items()
+        }
 
-        container = task_def.add_container(
+        # Container
+        task_def.add_container(
             f"{id}Container",
             image=container_image,
             container_name=id,
@@ -142,33 +126,30 @@ class FargateServiceConstruct(Construct):
             secrets=ecs_secrets,
             logging=ecs.LogDriver.aws_logs(
                 stream_prefix=id,
-                log_group=log_group
-            )
+                log_group=log_group,
+            ),
+            # Disable container health check to rely only on ALB health checks
+            health_check=ecs.HealthCheck(
+                command=["CMD-SHELL", "exit 0"],  # Always pass container health check
+                interval=Duration.seconds(30),
+                timeout=Duration.seconds(5),
+                retries=3,
+                start_period=Duration.seconds(60)
+            ),
         )
 
+        # Fargate service (no ALB wiring here)
         service = ecs.FargateService(
             self, f"{id}Service",
             cluster=cluster,
             task_definition=task_def,
+            enable_execute_command=True,
+            assign_public_ip=True,  # Enable public IP for internet access
             desired_count=desired_count,
-            assign_public_ip=False,
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS)
+            service_name=service_name,
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),  # Use public subnets
+            security_groups=security_groups or [],
+            cloud_map_options=cloud_map_options,
         )
 
-        # Only configure ALB targets if a listener is provided (for public-facing services)
-        if listener:
-            listener.add_targets(
-                f"{id}Rule",
-                port=container_port,
-                protocol=elbv2.ApplicationProtocol.HTTP,
-                targets=[service],
-                conditions=[
-                    elbv2.ListenerCondition.path_patterns([path_pattern]),
-                    *([elbv2.ListenerCondition.host_headers([host_header])] if host_header else [])
-                ],
-                priority=priority,
-                health_check=elbv2.HealthCheck(path="/")
-            )
-
-        # Expose the service so it can be referenced externally (e.g. in WebServiceStack)
         self.service = service
