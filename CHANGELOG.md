@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.16.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.15.0...v1.16.0) (2025-09-15)
+
+
+### 🚀 Features
+
+* add deployment and database migration scripts with AWS SSO support ([9280305](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/92803058aa4b4c9d143c74fddf3de7e06b7d91fa))
+* add dynamic image tag support for API and web service deployments ([9e08016](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/9e08016e708ba95b100ecc9bb45eb5b7118e2b08))
+* add latest tag and SSM VPC endpoint for ECS secrets management ([b8f764b](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/b8f764b75a934c57d8b24f1d015121641e6655cc))
+* add security group with VPC ingress rules for RDS PostgreSQL instance ([5f820c1](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/5f820c1b3bfd99b0b93d86e6d466e17b2cb62e2b))
+* add service discovery and parameter store configuration for API and database stacks ([7059def](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/7059defeb0744eac607374b3f9f438bb24c878c7))
+* enable public access by default in database stack configuration ([6ee6962](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/6ee6962eecd36fa58587a97abed30c9f094af3ce))
+* refactor ALB architecture to support multiple domains with separate load balancers ([88c4c25](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/88c4c254b58a7a01688ae7261ad5718c70acac2a))
+* store database connection details in SSM Parameter Store to remove CloudFormation dependencies ([7d6e7fa](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/7d6e7fa6e7257c65d34d2575fc0fbec49529650e))
+
+
+### 🐛 Bug Fixes
+
+* delete existing git tags before running semantic-release to prevent conflicts ([cae3b7c](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/cae3b7ca2322f3d52ec80cc473aa02c1a3f340ca))
+* improve tag cleanup by removing orphaned local tags before semantic release ([43c8332](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/43c833219a094cf83cddad4ec37fb82aaecbdb09))
+* only delete semantic-release tag if it conflicts with next version ([52e0276](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/52e027665f73e1f26651b9a121f05445dc44006c))
+* update health check configuration with standard path and intervals ([e63a6a3](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/e63a6a31c5fbb071d1d3601dcccef2800409f8b7))
+* update RDS username from dbadmin to postgres for consistency ([6793ef8](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/6793ef8a0967fedacd00f61cbb2a2f796a33ac4e))
+
+
+### ♻️ Code Refactoring
+
+* add feature branch support and configurable public/private DB subnet selection ([d72a2ec](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/d72a2ec2ed0956ac2ad0cd2cd2525c19f0817eab))
+* add toggle switch for selecting public/private subnet group in database stack ([8fadb55](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/8fadb55f5277af8b99a130904dc1110e41f15d5a))
+* migrate VPC to fully isolated private subnets with VPC endpoints ([ce750cf](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/ce750cff2bbbf48e4881683b07cfd846b078e4f6))
+* optimize VPC endpoint security groups and consolidate IAM permissions for ECS tasks ([132bbcc](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/132bbcc847d9f6472fdd19af3324dda68bdccb82))
+* refactored infra deployment to cdk; completed domain automation; storefront operational ([9456c93](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/9456c93798856f15f00971fb89e05259c56aa2d9))
+* remove unused parameters stack and imports ([4328e0a](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/4328e0a41a53c132f0021a45e15926bdfe4425e8))
+* remove unused ParametersStack from CDK app deployment ([fecbeb0](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/fecbeb04f12c3f95b4b0a9b7faedd0d92db61ed9))
+* reorder stack deployment to enable IAM and move parameters after database ([df3f9ee](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/df3f9ee17aa560f4cc08ec33dc077f17f88d02b7))
+* simplify RDS subnet configuration to use mixed subnet group with public/private toggle ([d2139ff](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/d2139ff630c2f7fe63a3576b5d5031615da4421f))
+* split image tag generation into separate reusable workflow job ([6ce1b88](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/6ce1b889e74fa91a24342756afa641e47b43a291))
+* use database secrets directly in API service and simplify ECR repository setup ([2fdf9e0](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/2fdf9e092747d680e95941edfce53de26a5d371c))
+
 ## [1.16.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.15.1...v1.16.0) (2025-09-15)
 
 
