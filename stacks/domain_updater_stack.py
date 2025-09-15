@@ -21,6 +21,7 @@ class DomainUpdaterStack(Stack):
         image_uri: str,
         db_secret: secretsmanager.ISecret,
         environment: str,
+        service_name: str,
         ecs_task_security_group: ec2.ISecurityGroup,
         **kwargs
     ) -> None:
