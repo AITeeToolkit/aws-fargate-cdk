@@ -35,7 +35,8 @@ multi_alb_stack = MultiAlbStack(
     app, "MultiAlbStack",
     env=env,
     vpc=network_stack.vpc,
-    domains=domains 
+    domains=domains,
+    alb_security_group=shared_stack.alb_security_group
 )
 
 # Suppose MultiAlbStack exposes a dict: { "040992.xyz": alb1, "example.com": alb2, ... }

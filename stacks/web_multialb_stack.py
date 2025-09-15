@@ -24,6 +24,7 @@ class MultiAlbStack(Stack):
         *,
         vpc: ec2.IVpc,
         domains: list[str],  # just a list of domains now
+        alb_security_group: ec2.ISecurityGroup,
         **kwargs
     ):
         """
@@ -34,6 +35,7 @@ class MultiAlbStack(Stack):
 
         self.domain_to_alb: dict[str, elbv2.ApplicationLoadBalancer] = {}
         self.listeners: list[elbv2.ApplicationListener] = []
+        self.alb_security_group = alb_security_group
 
         # Split into ~50 domains per ALB
         for idx, domain_chunk in enumerate(chunk_list(domains, 50), start=1):
@@ -41,7 +43,8 @@ class MultiAlbStack(Stack):
                 self,
                 f"Alb{idx}",
                 vpc=vpc,
-                internet_facing=True
+                internet_facing=True,
+                security_group=self.alb_security_group
             )
 
             listener = alb.add_listener(

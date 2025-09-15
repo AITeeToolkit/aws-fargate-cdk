@@ -50,6 +50,21 @@ class SharedStack(Stack):
             )
         )
 
+        # Create security group for ALB
+        self.alb_security_group = ec2.SecurityGroup(
+            self, "AlbSecurityGroup",
+            vpc=vpc,
+            description="Security group for Application Load Balancer",
+            allow_all_outbound=True
+        )
+        
+        # Allow HTTPS traffic from internet to ALB
+        self.alb_security_group.add_ingress_rule(
+            peer=ec2.Peer.any_ipv4(),
+            connection=ec2.Port.tcp(443),
+            description="Allow HTTPS from internet"
+        )
+
         # Create security group for ECS tasks (allow all outbound)
         self.ecs_task_sg = ec2.SecurityGroup(
             self, "ECSTaskSecurityGroup",
@@ -60,15 +75,15 @@ class SharedStack(Stack):
         
         # Allow inbound traffic from ALB on container ports
         self.ecs_task_sg.add_ingress_rule(
-            peer=ec2.Peer.any_ipv4(),  # Allow from internet (ALB will be the source)
+            peer=self.alb_security_group,
             connection=ec2.Port.tcp(3000),
-            description="Allow HTTP traffic to web service"
+            description="Allow HTTP traffic from ALB to web service"
         )
         
         self.ecs_task_sg.add_ingress_rule(
-            peer=ec2.Peer.any_ipv4(),
+            peer=self.alb_security_group,
             connection=ec2.Port.tcp(3001),
-            description="Allow HTTP traffic to API service"
+            description="Allow HTTP traffic from ALB to API service"
         )
         
         # Allow ECS tasks to communicate with each other (service-to-service)
