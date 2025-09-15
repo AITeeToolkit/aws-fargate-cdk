@@ -15,6 +15,10 @@ on:
         description: Docker image tag (e.g., v1.2.3)
         required: false
         type: string
+      domains:
+        description: "Active domains JSON array"
+        required: false
+        type: string
   workflow_dispatch:
     inputs:
       environment:
@@ -30,7 +34,10 @@ on:
         description: Docker image tag (e.g., v1.2.3)
         required: false
         type: string
-
+      domains:
+        description: "Active domains JSON array"
+        required: false
+        type: string
 env:
   AWS_REGION: us-east-1
   ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/storefront/${{ inputs.environment || github.event.inputs.environment || 'dev' }}
@@ -185,6 +192,12 @@ jobs:
         run: |
           source .venv/bin/activate
           cdk bootstrap aws://${{ secrets.AWS_ACCOUNT_ID }}/us-east-1
+
+      - name: Write domains.json
+        if: ${{ inputs.domains != '' }}
+        run: |
+          echo '${{ inputs.domains }}' | jq '{domains: .}' > domains.json
+          cat domains.json
 
       - name: CDK Deploy All Stacks
         env:
