@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.21.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.20.0...v1.21.0) (2025-09-15)
+
+
+### 🚀 Features
+
+* add domain updater service with GitHub integration for automated domain management ([1a94192](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/1a94192b0086a9bb000bc5f383d2cbedc65ec42e))
+
 ## [1.20.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.19.0...v1.20.0) (2025-09-15)
 
 
