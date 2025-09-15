@@ -36,7 +36,8 @@ class APIServiceStack(Stack):
             "NODE_ENV": "production",
             "PORT": "3001",
             "FORCE_UPDATE": "1",
-            "DATABASE_URL": database_url
+            "DATABASE_URL": database_url,
+            "HEALTH_CHECK_PATH": "/v1/api/health"
         }
 
         # Secrets configuration (from CloudFormation template)

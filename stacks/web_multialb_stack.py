@@ -105,11 +105,11 @@ class MultiAlbStack(Stack):
                 priority=1000 + idx,
                 health_check=elbv2.HealthCheck(
                     enabled=True,
-                    path="/",
+                    path="/health",
                     healthy_http_codes="200-499",  # Accept any non-5xx response
-                    interval=Duration.seconds(300),  # Very long interval (5 minutes)
-                    timeout=Duration.seconds(29),   # Long timeout
+                    interval=Duration.seconds(30),   # Normal interval (30 seconds)
+                    timeout=Duration.seconds(5),    # Normal timeout
                     healthy_threshold_count=2,
-                    unhealthy_threshold_count=10    # Many retries before marking unhealthy
+                    unhealthy_threshold_count=3     # Normal retry count
                 )
             )
