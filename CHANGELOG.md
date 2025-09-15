@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.18.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.17.0...v1.18.0) (2025-09-15)
+
+
+### 🚀 Features
+
+* allow ECS task-to-task communication via security group ingress rule ([fd3e795](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/fd3e79529cb90e6e45f9a4771eb50b51547f66d3))
+
 ## [1.17.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.16.0...v1.17.0) (2025-09-15)
 
 
