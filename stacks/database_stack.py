@@ -73,7 +73,7 @@ class DatabaseStack(Stack):
             instance_identifier=f"{environment}-db",
             vpc=vpc,
             subnet_group=public_subnet_group,
-            publicly_accessible=use_public_access,  # ✅ toggles safely
+            publicly_accessible=use_public_access,
             credentials=credentials,
             instance_type=ec2.InstanceType.of(
                 ec2.InstanceClass.BURSTABLE3,
