@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.21.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.21.1...v1.21.2) (2025-09-15)
+
+
+### 🐛 Bug Fixes
+
+* use secure string parameter for GitHub token and move DB secret to environment vars ([d3f148a](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/d3f148a33fcbbfe22d6ba8c3b4de3d53247a1b70))
+
 ## [1.21.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.21.0...v1.21.1) (2025-09-15)
 
 
