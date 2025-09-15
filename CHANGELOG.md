@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.22.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.22.0...v1.22.1) (2025-09-15)
+
+
+### ♻️ Code Refactoring
+
+* remove domain updater service and consolidate domain update logic into listener ([911ccf0](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/911ccf0c258d6656d0e9b4064c1e25c863132a6d))
+
 ## [1.22.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.21.2...v1.22.0) (2025-09-15)
 
 
