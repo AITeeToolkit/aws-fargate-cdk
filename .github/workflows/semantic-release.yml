@@ -36,8 +36,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           git fetch --tags
-          git tag -d v1.16.0 2>/dev/null || true
-          git push origin :refs/tags/v1.16.0 2>/dev/null || true
+          
+          # Get the next version that semantic-release would create
+          NEXT_VERSION=$(npx semantic-release --dry-run 2>&1 | grep "The next release version is" | sed 's/.*The next release version is /v/')
+          
+          if [ -n "$NEXT_VERSION" ] && git tag -l | grep -q "^$NEXT_VERSION$"; then
+            echo "Deleting existing tag: $NEXT_VERSION"
+            git tag -d "$NEXT_VERSION"
+            git push origin ":refs/tags/$NEXT_VERSION" 2>/dev/null || true
+          fi
+          
           npx semantic-release
 
       - name: Get release info

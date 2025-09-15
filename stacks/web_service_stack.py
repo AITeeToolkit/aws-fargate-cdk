@@ -73,6 +73,7 @@ class WebServiceStack(Stack):
             container_port=3000,
             environment=web_environment,
             secrets=web_secrets,
+            desired_count=2,
             security_groups=[ecs_task_security_group] if ecs_task_security_group else [],
             service_name=service_name,
             cloud_map_options=ecs.CloudMapOptions(
