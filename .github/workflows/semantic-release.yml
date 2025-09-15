@@ -34,7 +34,14 @@ jobs:
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: npx semantic-release
+        run: |
+          # Check if tag already exists and delete it locally if it does
+          if git tag -l | grep -q "^v"; then
+            EXISTING_TAG=$(git tag -l "v*" | sort -V | tail -1)
+            echo "Found existing tag: $EXISTING_TAG"
+            git tag -d "$EXISTING_TAG" 2>/dev/null || true
+          fi
+          npx semantic-release
 
       - name: Get release info
         id: release_info
