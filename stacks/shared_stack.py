@@ -50,12 +50,25 @@ class SharedStack(Stack):
             )
         )
 
-        # Create security group for ECS tasks (allow outbound)
+        # Create security group for ECS tasks (allow all outbound)
         self.ecs_task_sg = ec2.SecurityGroup(
             self, "ECSTaskSecurityGroup",
             vpc=vpc,
             description="Security group for ECS tasks",
             allow_all_outbound=True
+        )
+        
+        # Allow inbound traffic from ALB on container ports
+        self.ecs_task_sg.add_ingress_rule(
+            peer=ec2.Peer.any_ipv4(),  # Allow from internet (ALB will be the source)
+            connection=ec2.Port.tcp(3000),
+            description="Allow HTTP traffic to web service"
+        )
+        
+        self.ecs_task_sg.add_ingress_rule(
+            peer=ec2.Peer.any_ipv4(),
+            connection=ec2.Port.tcp(3001),
+            description="Allow HTTP traffic to API service"
         )
         
         # Create security group for VPC endpoints
@@ -73,6 +86,13 @@ class SharedStack(Stack):
             description="Allow HTTPS from ECS tasks"
         )
 
+        # Allow ECS tasks to communicate with VPC endpoints
+        self.ecs_task_sg.add_egress_rule(
+            peer=vpc_endpoint_sg,
+            connection=ec2.Port.tcp(443),
+            description="HTTPS to VPC endpoints for AWS services"
+        )
+        
         # Allow responses back to ECS tasks
         self.ecs_task_sg.add_ingress_rule(
             peer=vpc_endpoint_sg,
@@ -82,9 +102,9 @@ class SharedStack(Stack):
         
         # Allow VPC endpoints to respond back to ECS tasks
         vpc_endpoint_sg.add_egress_rule(
-            peer=ec2.Peer.ipv4(vpc.vpc_cidr_block),
+            peer=self.ecs_task_sg,
             connection=ec2.Port.tcp(443),
-            description="Allow HTTPS responses to VPC"
+            description="Allow HTTPS responses to ECS tasks"
         )
 
         self.ssm_vpc_endpoint = ec2.InterfaceVpcEndpoint(

@@ -65,7 +65,6 @@ class APIServiceStack(Stack):
             cluster=cluster,
             vpc=vpc,
             container_image=ecs.ContainerImage.from_registry(image_uri),
-            listener=None,  # API service is internal, no ALB needed
             container_port=3001,
             environment=api_environment,
             secrets=api_secrets,

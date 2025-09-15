@@ -10,5 +10,9 @@
   "hosted-zone:account=156041439702:domainName=040992.xyz:region=us-east-1": {
     "Id": "/hostedzone/Z0712487222ZIRBN0AQ6Z",
     "Name": "040992.xyz."
+  },
+  "hosted-zone:account=156041439702:domainName=cidertees.com:region=us-east-1": {
+    "Id": "/hostedzone/Z073037418LZOTBYVI8D6",
+    "Name": "cidertees.com."
   }
 }
