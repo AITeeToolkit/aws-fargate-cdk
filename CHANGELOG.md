@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.23.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.22.1...v1.23.0) (2025-09-15)
+
+
+### 🚀 Features
+
+* add domains input param and JSON file generation to GitHub workflow ([1531793](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/15317937e4b05d7a9f603f6d2e4d53caa55ad881))
+
 ## [1.22.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.22.0...v1.22.1) (2025-09-15)
 
 
