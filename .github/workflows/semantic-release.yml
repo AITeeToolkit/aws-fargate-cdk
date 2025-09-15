@@ -35,25 +35,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          git fetch origin --tags --force
-          
-          NEXT_VERSION=$(npx semantic-release --dry-run 2>/dev/null | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1 || echo "")
-          
-          if [ -n "$NEXT_VERSION" ]; then
-            echo "Semantic-release wants to create: $NEXT_VERSION"
-            
-            # Delete the tag both locally and remotely if it exists
-            if git tag -l | grep -q "^$NEXT_VERSION$"; then
-              echo "Deleting local tag: $NEXT_VERSION"
-              git tag -d "$NEXT_VERSION"
-            fi
-            
-            if git ls-remote --tags origin | grep -q "refs/tags/$NEXT_VERSION"; then
-              echo "Deleting remote tag: $NEXT_VERSION"
-              git push origin ":refs/tags/$NEXT_VERSION"
-            fi
-          fi
-          
+          git fetch --tags
+          git tag -d v1.16.0 2>/dev/null || true
+          git push origin :refs/tags/v1.16.0 2>/dev/null || true
           npx semantic-release
 
       - name: Get release info
