@@ -35,12 +35,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          # Check if tag already exists and delete it locally if it does
-          if git tag -l | grep -q "^v"; then
-            EXISTING_TAG=$(git tag -l "v*" | sort -V | tail -1)
-            echo "Found existing tag: $EXISTING_TAG"
-            git tag -d "$EXISTING_TAG" 2>/dev/null || true
-          fi
+          git fetch origin --tags --force
+          
+          for tag in $(git tag -l "v*"); do
+            if ! git ls-remote --tags origin | grep -q "refs/tags/$tag"; then
+              echo "Removing orphaned local tag: $tag"
+              git tag -d "$tag"
+            fi
+          done
+          
           npx semantic-release
 
       - name: Get release info
