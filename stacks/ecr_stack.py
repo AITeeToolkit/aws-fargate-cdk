@@ -1,5 +1,7 @@
 from aws_cdk import Stack, aws_ecr as ecr, RemovalPolicy
 from constructs import Construct
+import boto3
+from botocore.exceptions import ClientError
 
 class ECRStack(Stack):
     def __init__(
@@ -15,31 +17,39 @@ class ECRStack(Stack):
 
         self.repositories = {}
 
+        # Initialize ECR client to check for existing repositories
+        ecr_client = boto3.client('ecr')
+
         for name in repository_names:
             repo_name = f"storefront/{environment}/{name}"
             
             # Try to import existing repository first, create if it doesn't exist
             try:
-                # Attempt to import existing repository
+                ecr_client.describe_repositories(repositoryNames=[repo_name])
+                # Repository exists, import it
                 repo = ecr.Repository.from_repository_name(
                     self, f"{name.capitalize()}Repo",
                     repository_name=repo_name
                 )
                 print(f"Imported existing ECR repository: {repo_name}")
-            except:
-                # Repository doesn't exist, create it
-                repo = ecr.Repository(
-                    self, f"{name.capitalize()}Repo",
-                    repository_name=repo_name,
-                    removal_policy=RemovalPolicy.DESTROY,
-                    image_scan_on_push=True,
-                    lifecycle_rules=[
-                        ecr.LifecycleRule(
-                            description="Keep only 10 most recent images",
-                            max_image_count=10
-                        )
-                    ]
-                )
-                print(f"Created new ECR repository: {repo_name}")
+            except ClientError as e:
+                if e.response['Error']['Code'] == 'RepositoryNotFoundException':
+                    # Repository doesn't exist, create it
+                    repo = ecr.Repository(
+                        self, f"{name.capitalize()}Repo",
+                        repository_name=repo_name,
+                        removal_policy=RemovalPolicy.DESTROY,
+                        image_scan_on_push=True,
+                        lifecycle_rules=[
+                            ecr.LifecycleRule(
+                                description="Keep only 10 most recent images",
+                                max_image_count=10
+                            )
+                        ]
+                    )
+                    print(f"Created new ECR repository: {repo_name}")
+                else:
+                    # Some other error occurred, re-raise it
+                    raise e
             
             self.repositories[name] = repo

@@ -14,5 +14,9 @@
   "hosted-zone:account=156041439702:domainName=cidertees.com:region=us-east-1": {
     "Id": "/hostedzone/Z073037418LZOTBYVI8D6",
     "Name": "cidertees.com."
+  },
+  "hosted-zone:account=156041439702:domainName=teslanope.com:region=us-east-1": {
+    "Id": "/hostedzone/Z01958873BAJOW8RQQW5Q",
+    "Name": "teslanope.com."
   }
 }

@@ -105,7 +105,7 @@ class DomainUpdaterStack(Stack):
                         string_parameter_name=f"/storefront-{environment}/github-token"
                     )
                 ),
-                "DB_SECRET_NAME": ecs.Secret.from_parameter_store(db_secret.secret_name),
+                "DB_SECRET_NAME": ecs.Secret.from_secrets_manager(db_secret),
             }
         )
 
