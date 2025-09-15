@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.20.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.19.0...v1.20.0) (2025-09-15)
+
+
+### 🚀 Features
+
+* add domain listener service with GitHub Actions workflow integration ([36a89f7](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/36a89f7c6255f65e88ef7f2b76535f39b1a409f2))
+
 ## [1.19.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.18.0...v1.19.0) (2025-09-15)
 
 
