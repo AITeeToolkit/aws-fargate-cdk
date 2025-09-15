@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.21.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.21.0...v1.21.1) (2025-09-15)
+
+
+### 🐛 Bug Fixes
+
+* update DB secret access to use SecretsManager and improve ECR repository error handling ([2d59366](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/2d59366e7840603fe85dd59cc7892e4c03a7ae44))
+
 ## [1.21.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.20.0...v1.21.0) (2025-09-15)
 
 
