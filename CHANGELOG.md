@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.19.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.18.0...v1.19.0) (2025-09-15)
+
+
+### 🚀 Features
+
+* add dedicated security group for ALB with restricted inbound rules ([f3ab30f](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/f3ab30f7f41404ca0b81ddbfae8b7dd8d4732a0c))
+
 ## [1.18.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.17.0...v1.18.0) (2025-09-15)
 
 
