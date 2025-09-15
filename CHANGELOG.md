@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.17.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.16.0...v1.17.0) (2025-09-15)
+
+
+### 🚀 Features
+
+* dynamically detect and remove semantic version tags and scale web service to 2 containers ([e42d009](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/e42d009c3e4d05f4fb62f972dd631c13fffbb90b))
+
 ## [1.16.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.15.0...v1.16.0) (2025-09-15)
 
 
