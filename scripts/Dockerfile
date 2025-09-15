@@ -7,7 +7,6 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
-    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
@@ -18,8 +17,3 @@ RUN pip install --no-cache-dir -r requirements.txt
 FROM base as listener
 COPY listener_app.py .
 CMD ["python", "listener_app.py"]
-
-# Domain updater service stage
-FROM base as domain-updater
-COPY domain_updater_app.py .
-CMD ["python", "domain_updater_app.py"]
