@@ -181,38 +181,6 @@ jobs:
           source .venv/bin/activate
           pip install -r requirements.txt
 
-      - name: Update domains from database
-        run: |
-          # Run domain updater ECS task
-          TASK_ARN=$(aws ecs run-task \
-            --cluster storefront-cluster \
-            --task-definition domain-updater-dev \
-            --launch-type FARGATE \
-            --network-configuration "awsvpcConfiguration={subnets=[subnet-0336b7c667e709422,subnet-0c97a4f69670760b1],securityGroups=[sg-001946b0036e3a4d5],assignPublicIp=ENABLED}" \
-            --query 'tasks[0].taskArn' \
-            --output text)
-          
-          echo "Started domain updater task: $TASK_ARN"
-          
-          # Wait for task to complete
-          aws ecs wait tasks-stopped \
-            --cluster storefront-cluster \
-            --tasks $TASK_ARN
-          
-          # Check task exit code
-          EXIT_CODE=$(aws ecs describe-tasks \
-            --cluster storefront-cluster \
-            --tasks $TASK_ARN \
-            --query 'tasks[0].containers[0].exitCode' \
-            --output text)
-          
-          if [ "$EXIT_CODE" != "0" ]; then
-            echo "Domain updater task failed with exit code: $EXIT_CODE"
-            exit 1
-          fi
-          
-          echo "Domain updater task completed successfully"
-
       - name: CDK Bootstrap
         run: |
           source .venv/bin/activate
@@ -224,7 +192,6 @@ jobs:
         run: |
           source .venv/bin/activate
           cdk deploy --require-approval never --all
-
           
       - name: Post deployment notification
         uses: actions/github-script@v7
