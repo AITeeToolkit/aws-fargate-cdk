@@ -1,4 +1,5 @@
-FROM python:3.11-slim
+# Base stage with common dependencies
+FROM python:3.11-slim as base
 
 WORKDIR /app
 
@@ -6,14 +7,19 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the listener application
+# Listener service stage
+FROM base as listener
 COPY listener_app.py .
-
-# Run the listener service
 CMD ["python", "listener_app.py"]
+
+# Domain updater service stage
+FROM base as domain-updater
+COPY domain_updater_app.py .
+CMD ["python", "domain_updater_app.py"]

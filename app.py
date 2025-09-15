@@ -10,6 +10,7 @@ from stacks.ecr_stack import ECRStack
 from stacks.database_stack import DatabaseStack
 from stacks.web_service_stack import WebServiceStack
 from stacks.api_service_stack import APIServiceStack
+from stacks.domain_updater_stack import DomainUpdaterStack
 from stacks.iam_stack import IAMStack
 from stacks.web_multialb_stack import MultiAlbStack
 # from stacks.parameters_stack import ParametersStack
@@ -55,7 +56,7 @@ for domain, alb in multi_alb_stack.domain_to_alb.items():
 ecr_stack = ECRStack(
     app, "StorefrontECRStack",
     env=env,
-    repository_names=["api", "web", "listener"]
+    repository_names=["api", "web", "listener", "domain-updater"]
 )
 
 # RDS instance with Secrets Manager
@@ -101,6 +102,18 @@ web_service = WebServiceStack(
     environment=env_name,
     ecs_task_security_group=shared_stack.ecs_task_sg,
     service_name="web-service"
+)
+
+# Domain updater task (runs on-demand via GitHub Actions)
+domain_updater = DomainUpdaterStack(
+    app, f"DomainUpdaterStack-{env_name}",
+    env=env,
+    vpc=network_stack.vpc,
+    cluster=shared_stack.cluster,
+    image_uri=f"{ecr_stack.repositories['domain-updater'].repository_uri}:{image_tag}",
+    db_secret=database_stack.secret,
+    environment=env_name,
+    ecs_task_security_group=shared_stack.ecs_task_sg
 )
 
 multi_alb_stack.attach_service(web_service.service, port=3000)
