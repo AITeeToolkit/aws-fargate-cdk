@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.23.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.23.0...v1.23.1) (2025-09-16)
+
+
+### ♻️ Code Refactoring
+
+* replace Route53 zone lookups with direct zone creation for better CDK handling ([b6969e4](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/b6969e42cf417bae6d73af7c3c65757f907a5d18))
+
 ## [1.23.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.22.1...v1.23.0) (2025-09-15)
 
 
