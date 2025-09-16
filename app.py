@@ -12,6 +12,7 @@ from stacks.web_service_stack import WebServiceStack
 from stacks.api_service_stack import APIServiceStack
 from stacks.iam_stack import IAMStack
 from stacks.web_multialb_stack import MultiAlbStack
+from stacks.listener_service_stack import ListenerServiceStack
 # from stacks.parameters_stack import ParametersStack
 
 app = cdk.App()
