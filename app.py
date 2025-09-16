@@ -76,6 +76,19 @@ database_stack = DatabaseStack(
 #     namespace=shared_stack.cluster.default_cloud_map_namespace
 # )
 
+# Deploy listener service
+listener_service = ListenerServiceStack(
+    app, f"ListenerServiceStack-{env_name}",
+    env=env,
+    vpc=network_stack.vpc,
+    cluster=shared_stack.cluster,
+    image_uri=f"{ecr_stack.repositories['listener'].repository_uri}:{image_tag}",
+    db_secret=database_stack.secret,
+    environment=env_name,
+    ecs_task_security_group=shared_stack.ecs_task_sg,
+    service_name="listener-service"
+)
+
 # Deploy API service (internal only)
 api_service = APIServiceStack(
     app, f"APIServiceStack-{env_name}",

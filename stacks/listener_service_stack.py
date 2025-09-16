@@ -24,7 +24,7 @@ class ListenerServiceStack(Stack):
         db_secret: secretsmanager.ISecret,
         environment: str,
         ecs_task_security_group: ec2.ISecurityGroup,
-        service_name: str = "listener-service",
+        service_name: str,
         **kwargs
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -39,7 +39,7 @@ class ListenerServiceStack(Stack):
             "GH_TOKEN": ecs.Secret.from_ssm_parameter(
                 ssm.StringParameter.from_string_parameter_name(
                     self, "GitHubTokenParam",
-                    string_parameter_name=f"/storefront-{environment}/github-token"
+                    string_parameter_name=f"/storefront-{environment}/github/PAT"
                 )
             ),
             "PGHOST": ecs.Secret.from_secrets_manager(db_secret, "host"),
