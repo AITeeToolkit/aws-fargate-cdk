@@ -115,7 +115,7 @@ while True:
             logging.info("🕐 Periodic domain check (no notifications received)")
             domains = fetch_domains()
             if domains:
-                logging.info(f"📋 Found {len(domains)} active domains: {[d['full_url'] for d in domains]}")
+                logging.info(f"📋 Found {len(domains)} active domains: {domains}")
                 # Ensure hosted zones exist before triggering workflow
                 created_zones = ensure_hosted_zones(domains)
                 if created_zones:
