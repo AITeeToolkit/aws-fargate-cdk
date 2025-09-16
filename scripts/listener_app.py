@@ -33,7 +33,7 @@ except KeyError as e:
     raise
 
 REPO = os.environ.get("REPO", "AITeeToolkit/aws-fargate-cdk")
-WORKFLOW = "application.yml"     # workflow filename
+WORKFLOW = "infrastructure.yml"     # workflow filename
 region_name = "us-east-1"
 
 logging.info(f"🔧 Configuration: REPO={REPO}, WORKFLOW={WORKFLOW}")
@@ -102,9 +102,33 @@ cur = conn.cursor()
 cur.execute("LISTEN domain_updates;")
 logging.info("Listening for domain updates...")
 
+# Add periodic domain check as fallback
+last_check = time.time()
+CHECK_INTERVAL = 300  # Check every 5 minutes
+
 while True:
+    # Check for notifications with 60 second timeout
     if select.select([conn], [], [], 60) == ([], [], []):
+        # No notification received, check if we should do periodic check
+        current_time = time.time()
+        if current_time - last_check >= CHECK_INTERVAL:
+            logging.info("🕐 Periodic domain check (no notifications received)")
+            domains = fetch_domains()
+            if domains:
+                logging.info(f"📋 Found {len(domains)} active domains: {[d['full_url'] for d in domains]}")
+                # Ensure hosted zones exist before triggering workflow
+                created_zones = ensure_hosted_zones(domains)
+                if created_zones:
+                    logging.info(f"⏳ Waiting 15 seconds for hosted zones to propagate...")
+                    time.sleep(15)
+                    trigger_github(domains)
+                else:
+                    logging.info("ℹ️ All hosted zones already exist, no deployment needed")
+            else:
+                logging.info("📋 No active domains found")
+            last_check = current_time
         continue
+        
     conn.poll()
     while conn.notifies:
         notify = conn.notifies.pop(0)
@@ -118,3 +142,4 @@ while True:
             time.sleep(15)
         
         trigger_github(domains)
+        last_check = time.time()  # Reset periodic check timer
