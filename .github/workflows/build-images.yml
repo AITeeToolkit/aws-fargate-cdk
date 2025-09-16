@@ -2,15 +2,6 @@
 name: Build and Push Images
 
 on:
-  push:
-    branches: ['**']
-    paths:
-      # Trigger on changes to application code in storefront repo
-      - 'storefront/api/**'
-      - 'storefront/multisite/**'
-      # Trigger on changes to listener service code
-      - 'scripts/listener_app.py'
-      - 'scripts/Dockerfile'
   workflow_call:
     inputs:
       image_tag:

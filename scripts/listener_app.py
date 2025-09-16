@@ -104,7 +104,7 @@ logging.info("Listening for domain updates...")
 
 # Add periodic domain check
 last_check = time.time()
-CHECK_INTERVAL = 300  # Check every 5 minutes
+CHECK_INTERVAL = 300
 
 while True:
     # Check for notifications with 60 second timeout
