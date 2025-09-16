@@ -95,20 +95,22 @@ jobs:
   dev-deployment:
     name: Deploy to Development
     needs: generate-tag
-    uses: ./.github/workflows/infrastructure.yml
+    uses: ./.github/workflows/build-images.yml
     with:
       environment: dev
       image_tag: ${{ needs.generate-tag.outputs.image_tag }}
+      force_build: true
     secrets: inherit
 
   deploy-production:
     name: Deploy to Production
     needs: [semantic-release, dev-deployment]
     if: needs.semantic-release.outputs.new_release == 'true'
-    uses: ./.github/workflows/infrastructure.yml
+    uses: ./.github/workflows/build-images.yml
     with:
       environment: prod
       image_tag: ${{ needs.semantic-release.outputs.latest_tag }}
+      force_build: true
     secrets: inherit
 
   dev-summary:
