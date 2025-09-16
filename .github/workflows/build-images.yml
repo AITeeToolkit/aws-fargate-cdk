@@ -27,6 +27,9 @@ on:
       listener_built:
         description: Whether Listener image was built
         value: ${{ jobs.detect-changes.outputs.listener_changed || inputs.force_build }}
+      image_tag_used:
+        description: The actual image tag that was used for builds
+        value: ${{ inputs.image_tag }}
 
 env:
   AWS_REGION: us-east-1
