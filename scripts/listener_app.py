@@ -104,7 +104,7 @@ logging.info("Listening for domain updates...")
 
 # Add periodic domain check
 last_check = time.time()
-CHECK_INTERVAL = 300
+CHECK_INTERVAL = 86400
 
 while True:
     if select.select([conn], [], [], 60) == ([], [], []):
@@ -125,7 +125,6 @@ while True:
             else:
                 logging.info("📋 No active domains found")
             last_check = current_time
-        continue
         
     conn.poll()
     while conn.notifies:
