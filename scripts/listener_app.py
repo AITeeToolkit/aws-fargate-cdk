@@ -108,7 +108,6 @@ CHECK_INTERVAL = 300
 
 while True:
     if select.select([conn], [], [], 60) == ([], [], []):
-        # No notification received, check if we should do periodic check
         current_time = time.time()
         if current_time - last_check >= CHECK_INTERVAL:
             logging.info("🕐 Periodic domain check (no notifications received)")
