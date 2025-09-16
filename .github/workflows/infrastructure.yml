@@ -1,18 +1,6 @@
 name: Deploy Infrastructure
 
 on:
-  push:
-    branches: ['**']
-    paths:
-      # Trigger on infrastructure changes
-      - 'stacks/**'
-      - 'cdk_constructs/**'
-      - 'aspects/**'
-      - 'app.py'
-      - 'cdk.json'
-      - 'requirements.txt'
-      - '.github/workflows/infrastructure.yml'
-      - '.github/workflows/semantic-release.yml'
   workflow_call:
     inputs:
       environment:

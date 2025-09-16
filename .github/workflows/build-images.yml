@@ -290,12 +290,3 @@ jobs:
           echo "- **Environment**: \`${{ inputs.environment || 'dev' }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Registry**: \`${{ env.ECR_REGISTRY }}\`" >> $GITHUB_STEP_SUMMARY
 
-  trigger-infrastructure:
-    name: Trigger Infrastructure Deployment
-    needs: [build-summary]
-    if: needs.build-summary.outputs.images_built == 'true'
-    uses: ./.github/workflows/infrastructure.yml
-    with:
-      environment: ${{ inputs.environment || 'dev' }}
-      image_tag: ${{ inputs.image_tag || github.ref_name }}
-    secrets: inherit

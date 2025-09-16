@@ -9,6 +9,7 @@ from aws_cdk import (
     aws_ssm as ssm,
 )
 from constructs import Construct
+from aws_cdk import aws_servicediscovery as servicediscovery
 from cdk_constructs.fargate_service_construct import FargateServiceConstruct
 
 

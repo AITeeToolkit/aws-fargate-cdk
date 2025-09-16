@@ -92,9 +92,43 @@ jobs:
             echo "image_tag=${CLEAN_BRANCH}-${SHORT_SHA}" >> $GITHUB_OUTPUT
           fi
 
-  dev-deployment:
-    name: Deploy to Development
+  check-changes:
+    name: Check What Changed
     needs: generate-tag
+    runs-on: ubuntu-latest
+    outputs:
+      has_image_changes: ${{ steps.changes.outputs.images }}
+      has_infra_changes: ${{ steps.changes.outputs.infra }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Check for changes
+        id: changes
+        run: |
+          # Check for image-related changes
+          if git diff --name-only HEAD~1 HEAD | grep -E '^(storefront/|scripts/listener_app\.py|scripts/Dockerfile)' > /dev/null; then
+            echo "images=true" >> $GITHUB_OUTPUT
+            echo "Image changes detected"
+          else
+            echo "images=false" >> $GITHUB_OUTPUT
+            echo "No image changes detected"
+          fi
+          
+          # Check for infrastructure changes
+          if git diff --name-only HEAD~1 HEAD | grep -E '^(stacks/|cdk_constructs/|aspects/|app\.py|cdk\.json|requirements\.txt|\.github/workflows/)' > /dev/null; then
+            echo "infra=true" >> $GITHUB_OUTPUT
+            echo "Infrastructure changes detected"
+          else
+            echo "infra=false" >> $GITHUB_OUTPUT
+            echo "No infrastructure changes detected"
+          fi
+
+  build-images:
+    name: Build Images
+    needs: [generate-tag, check-changes]
+    if: needs.check-changes.outputs.has_image_changes == 'true'
     uses: ./.github/workflows/build-images.yml
     with:
       environment: dev
@@ -102,20 +136,29 @@ jobs:
       force_build: false
     secrets: inherit
 
+  deploy-infrastructure:
+    name: Deploy Infrastructure
+    needs: [generate-tag, check-changes, build-images]
+    if: always() && (needs.check-changes.outputs.has_infra_changes == 'true' || needs.build-images.outputs.images_built == 'true')
+    uses: ./.github/workflows/infrastructure.yml
+    with:
+      environment: dev
+      image_tag: ${{ needs.generate-tag.outputs.image_tag }}
+    secrets: inherit
+
   deploy-production:
     name: Deploy to Production
-    needs: [semantic-release, dev-deployment]
+    needs: [semantic-release, deploy-infrastructure]
     if: needs.semantic-release.outputs.new_release == 'true'
-    uses: ./.github/workflows/build-images.yml
+    uses: ./.github/workflows/infrastructure.yml
     with:
       environment: prod
       image_tag: ${{ needs.semantic-release.outputs.latest_tag }}
-      force_build: false
     secrets: inherit
 
   dev-summary:
     name: Development Deployment Summary
-    needs: [generate-tag, dev-deployment]
+    needs: [generate-tag, deploy-infrastructure]
     if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -125,7 +168,7 @@ jobs:
       - name: Generate Dev Summary
         env:
           IMAGE_TAG: ${{ needs.generate-tag.outputs.image_tag }}
-          DEV_STATUS: ${{ needs.dev-deployment.result }}
+          DEV_STATUS: ${{ needs.deploy-infrastructure.result }}
           BRANCH_NAME: ${{ github.ref_name }}
         run: |
           echo "# 🔧 Development Deployment Summary" >> $GITHUB_STEP_SUMMARY
