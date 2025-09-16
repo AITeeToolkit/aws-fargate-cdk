@@ -34,19 +34,9 @@ class ListenerServiceStack(Stack):
             "REPO": "AITeeToolkit/aws-fargate-cdk",
         }
 
-        # Secrets from database and SSM Parameter Store
+        # SSM Parameter names for secrets (FargateServiceConstruct expects parameter names)
         listener_secrets = {
-            "GH_TOKEN": ecs.Secret.from_ssm_parameter(
-                ssm.StringParameter.from_string_parameter_name(
-                    self, "GitHubTokenParam",
-                    string_parameter_name=f"/storefront-{environment}/github/PAT"
-                )
-            ),
-            "PGHOST": ecs.Secret.from_secrets_manager(db_secret, "host"),
-            "PGUSER": ecs.Secret.from_secrets_manager(db_secret, "username"),
-            "PGPASSWORD": ecs.Secret.from_secrets_manager(db_secret, "password"),
-            "PGDATABASE": ecs.Secret.from_secrets_manager(db_secret, "dbname"),
-            "PGPORT": ecs.Secret.from_secrets_manager(db_secret, "port"),
+            "GH_TOKEN": f"/storefront-{environment}/github/PAT",
         }
 
         # Create IAM role for the listener service task
@@ -83,19 +73,47 @@ class ListenerServiceStack(Stack):
             )
         )
 
-        # Create the Fargate service using the construct
-        self.service = FargateServiceConstruct(
+        # Create task definition directly since we need Secrets Manager support
+        task_definition = ecs.FargateTaskDefinition(
+            self, "ListenerTaskDefinition",
+            family=f"{service_name}-task",
+            memory_limit_mib=512,
+            cpu=256,
+            task_role=task_role,
+        )
+
+        # Add container to task definition
+        container = task_definition.add_container(
+            "ListenerContainer",
+            image=ecs.ContainerImage.from_registry(image_uri),
+            environment=listener_environment,
+            secrets={
+                "GH_TOKEN": ecs.Secret.from_ssm_parameter(
+                    ssm.StringParameter.from_string_parameter_name(
+                        self, "GitHubTokenParam",
+                        string_parameter_name=f"/storefront-{environment}/github/PAT"
+                    )
+                ),
+                "PGHOST": ecs.Secret.from_secrets_manager(db_secret, "host"),
+                "PGUSER": ecs.Secret.from_secrets_manager(db_secret, "username"),
+                "PGPASSWORD": ecs.Secret.from_secrets_manager(db_secret, "password"),
+                "PGDATABASE": ecs.Secret.from_secrets_manager(db_secret, "dbname"),
+                "PGPORT": ecs.Secret.from_secrets_manager(db_secret, "port"),
+            },
+            logging=ecs.LogDriver.aws_logs(
+                stream_prefix="listener",
+                log_retention=logs.RetentionDays.ONE_WEEK
+            ),
+        )
+
+        # Create the Fargate service
+        self.service = ecs.FargateService(
             self, "listener-service",
             cluster=cluster,
-            container_port=None,  # No port needed for listener service
+            task_definition=task_definition,
             service_name=service_name,
-            environment_variables=listener_environment,
-            secrets=listener_secrets,
-            task_role=task_role,
-            security_group=ecs_task_security_group,
-            cpu=256,  # Minimal CPU for listener service
-            memory=512,  # Minimal memory for listener service
-            desired_count=1,  # Only need one instance
-            enable_logging=True,
-            log_retention=logs.RetentionDays.ONE_WEEK
+            desired_count=1,
+            security_groups=[ecs_task_security_group],
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
+            enable_execute_command=True,
         )
