@@ -106,15 +106,19 @@ class FargateServiceConstruct(Construct):
             )
         )
 
-        # Map SSM secrets
-        ecs_secrets = {
-            name: ecs.Secret.from_ssm_parameter(
-                ssm.StringParameter.from_string_parameter_name(
-                    self, f"{name}Param", value_from
+        # Handle both SSM parameters and Secrets Manager secrets
+        ecs_secrets = {}
+        for name, value_from in secrets.items():
+            if isinstance(value_from, str):
+                # SSM parameter
+                ecs_secrets[name] = ecs.Secret.from_ssm_parameter(
+                    ssm.StringParameter.from_string_parameter_name(
+                        self, f"{name}Param", value_from
+                    )
                 )
-            )
-            for name, value_from in secrets.items()
-        }
+            else:
+                # Already an ECS Secret object (from Secrets Manager)
+                ecs_secrets[name] = value_from
 
         # Container
         task_def.add_container(
