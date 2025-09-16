@@ -225,7 +225,24 @@ jobs:
     runs-on: ubuntu-latest
     needs: [detect-changes, build-and-push-api, build-and-push-web, build-and-push-listener]
     if: always()
+    outputs:
+      images_built: ${{ steps.check-builds.outputs.images_built }}
     steps:
+      - name: Check if any images were built
+        id: check-builds
+        run: |
+          IMAGES_BUILT=false
+          if [[ "${{ needs.detect-changes.outputs.api_changed }}" == "true" && "${{ needs.build-and-push-api.result }}" == "success" ]]; then
+            IMAGES_BUILT=true
+          fi
+          if [[ "${{ needs.detect-changes.outputs.web_changed }}" == "true" && "${{ needs.build-and-push-web.result }}" == "success" ]]; then
+            IMAGES_BUILT=true
+          fi
+          if [[ "${{ needs.detect-changes.outputs.listener_changed }}" == "true" && "${{ needs.build-and-push-listener.result }}" == "success" ]]; then
+            IMAGES_BUILT=true
+          fi
+          echo "images_built=$IMAGES_BUILT" >> $GITHUB_OUTPUT
+          
       - name: Generate Build Summary
         run: |
           echo "# 🏗️ Image Build Summary" >> $GITHUB_STEP_SUMMARY
@@ -272,3 +289,13 @@ jobs:
           echo "- **Image Tag**: \`${{ env.IMAGE_TAG }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment**: \`${{ inputs.environment || 'dev' }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Registry**: \`${{ env.ECR_REGISTRY }}\`" >> $GITHUB_STEP_SUMMARY
+
+  trigger-infrastructure:
+    name: Trigger Infrastructure Deployment
+    needs: [build-summary]
+    if: needs.build-summary.outputs.images_built == 'true'
+    uses: ./.github/workflows/infrastructure.yml
+    with:
+      environment: ${{ inputs.environment || 'dev' }}
+      image_tag: ${{ inputs.image_tag || github.ref_name }}
+    secrets: inherit

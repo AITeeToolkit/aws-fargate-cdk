@@ -1,4 +1,4 @@
-name: Build and Deploy (Web + API)
+name: Deploy Infrastructure
 
 on:
   workflow_call:
@@ -43,19 +43,9 @@ env:
   CDK_ENV: ${{ inputs.environment || github.event.inputs.environment || 'dev' }}
 
 jobs:
-  build-images:
-    name: Build Images
-    uses: ./.github/workflows/build-images.yml
-    with:
-      image_tag: ${{ inputs.image_tag || github.ref_name }}
-      environment: ${{ inputs.environment || 'dev' }}
-      force_build: true  # Always build for deployment workflow
-    secrets: inherit
-
   deploy-cdk:
     name: Deploy CDK Stacks
     runs-on: ubuntu-latest
-    needs: [build-images]
     steps:
       - uses: actions/checkout@v4
 

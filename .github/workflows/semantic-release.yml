@@ -95,7 +95,7 @@ jobs:
   dev-deployment:
     name: Deploy to Development
     needs: generate-tag
-    uses: ./.github/workflows/application.yml
+    uses: ./.github/workflows/infrastructure.yml
     with:
       environment: dev
       image_tag: ${{ needs.generate-tag.outputs.image_tag }}
@@ -105,7 +105,7 @@ jobs:
     name: Deploy to Production
     needs: [semantic-release, dev-deployment]
     if: needs.semantic-release.outputs.new_release == 'true'
-    uses: ./.github/workflows/application.yml
+    uses: ./.github/workflows/infrastructure.yml
     with:
       environment: prod
       image_tag: ${{ needs.semantic-release.outputs.latest_tag }}
