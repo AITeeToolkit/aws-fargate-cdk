@@ -139,7 +139,7 @@ jobs:
   deploy-infrastructure:
     name: Deploy Infrastructure
     needs: [generate-tag, check-changes, build-images]
-    if: always() && (needs.check-changes.outputs.has_infra_changes == 'true' || needs.build-images.outputs.images_built == 'true')
+    if: always() && (needs.check-changes.outputs.has_infra_changes == 'true' || (needs.check-changes.outputs.has_image_changes == 'true' && needs.build-images.result == 'success'))
     uses: ./.github/workflows/infrastructure.yml
     with:
       environment: dev
