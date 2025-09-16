@@ -222,16 +222,17 @@ jobs:
       - name: Check if any images were built
         id: check-builds
         run: |
-          IMAGES_BUILT=false
+          IMAGES_BUILT="false"
           if [[ "${{ needs.detect-changes.outputs.api_changed }}" == "true" && "${{ needs.build-and-push-api.result }}" == "success" ]]; then
-            IMAGES_BUILT=true
+            IMAGES_BUILT="true"
           fi
           if [[ "${{ needs.detect-changes.outputs.web_changed }}" == "true" && "${{ needs.build-and-push-web.result }}" == "success" ]]; then
-            IMAGES_BUILT=true
+            IMAGES_BUILT="true"
           fi
           if [[ "${{ needs.detect-changes.outputs.listener_changed }}" == "true" && "${{ needs.build-and-push-listener.result }}" == "success" ]]; then
-            IMAGES_BUILT=true
+            IMAGES_BUILT="true"
           fi
+          echo "Setting images_built to: $IMAGES_BUILT"
           echo "images_built=$IMAGES_BUILT" >> $GITHUB_OUTPUT
           
       - name: Generate Build Summary
