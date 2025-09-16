@@ -40,31 +40,13 @@ region_name = "us-east-1"
 logging.info(f"🔧 Configuration: REPO={REPO}, WORKFLOW={WORKFLOW}")
 
 def trigger_github(domains):
-    branch_name = f"domain-update-{int(time.time())}"
-    
-    # Get the latest commit SHA from main
-    url = f"https://api.github.com/repos/{REPO}/git/refs/heads/main"
-    headers = {"Authorization": f"token {GITHUB_PAT}"}
-    r = requests.get(url, headers=headers)
-    r.raise_for_status()
-    main_sha = r.json()["object"]["sha"]
-    
-    # Create new branch from main
-    url = f"https://api.github.com/repos/{REPO}/git/refs"
-    payload = {
-        "ref": f"refs/heads/{branch_name}",
-        "sha": main_sha
-    }
-    r = requests.post(url, headers=headers, json=payload)
-    r.raise_for_status()
-    
-    # Update domains.json file
+    # Commit directly to main branch
     domains_content = json.dumps({"domains": domains}, indent=2)
     
     # Get current domains.json file to get its SHA
     url = f"https://api.github.com/repos/{REPO}/contents/domains.json"
-    params = {"ref": branch_name}
-    r = requests.get(url, headers=headers, params=params)
+    headers = {"Authorization": f"token {GITHUB_PAT}"}
+    r = requests.get(url, headers=headers)
     
     # Base64 encode the content
     content_b64 = base64.b64encode(domains_content.encode()).decode()
@@ -72,26 +54,24 @@ def trigger_github(domains):
     if r.status_code == 200:
         file_sha = r.json()["sha"]
         # Update existing file
-        url = f"https://api.github.com/repos/{REPO}/contents/domains.json"
         payload = {
             "message": f"Update domains.json with {len(domains)} active domains",
             "content": content_b64,
             "sha": file_sha,
-            "branch": branch_name
+            "branch": "main"
         }
     else:
         # Create new file
-        url = f"https://api.github.com/repos/{REPO}/contents/domains.json"
         payload = {
             "message": f"Create domains.json with {len(domains)} active domains",
             "content": content_b64,
-            "branch": branch_name
+            "branch": "main"
         }
     
     r = requests.put(url, headers=headers, json=payload)
     r.raise_for_status()
     
-    logging.info(f"✅ Created branch '{branch_name}' with {len(domains)} domains.")
+    logging.info(f"✅ Committed domains.json to main branch with {len(domains)} domains.")
 
 def fetch_domains():
     cur = conn.cursor()
