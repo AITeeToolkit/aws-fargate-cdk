@@ -69,11 +69,11 @@ class MultiAlbStack(Stack):
                 # Get the root zone (strip subdomains if necessary)
                 root_zone_name = ".".join(domain.split(".")[-2:])
 
-                # Create hosted zone (CDK will import if it already exists)
-                zone = route53.HostedZone(
+                # Look up existing hosted zone
+                zone = route53.HostedZone.from_lookup(
                     self,
                     f"Zone-{domain.replace('.', '-')}",
-                    zone_name=root_zone_name
+                    domain_name=root_zone_name
                 )
 
                 cert = acm.Certificate(
