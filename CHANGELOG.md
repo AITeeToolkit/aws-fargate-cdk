@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.25.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.24.0...v1.25.0) (2025-09-16)
+
+
+### 🚀 Features
+
+* add listener service deployment with GitHub token integration ([c6650c5](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/c6650c5d2122842d29455bef1068aec5082db836))
+
 ## [1.24.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.23.1...v1.24.0) (2025-09-16)
 
 
