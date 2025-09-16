@@ -105,6 +105,17 @@ class FargateServiceConstruct(Construct):
                 resources=["*"],
             )
         )
+        task_def.task_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "route53:ListHostedZonesByName",
+                    "route53:CreateHostedZone",
+                    "route53:GetHostedZone",
+                    "route53:ListHostedZones",
+                ],
+                resources=["*"],
+            )
+        )
 
         # Handle both SSM parameters and Secrets Manager secrets
         ecs_secrets = {}
