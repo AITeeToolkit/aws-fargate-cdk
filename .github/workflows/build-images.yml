@@ -1,0 +1,274 @@
+---
+name: Build and Push Images
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      # Trigger on changes to application code in storefront repo
+      - 'storefront/api/**'
+      - 'storefront/multisite/**'
+      # Trigger on changes to listener service code
+      - 'scripts/listener_app.py'
+      - 'scripts/Dockerfile'
+  workflow_call:
+    inputs:
+      image_tag:
+        description: Docker image tag
+        required: true
+        type: string
+      environment:
+        description: Environment (dev/prod)
+        required: true
+        type: string
+      force_build:
+        description: Force build all images regardless of changes
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      api_built:
+        description: Whether API image was built
+        value: ${{ jobs.detect-changes.outputs.api_changed || inputs.force_build }}
+      web_built:
+        description: Whether Web image was built
+        value: ${{ jobs.detect-changes.outputs.web_changed || inputs.force_build }}
+      listener_built:
+        description: Whether Listener image was built
+        value: ${{ jobs.detect-changes.outputs.listener_changed || inputs.force_build }}
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/storefront/${{ inputs.environment || 'dev' }}
+  IMAGE_TAG: ${{ inputs.image_tag || github.ref_name }}
+
+jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      api_changed: ${{ steps.changes.outputs.api }}
+      web_changed: ${{ steps.changes.outputs.web }}
+      listener_changed: ${{ steps.changes.outputs.listener }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for changes
+        id: changes
+        run: |
+          # Check if this is a force build
+          if [[ "${{ inputs.force_build }}" == "true" ]]; then
+            echo "api=true" >> $GITHUB_OUTPUT
+            echo "web=true" >> $GITHUB_OUTPUT
+            echo "listener=true" >> $GITHUB_OUTPUT
+            echo "Force build requested - all images will be built"
+            exit 0
+          fi
+
+          # For push events, compare with previous commit
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+          else
+            # For workflow_call, build everything by default
+            echo "api=true" >> $GITHUB_OUTPUT
+            echo "web=true" >> $GITHUB_OUTPUT
+            echo "listener=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check for API changes
+          if git diff --name-only $BASE_SHA $HEAD_SHA | grep -E '^(storefront/api/|.*Dockerfile.*api)' > /dev/null; then
+            echo "api=true" >> $GITHUB_OUTPUT
+            echo "API changes detected"
+          else
+            echo "api=false" >> $GITHUB_OUTPUT
+            echo "No API changes detected"
+          fi
+
+          # Check for Web changes
+          if git diff --name-only $BASE_SHA $HEAD_SHA | grep -E '^(storefront/multisite/|.*Dockerfile.*web)' > /dev/null; then
+            echo "web=true" >> $GITHUB_OUTPUT
+            echo "Web changes detected"
+          else
+            echo "web=false" >> $GITHUB_OUTPUT
+            echo "No Web changes detected"
+          fi
+
+          # Check for Listener changes (only listener_app.py and Dockerfile)
+          if git diff --name-only $BASE_SHA $HEAD_SHA | grep -E '^(scripts/listener_app\.py|scripts/Dockerfile)' > /dev/null; then
+            echo "listener=true" >> $GITHUB_OUTPUT
+            echo "Listener changes detected"
+          else
+            echo "listener=false" >> $GITHUB_OUTPUT
+            echo "No Listener changes detected"
+          fi
+
+  login-to-aws:
+    name: Login to AWS & ECR
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.api_changed == 'true' || needs.detect-changes.outputs.web_changed == 'true' || needs.detect-changes.outputs.listener_changed == 'true'
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_CODEBUILD_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        run: aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+
+  build-and-push-api:
+    name: Build & Push API Image
+    runs-on: ubuntu-latest
+    needs: [detect-changes, login-to-aws]
+    if: needs.detect-changes.outputs.api_changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Checkout storefront repository
+        uses: actions/checkout@v4
+        with:
+          repository: AITeeToolkit/storefront
+          token: ${{ secrets.GH_TOKEN }}
+          path: storefront
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_CODEBUILD_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        run: aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+
+      - name: Build API Docker Image
+        run: |
+          echo "Building API image with tag: ${IMAGE_TAG}"
+          docker build -t $ECR_REGISTRY/api:${IMAGE_TAG} -t $ECR_REGISTRY/api:latest ./storefront/api
+
+      - name: Push API Image
+        run: |
+          docker push $ECR_REGISTRY/api:${IMAGE_TAG}
+          docker push $ECR_REGISTRY/api:latest
+
+  build-and-push-web:
+    name: Build & Push Web Image
+    runs-on: ubuntu-latest
+    needs: [detect-changes, login-to-aws]
+    if: needs.detect-changes.outputs.web_changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Checkout storefront repository
+        uses: actions/checkout@v4
+        with:
+          repository: AITeeToolkit/storefront
+          token: ${{ secrets.GH_TOKEN }}
+          path: storefront
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_CODEBUILD_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        run: aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+
+      - name: Build Web Docker Image
+        run: |
+          echo "Building Web image with tag: ${IMAGE_TAG}"
+          docker build -t $ECR_REGISTRY/web:${IMAGE_TAG} -t $ECR_REGISTRY/web:latest ./storefront/multisite
+
+      - name: Push Web Image
+        run: |
+          docker push $ECR_REGISTRY/web:${IMAGE_TAG}
+          docker push $ECR_REGISTRY/web:latest
+
+  build-and-push-listener:
+    name: Build & Push Listener Image
+    runs-on: ubuntu-latest
+    needs: [detect-changes, login-to-aws]
+    if: needs.detect-changes.outputs.listener_changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_CODEBUILD_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        run: aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+
+      - name: Build Listener Docker Image
+        run: |
+          echo "Building Listener image with tag: ${IMAGE_TAG}"
+          docker build --target listener -t $ECR_REGISTRY/listener:${IMAGE_TAG} -t $ECR_REGISTRY/listener:latest ./scripts
+
+      - name: Push Listener Image
+        run: |
+          docker push $ECR_REGISTRY/listener:${IMAGE_TAG}
+          docker push $ECR_REGISTRY/listener:latest
+
+  build-summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [detect-changes, build-and-push-api, build-and-push-web, build-and-push-listener]
+    if: always()
+    steps:
+      - name: Generate Build Summary
+        run: |
+          echo "# 🏗️ Image Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Build Status" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Changes Detected | Build Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|------------------|--------------|" >> $GITHUB_STEP_SUMMARY
+          
+          # API Status
+          if [[ "${{ needs.detect-changes.outputs.api_changed }}" == "true" ]]; then
+            if [[ "${{ needs.build-and-push-api.result }}" == "success" ]]; then
+              echo "| API | ✅ Yes | ✅ Built Successfully |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| API | ✅ Yes | ❌ Build Failed |" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "| API | ❌ No | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Web Status
+          if [[ "${{ needs.detect-changes.outputs.web_changed }}" == "true" ]]; then
+            if [[ "${{ needs.build-and-push-web.result }}" == "success" ]]; then
+              echo "| Web | ✅ Yes | ✅ Built Successfully |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| Web | ✅ Yes | ❌ Build Failed |" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "| Web | ❌ No | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Listener Status
+          if [[ "${{ needs.detect-changes.outputs.listener_changed }}" == "true" ]]; then
+            if [[ "${{ needs.build-and-push-listener.result }}" == "success" ]]; then
+              echo "| Listener | ✅ Yes | ✅ Built Successfully |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| Listener | ✅ Yes | ❌ Build Failed |" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "| Listener | ❌ No | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Image Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Tag**: \`${{ env.IMAGE_TAG }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: \`${{ inputs.environment || 'dev' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry**: \`${{ env.ECR_REGISTRY }}\`" >> $GITHUB_STEP_SUMMARY
