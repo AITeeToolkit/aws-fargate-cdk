@@ -14,10 +14,10 @@ class Route53Stack(Stack):
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # Look up the hosted zone by domain
-        zone = route53.HostedZone.from_lookup(
+        # Create hosted zone (CDK will import if it already exists)
+        zone = route53.HostedZone(
             self, "HostedZone",
-            domain_name=domain_name
+            zone_name=domain_name
         )
 
         # Root domain ALIAS record to ALB
