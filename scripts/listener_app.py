@@ -102,7 +102,7 @@ cur = conn.cursor()
 cur.execute("LISTEN domain_updates;")
 logging.info("Listening for domain updates...")
 
-# Add periodic domain check as fallback
+# Add periodic domain check
 last_check = time.time()
 CHECK_INTERVAL = 300  # Check every 5 minutes
 
