@@ -40,13 +40,30 @@ region_name = "us-east-1"
 logging.info(f"🔧 Configuration: REPO={REPO}, WORKFLOW={WORKFLOW}")
 
 def trigger_github(domains):
-    # Commit directly to main branch
+    # Create a timestamped branch for the update
+    branch_name = f"domain-update-{int(time.time())}"
     domains_content = json.dumps({"domains": domains}, indent=2)
+    
+    # Get the latest commit SHA from main
+    url = f"https://api.github.com/repos/{REPO}/git/refs/heads/main"
+    headers = {"Authorization": f"token {GITHUB_PAT}"}
+    r = requests.get(url, headers=headers)
+    r.raise_for_status()
+    main_sha = r.json()["object"]["sha"]
+    
+    # Create new branch from main
+    url = f"https://api.github.com/repos/{REPO}/git/refs"
+    payload = {
+        "ref": f"refs/heads/{branch_name}",
+        "sha": main_sha
+    }
+    r = requests.post(url, headers=headers, json=payload)
+    r.raise_for_status()
     
     # Get current domains.json file to get its SHA
     url = f"https://api.github.com/repos/{REPO}/contents/domains.json"
-    headers = {"Authorization": f"token {GITHUB_PAT}"}
-    r = requests.get(url, headers=headers)
+    params = {"ref": branch_name}
+    r = requests.get(url, headers=headers, params=params)
     
     # Base64 encode the content
     content_b64 = base64.b64encode(domains_content.encode()).decode()
@@ -58,20 +75,21 @@ def trigger_github(domains):
             "message": f"Update domains.json with {len(domains)} active domains",
             "content": content_b64,
             "sha": file_sha,
-            "branch": "main"
+            "branch": branch_name
         }
     else:
         # Create new file
         payload = {
             "message": f"Create domains.json with {len(domains)} active domains",
             "content": content_b64,
-            "branch": "main"
+            "branch": branch_name
         }
     
+    url = f"https://api.github.com/repos/{REPO}/contents/domains.json"
     r = requests.put(url, headers=headers, json=payload)
     r.raise_for_status()
     
-    logging.info(f"✅ Committed domains.json to main branch with {len(domains)} domains.")
+    logging.info(f"✅ Created branch '{branch_name}' and committed domains.json with {len(domains)} domains.")
 
 def fetch_domains():
     cur = conn.cursor()
