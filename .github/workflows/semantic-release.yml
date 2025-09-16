@@ -143,7 +143,7 @@ jobs:
     uses: ./.github/workflows/infrastructure.yml
     with:
       environment: dev
-      image_tag: ${{ needs.build-images.outputs.image_tag_used || needs.generate-tag.outputs.image_tag }}
+      image_tag: ${{ (needs.check-changes.outputs.has_image_changes == 'true' && needs.build-images.result == 'success') && needs.generate-tag.outputs.image_tag || 'latest' }}
     secrets: inherit
 
   deploy-production:
