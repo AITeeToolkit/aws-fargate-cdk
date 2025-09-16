@@ -107,7 +107,6 @@ last_check = time.time()
 CHECK_INTERVAL = 300
 
 while True:
-    # Check for notifications with 60 second timeout
     if select.select([conn], [], [], 60) == ([], [], []):
         # No notification received, check if we should do periodic check
         current_time = time.time()
