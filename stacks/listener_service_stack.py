@@ -85,9 +85,8 @@ class ListenerServiceStack(Stack):
 
         # Create the Fargate service using the construct
         self.service = FargateServiceConstruct(
-            self, "ListenerService",
+            self, "listener-service",
             cluster=cluster,
-            image_uri=image_uri,
             container_port=None,  # No port needed for listener service
             service_name=service_name,
             environment_variables=listener_environment,
