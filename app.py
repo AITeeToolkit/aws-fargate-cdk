@@ -23,8 +23,13 @@ env_name = app.node.try_get_context("env") or "dev"
 with open("domains.json") as f:
     domains = json.load(f)["domains"]
 
-# Get the image tag from environment variable (set by CI/CD) or default to 'latest'
-image_tag = os.environ.get("CDK_IMAGE_TAG", "latest")
+# Get image tag from environment variable or use default
+base_image_tag = os.environ.get("CDK_IMAGE_TAG", "latest")
+
+# Use specific tags for each service - fallback to 'latest' if specific tag doesn't exist
+listener_tag = base_image_tag if base_image_tag != "latest" else "latest"
+api_tag = "latest"  # API uses latest unless specifically built
+web_tag = "latest"  # Web uses latest unless specifically built
 
 # IAM Stack for CI/CD permissions - deploy this first to bootstrap permissions
 # iam_stack = IAMStack(app, "StorefrontIAMStack", env=env)
@@ -83,7 +88,7 @@ listener_service = ListenerServiceStack(
     env=env,
     vpc=network_stack.vpc,
     cluster=shared_stack.cluster,
-    image_uri=f"{ecr_stack.repositories['listener'].repository_uri}:{image_tag}",
+    image_uri=f"{ecr_stack.repositories['listener'].repository_uri}:{listener_tag}",
     db_secret=database_stack.secret,
     environment=env_name,
     ecs_task_security_group=shared_stack.ecs_task_sg,
@@ -96,7 +101,7 @@ api_service = APIServiceStack(
     env=env,
     vpc=network_stack.vpc,
     cluster=shared_stack.cluster,
-    image_uri=f"{ecr_stack.repositories['api'].repository_uri}:{image_tag}",
+    image_uri=f"{ecr_stack.repositories['api'].repository_uri}:{api_tag}",
     db_secret=database_stack.secret,
     environment=env_name,
     ecs_task_security_group=shared_stack.ecs_task_sg,
@@ -110,7 +115,7 @@ web_service = WebServiceStack(
     env=env,
     vpc=network_stack.vpc,
     cluster=shared_stack.cluster,
-    image_uri=f"{ecr_stack.repositories['web'].repository_uri}:{image_tag}",
+    image_uri=f"{ecr_stack.repositories['web'].repository_uri}:{web_tag}",
     db_secret=database_stack.secret,
     environment=env_name,
     ecs_task_security_group=shared_stack.ecs_task_sg,
