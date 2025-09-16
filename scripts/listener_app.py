@@ -1,19 +1,42 @@
 import os, requests, psycopg2, select, json, logging, boto3, time
 
-# Get credentials from environment variables (provided by ECS secrets)
-conn = psycopg2.connect(
-    host=os.environ["PGHOST"],
-    user=os.environ["PGUSER"],
-    password=os.environ["PGPASSWORD"],
-    dbname=os.environ["PGDATABASE"],
-    port=os.environ.get("PGPORT", "5432")  # Default PostgreSQL port
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
 )
 
+logging.info("🚀 Starting listener service...")
+
+try:
+    # Get credentials from environment variables (provided by ECS secrets)
+    logging.info("📡 Connecting to database...")
+    conn = psycopg2.connect(
+        host=os.environ["PGHOST"],
+        user=os.environ["PGUSER"],
+        password=os.environ["PGPASSWORD"],
+        dbname=os.environ["PGDATABASE"],
+        port=os.environ.get("PGPORT", "5432")  # Default PostgreSQL port
+    )
+    logging.info("✅ Database connection established")
+except Exception as e:
+    logging.error(f"❌ Failed to connect to database: {e}")
+    raise
+
 # GitHub repo + PAT from environment
-GITHUB_PAT = os.environ["GH_TOKEN"]
+try:
+    GITHUB_PAT = os.environ["GH_TOKEN"]
+    logging.info("✅ GitHub token loaded")
+except KeyError as e:
+    logging.error(f"❌ Missing environment variable: {e}")
+    raise
+
 REPO = os.environ.get("REPO", "AITeeToolkit/aws-fargate-cdk")
 WORKFLOW = "application.yml"     # workflow filename
 region_name = "us-east-1"
+
+logging.info(f"🔧 Configuration: REPO={REPO}, WORKFLOW={WORKFLOW}")
 
 def trigger_github(domains):
     url = f"https://api.github.com/repos/{REPO}/actions/workflows/{WORKFLOW}/dispatches"
