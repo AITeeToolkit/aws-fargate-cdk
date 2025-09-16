@@ -114,7 +114,7 @@ while True:
             domains = fetch_domains()
             if domains:
                 logging.info(f"📋 Found {len(domains)} active domains: {domains}")
-                # Ensure hosted zones exist before triggering workflow
+                # Ensure hosted zones exist before triggering workflows
                 created_zones = ensure_hosted_zones(domains)
                 if created_zones:
                     logging.info(f"⏳ Waiting 15 seconds for hosted zones to propagate...")
