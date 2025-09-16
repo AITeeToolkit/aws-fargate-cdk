@@ -100,43 +100,105 @@ def ensure_hosted_zones(domains):
 
 cur = conn.cursor()
 cur.execute("LISTEN domain_updates;")
+conn.commit()  # Commit the LISTEN command
 logging.info("Listening for domain updates...")
+
+# Test if LISTEN is working by checking pg_listening_channels
+cur.execute("SELECT * FROM pg_listening_channels();")
+channels = cur.fetchall()
+logging.info(f"📻 Currently listening to channels: {channels}")
+
+# Also test a simple query to verify connection
+cur.execute("SELECT current_database(), current_user, inet_server_addr(), inet_server_port();")
+db_info = cur.fetchone()
+logging.info(f"🔗 Connected to: database={db_info[0]}, user={db_info[1]}, host={db_info[2]}, port={db_info[3]}")
 
 # Add periodic domain check
 last_check = time.time()
 CHECK_INTERVAL = 86400
 
+# Test self-notification after 5 seconds
+test_notification_sent = False
+
 while True:
-    if select.select([conn], [], [], 60) == ([], [], []):
-        current_time = time.time()
-        if current_time - last_check >= CHECK_INTERVAL:
-            logging.info("🕐 Periodic domain check (no notifications received)")
-            domains = fetch_domains()
-            if domains:
-                logging.info(f"📋 Found {len(domains)} active domains: {domains}")
-                # Ensure hosted zones exist before triggering workflows
+    try:
+        ready = select.select([conn], [], [], 10)  # Shorter timeout for more frequent checks
+        if ready == ([], [], []):
+            current_time = time.time()
+            
+            # Send test notification after 5 seconds
+            if not test_notification_sent and current_time - last_check > 5:
+                logging.info("🧪 Sending test notification from same connection...")
+                cur.execute("SELECT pg_notify('domain_updates', '{\"test\": \"self_notification\"}');")
+                conn.commit()
+                test_notification_sent = True
+                logging.info("✅ Test notification sent")
+            
+            if current_time - last_check >= CHECK_INTERVAL:
+                logging.info("🕐 Periodic domain check (no notifications received)")
+                domains = fetch_domains()
+                if domains:
+                    logging.info(f"📋 Found {len(domains)} active domains: {domains}")
+                    # Ensure hosted zones exist before triggering workflows
+                    created_zones = ensure_hosted_zones(domains)
+                    if created_zones:
+                        logging.info(f"⏳ Waiting 15 seconds for hosted zones to propagate...")
+                        time.sleep(15)
+                        trigger_github(domains)
+                    else:
+                        logging.info("ℹ️ All hosted zones already exist, no deployment needed")
+                else:
+                    logging.info("📋 No active domains found")
+                last_check = current_time
+            # Add periodic debug info
+            if current_time % 30 < 10:  # Every 30 seconds
+                logging.info("🔍 Still listening... (no timeout)")
+        else:
+            logging.info("📡 Database connection has data ready")
+            
+        # Always poll for notifications
+        conn.poll()
+        if conn.notifies:
+            logging.info(f"📬 Found {len(conn.notifies)} notifications")
+            while conn.notifies:
+                notify = conn.notifies.pop(0)
+                logging.info(f"🔔 Domain change detected: {notify.payload}")
+                domains = fetch_domains()
+                
+                # Ensure hosted zones exist before triggering workflow
                 created_zones = ensure_hosted_zones(domains)
                 if created_zones:
                     logging.info(f"⏳ Waiting 15 seconds for hosted zones to propagate...")
                     time.sleep(15)
-                    trigger_github(domains)
-                else:
-                    logging.info("ℹ️ All hosted zones already exist, no deployment needed")
-            else:
-                logging.info("📋 No active domains found")
-            last_check = current_time
+                
+                trigger_github(domains)
+                last_check = time.time()  # Reset periodic check timer
+        else:
+            # Test if we're still listening every 30 seconds
+            current_time = time.time()
+            if int(current_time) % 30 == 0:
+                cur.execute("SELECT * FROM pg_listening_channels();")
+                channels = cur.fetchall()
+                logging.info(f"🔍 Debug: Still listening to: {channels}")
+            
+    except Exception as e:
+        logging.error(f"💥 Error in listener loop: {e}")
+        # Try to reconnect
+        try:
+            conn.close()
+        except:
+            pass
         
-    conn.poll()
-    while conn.notifies:
-        notify = conn.notifies.pop(0)
-        logging.info(f"🔔 Domain change detected: {notify.payload}")
-        domains = fetch_domains()
-        
-        # Ensure hosted zones exist before triggering workflow
-        created_zones = ensure_hosted_zones(domains)
-        if created_zones:
-            logging.info(f"⏳ Waiting 15 seconds for hosted zones to propagate...")
-            time.sleep(15)
-        
-        trigger_github(domains)
-        last_check = time.time()  # Reset periodic check timer
+        logging.info("🔄 Reconnecting to database...")
+        conn = psycopg2.connect(
+            host=os.environ["PGHOST"],
+            user=os.environ["PGUSER"],
+            password=os.environ["PGPASSWORD"],
+            dbname=os.environ["PGDATABASE"],
+            port=os.environ.get("PGPORT", "5432")
+        )
+        cur = conn.cursor()
+        cur.execute("LISTEN domain_updates;")
+        conn.commit()  # Commit the LISTEN command
+        logging.info("✅ Reconnected and listening for domain updates...")
+        time.sleep(5)
