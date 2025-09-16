@@ -1,9 +1,6 @@
 name: Build and Deploy (Web + API)
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_call:
     inputs:
       environment:
@@ -211,7 +208,9 @@ jobs:
         with:
           script: |
             const imageTag = '${{ env.IMAGE_TAG }}';
-            const environment = '${{ env.CDK_ENV }}';
+            const environment = '${{ env.CDK_ENV }}'; 
+            const listenerImageTag = '${{ env.IMAGE_TAG }}';
+            const listenerEnvironment = '${{ env.CDK_ENV }}'; 
             github.rest.repos.createCommitComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -219,6 +218,8 @@ jobs:
               body: `🎉 **Application Deployed Successfully**\n\n` +
                     `- **Environment**: ${environment}\n` +
                     `- **Image Tag**: ${imageTag}\n` +
+                    `- **Listener Image Tag**: ${listenerImageTag}\n` +
+                    `- **Listener Environment**: ${listenerEnvironment}\n` +
                     `- **Status**: ✅ Success\n` +
                     `- **Timestamp**: ${new Date().toISOString()}`
             });

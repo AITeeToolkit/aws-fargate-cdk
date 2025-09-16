@@ -46,6 +46,7 @@ class ListenerServiceStack(Stack):
             "PGUSER": ecs.Secret.from_secrets_manager(db_secret, "username"),
             "PGPASSWORD": ecs.Secret.from_secrets_manager(db_secret, "password"),
             "PGDATABASE": ecs.Secret.from_secrets_manager(db_secret, "dbname"),
+            "PGPORT": ecs.Secret.from_secrets_manager(db_secret, "port"),
         }
 
         # Create IAM role for the listener service task
