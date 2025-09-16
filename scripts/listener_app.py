@@ -1,4 +1,5 @@
-import os, requests, psycopg2, select, json, logging, boto3, time
+import os, requests, psycopg2, select, json, logging, boto3, time, base64
+
 
 # Configure logging
 logging.basicConfig(
@@ -39,18 +40,58 @@ region_name = "us-east-1"
 logging.info(f"🔧 Configuration: REPO={REPO}, WORKFLOW={WORKFLOW}")
 
 def trigger_github(domains):
-    url = f"https://api.github.com/repos/{REPO}/actions/workflows/{WORKFLOW}/dispatches"
+    branch_name = f"domain-update-{int(time.time())}"
+    
+    # Get the latest commit SHA from main
+    url = f"https://api.github.com/repos/{REPO}/git/refs/heads/main"
     headers = {"Authorization": f"token {GITHUB_PAT}"}
+    r = requests.get(url, headers=headers)
+    r.raise_for_status()
+    main_sha = r.json()["object"]["sha"]
+    
+    # Create new branch from main
+    url = f"https://api.github.com/repos/{REPO}/git/refs"
     payload = {
-        "ref": "main",
-        "inputs": {
-            "domains": json.dumps(domains),
-            "environment": "dev"  # or detect from event
-        }
+        "ref": f"refs/heads/{branch_name}",
+        "sha": main_sha
     }
     r = requests.post(url, headers=headers, json=payload)
     r.raise_for_status()
-    logging.info(f"✅ Triggered GitHub workflow with {len(domains)} domains.")
+    
+    # Update domains.json file
+    domains_content = json.dumps({"domains": domains}, indent=2)
+    
+    # Get current domains.json file to get its SHA
+    url = f"https://api.github.com/repos/{REPO}/contents/domains.json"
+    params = {"ref": branch_name}
+    r = requests.get(url, headers=headers, params=params)
+    
+    # Base64 encode the content
+    content_b64 = base64.b64encode(domains_content.encode()).decode()
+    
+    if r.status_code == 200:
+        file_sha = r.json()["sha"]
+        # Update existing file
+        url = f"https://api.github.com/repos/{REPO}/contents/domains.json"
+        payload = {
+            "message": f"Update domains.json with {len(domains)} active domains",
+            "content": content_b64,
+            "sha": file_sha,
+            "branch": branch_name
+        }
+    else:
+        # Create new file
+        url = f"https://api.github.com/repos/{REPO}/contents/domains.json"
+        payload = {
+            "message": f"Create domains.json with {len(domains)} active domains",
+            "content": content_b64,
+            "branch": branch_name
+        }
+    
+    r = requests.put(url, headers=headers, json=payload)
+    r.raise_for_status()
+    
+    logging.info(f"✅ Created branch '{branch_name}' with {len(domains)} domains.")
 
 def fetch_domains():
     cur = conn.cursor()
@@ -100,90 +141,45 @@ def ensure_hosted_zones(domains):
 
 cur = conn.cursor()
 cur.execute("LISTEN domain_updates;")
-conn.commit()  # Commit the LISTEN command
-logging.info("Listening for domain updates...")
-
-# Test if LISTEN is working by checking pg_listening_channels
-cur.execute("SELECT * FROM pg_listening_channels();")
-channels = cur.fetchall()
-logging.info(f"📻 Currently listening to channels: {channels}")
-
-# Also test a simple query to verify connection
-cur.execute("SELECT current_database(), current_user, inet_server_addr(), inet_server_port();")
-db_info = cur.fetchone()
-logging.info(f"🔗 Connected to: database={db_info[0]}, user={db_info[1]}, host={db_info[2]}, port={db_info[3]}")
+conn.commit()
+logging.info("✅ Listening for domain updates...")
 
 # Add periodic domain check
 last_check = time.time()
 CHECK_INTERVAL = 86400
 
-# Test self-notification after 5 seconds
-test_notification_sent = False
-
 while True:
     try:
-        ready = select.select([conn], [], [], 10)  # Shorter timeout for more frequent checks
+        ready = select.select([conn], [], [], 60)
         if ready == ([], [], []):
             current_time = time.time()
-            
-            # Send test notification after 5 seconds
-            if not test_notification_sent and current_time - last_check > 5:
-                logging.info("🧪 Sending test notification from same connection...")
-                cur.execute("SELECT pg_notify('domain_updates', '{\"test\": \"self_notification\"}');")
-                conn.commit()
-                test_notification_sent = True
-                logging.info("✅ Test notification sent")
-            
             if current_time - last_check >= CHECK_INTERVAL:
-                logging.info("🕐 Periodic domain check (no notifications received)")
+                logging.info("🕐 Periodic domain check")
                 domains = fetch_domains()
                 if domains:
-                    logging.info(f"📋 Found {len(domains)} active domains: {domains}")
-                    # Ensure hosted zones exist before triggering workflows
                     created_zones = ensure_hosted_zones(domains)
                     if created_zones:
                         logging.info(f"⏳ Waiting 15 seconds for hosted zones to propagate...")
                         time.sleep(15)
                         trigger_github(domains)
-                    else:
-                        logging.info("ℹ️ All hosted zones already exist, no deployment needed")
-                else:
-                    logging.info("📋 No active domains found")
                 last_check = current_time
-            # Add periodic debug info
-            if current_time % 30 < 10:  # Every 30 seconds
-                logging.info("🔍 Still listening... (no timeout)")
-        else:
-            logging.info("📡 Database connection has data ready")
-            
-        # Always poll for notifications
+        
         conn.poll()
-        if conn.notifies:
-            logging.info(f"📬 Found {len(conn.notifies)} notifications")
-            while conn.notifies:
-                notify = conn.notifies.pop(0)
-                logging.info(f"🔔 Domain change detected: {notify.payload}")
-                domains = fetch_domains()
-                
-                # Ensure hosted zones exist before triggering workflow
-                created_zones = ensure_hosted_zones(domains)
-                if created_zones:
-                    logging.info(f"⏳ Waiting 15 seconds for hosted zones to propagate...")
-                    time.sleep(15)
-                
-                trigger_github(domains)
-                last_check = time.time()  # Reset periodic check timer
-        else:
-            # Test if we're still listening every 30 seconds
-            current_time = time.time()
-            if int(current_time) % 30 == 0:
-                cur.execute("SELECT * FROM pg_listening_channels();")
-                channels = cur.fetchall()
-                logging.info(f"🔍 Debug: Still listening to: {channels}")
+        while conn.notifies:
+            notify = conn.notifies.pop(0)
+            logging.info(f"🔔 Domain change detected: {notify.payload}")
+            domains = fetch_domains()
+            
+            created_zones = ensure_hosted_zones(domains)
+            if created_zones:
+                logging.info(f"⏳ Waiting 15 seconds for hosted zones to propagate...")
+                time.sleep(15)
+            
+            trigger_github(domains)
+            last_check = time.time()
             
     except Exception as e:
         logging.error(f"💥 Error in listener loop: {e}")
-        # Try to reconnect
         try:
             conn.close()
         except:
@@ -199,6 +195,6 @@ while True:
         )
         cur = conn.cursor()
         cur.execute("LISTEN domain_updates;")
-        conn.commit()  # Commit the LISTEN command
+        conn.commit()
         logging.info("✅ Reconnected and listening for domain updates...")
         time.sleep(5)
