@@ -202,7 +202,7 @@ jobs:
 
   deployment-summary:
     name: Production Deployment Summary
-    needs: [semantic-release, dev-deployment, deploy-production]
+    needs: [semantic-release, deploy-infrastructure, deploy-production]
     if: needs.semantic-release.outputs.new_release == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -212,7 +212,7 @@ jobs:
       - name: Generate Deployment Summary
         env:
           VERSION: ${{ needs.semantic-release.outputs.latest_tag }}
-          DEV_STATUS: ${{ needs.dev-deployment.result }}
+          DEV_STATUS: ${{ needs.deploy-infrastructure.result }}
           PROD_STATUS: ${{ needs.deploy-production.result }}
         run: |
           echo "# 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
