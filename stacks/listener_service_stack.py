@@ -46,7 +46,7 @@ class ListenerServiceStack(Stack):
 
         # Create the Fargate service using the construct
         self.service = FargateServiceConstruct(
-            self, "ListenerService",
+            self, "listener-service",
             cluster=cluster,
             vpc=vpc,
             container_image=ecs.ContainerImage.from_registry(image_uri),
@@ -56,4 +56,9 @@ class ListenerServiceStack(Stack):
             secrets=listener_secrets,
             security_groups=[ecs_task_security_group],
             desired_count=1,
+            cloud_map_options=ecs.CloudMapOptions(
+                name=service_name,
+                dns_record_type=servicediscovery.DnsRecordType.A,
+                dns_ttl=Duration.seconds(10),
+            ),
         )

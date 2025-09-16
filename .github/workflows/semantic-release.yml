@@ -99,7 +99,7 @@ jobs:
     with:
       environment: dev
       image_tag: ${{ needs.generate-tag.outputs.image_tag }}
-      force_build: true
+      force_build: false
     secrets: inherit
 
   deploy-production:
@@ -110,7 +110,7 @@ jobs:
     with:
       environment: prod
       image_tag: ${{ needs.semantic-release.outputs.latest_tag }}
-      force_build: true
+      force_build: false
     secrets: inherit
 
   dev-summary:
