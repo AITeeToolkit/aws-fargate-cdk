@@ -33,10 +33,8 @@ image_tag = os.environ.get("CDK_IMAGE_TAG", "latest")
 network_stack = NetworkStack(app, "NetworkStack", env=env)
 # network_stack.add_dependency(iam_stack)
 
-# Shared Stack
 shared_stack = SharedStack(app, "SharedStack", env=env, vpc=network_stack.vpc)
 
-# Multi ALB Stack
 multi_alb_stack = MultiAlbStack(
     app, "MultiAlbStack",
     env=env,
