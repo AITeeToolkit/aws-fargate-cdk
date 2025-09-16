@@ -1,28 +1,19 @@
 import os, requests, psycopg2, select, json, logging, boto3, time
 
-secret_name = "storefront/dev/rds-credentials"   # whatever CDK created
-region_name = "us-east-1"
-client = boto3.client("secretsmanager", region_name=region_name)
-response = client.get_secret_value(SecretId=secret_name)
-creds = json.loads(response["SecretString"])
-
+# Get credentials from environment variables (provided by ECS secrets)
 conn = psycopg2.connect(
-    host=creds["host"],
-    user=creds["username"],
-    password=creds["password"],
-    dbname=creds["dbname"],
-    port=creds["port"]
+    host=os.environ["PGHOST"],
+    user=os.environ["PGUSER"],
+    password=os.environ["PGPASSWORD"],
+    dbname=os.environ["PGDATABASE"],
+    port=os.environ.get("PGPORT", "5432")  # Default PostgreSQL port
 )
 
-# GitHub repo + PAT
-ssm_client = boto3.client("ssm", region_name=region_name)
-github_pat_response = ssm_client.get_parameter(
-    Name="/storefront-dev/github/PAT",
-    WithDecryption=True
-)
-GITHUB_PAT = github_pat_response["Parameter"]["Value"]
-REPO = "AITeeToolkit/aws-fargate-cdk" # your infra repo
+# GitHub repo + PAT from environment
+GITHUB_PAT = os.environ["GH_TOKEN"]
+REPO = os.environ.get("REPO", "AITeeToolkit/aws-fargate-cdk")
 WORKFLOW = "application.yml"     # workflow filename
+region_name = "us-east-1"
 
 def trigger_github(domains):
     url = f"https://api.github.com/repos/{REPO}/actions/workflows/{WORKFLOW}/dispatches"
