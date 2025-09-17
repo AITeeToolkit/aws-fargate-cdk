@@ -160,9 +160,9 @@ while True:
                         logging.info(f"⏳ Waiting 15 seconds for hosted zones to propagate...")
                         time.sleep(15)
                         trigger_github(domains)
+                    else:
+                        logging.info("🔍 No new hosted zones created during periodic check")
                 last_check = current_time
-            else:
-                logging.info("🔍 No new hosted zones created during periodic check")
         
         conn.poll()
         while conn.notifies:
@@ -170,11 +170,13 @@ while True:
             logging.info(f"🔔 Domain change detected: {notify.payload}")
             domains = fetch_domains()
             
+            # Ensure hosted zones exist for all domains
             created_zones = ensure_hosted_zones(domains)
             if created_zones:
                 logging.info(f"⏳ Waiting 15 seconds for hosted zones to propagate...")
                 time.sleep(15)
             
+            # Always trigger GitHub on domain notifications (domains.json changes)
             trigger_github(domains)
             last_check = time.time()
             
