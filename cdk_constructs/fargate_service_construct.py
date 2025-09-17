@@ -105,16 +105,31 @@ class FargateServiceConstruct(Construct):
                 resources=["*"],
             )
         )
-
-        # Map SSM secrets
-        ecs_secrets = {
-            name: ecs.Secret.from_ssm_parameter(
-                ssm.StringParameter.from_string_parameter_name(
-                    self, f"{name}Param", value_from
-                )
+        task_def.task_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "route53:ListHostedZonesByName",
+                    "route53:CreateHostedZone",
+                    "route53:GetHostedZone",
+                    "route53:ListHostedZones",
+                ],
+                resources=["*"],
             )
-            for name, value_from in secrets.items()
-        }
+        )
+
+        # Handle both SSM parameters and Secrets Manager secrets
+        ecs_secrets = {}
+        for name, value_from in secrets.items():
+            if isinstance(value_from, str):
+                # SSM parameter
+                ecs_secrets[name] = ecs.Secret.from_ssm_parameter(
+                    ssm.StringParameter.from_string_parameter_name(
+                        self, f"{name}Param", value_from
+                    )
+                )
+            else:
+                # Already an ECS Secret object (from Secrets Manager)
+                ecs_secrets[name] = value_from
 
         # Container
         task_def.add_container(

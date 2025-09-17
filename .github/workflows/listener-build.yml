@@ -1,0 +1,137 @@
+name: Build Listener Image
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "Deployment environment (dev/prod)"
+        required: true
+        type: string
+      image_tag:
+        description: "Docker image tag"
+        required: true
+        type: string
+      force_build:
+        description: "Force rebuild even if no changes detected"
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      GH_TOKEN:
+        required: true
+      AWS_CODEBUILD_ACCESS_KEY_ID:
+        required: true
+      AWS_CODEBUILD_SECRET_ACCESS_KEY:
+        required: true
+
+  push:
+    branches: ["**"]
+    paths:
+      - "scripts/listener_app.py"
+      - "scripts/Dockerfile"
+      - ".github/workflows/listener-build.yml"
+
+  repository_dispatch:
+    types: [deploy-listener]
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/storefront/${{ inputs.environment || 'dev' }}
+
+jobs:
+  detect-changes:
+    name: Detect Listener Changes
+    runs-on: ubuntu-latest
+    outputs:
+      listener_changed: ${{ steps.diff.outputs.listener }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: diff
+        run: |
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
+            # For domain-updates branch we always want infra to run
+            echo "listener=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if [[ "${{ inputs.force_build }}" == "true" ]]; then
+            echo "listener=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          BASE_SHA="${{ github.event.before || github.sha }}~1"
+          HEAD_SHA="${{ github.sha }}"
+          if git diff --name-only $BASE_SHA $HEAD_SHA | grep -E '^(scripts/listener_app\.py|scripts/Dockerfile)' > /dev/null; then
+            echo "listener=true" >> $GITHUB_OUTPUT
+          else
+            echo "listener=false" >> $GITHUB_OUTPUT
+          fi
+
+  generate-tag:
+    name: Generate Image Tag
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.tag.outputs.image_tag }}
+    steps:
+      - id: tag
+        run: |
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          SHORT_SHA=${GITHUB_SHA:0:7}
+          if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+            echo "image_tag=listener-${SHORT_SHA}" >> $GITHUB_OUTPUT
+          elif [[ "$BRANCH_NAME" == "domain-updates" ]]; then
+            echo "image_tag=domain-updates-${SHORT_SHA}" >> $GITHUB_OUTPUT
+          else
+            CLEAN_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9]/-/g')
+            echo "image_tag=${CLEAN_BRANCH}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+          fi
+
+  build-listener:
+    name: Build & Push Listener Image
+    runs-on: ubuntu-latest
+    needs: [detect-changes, generate-tag]
+    if: needs.detect-changes.outputs.listener_changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_CODEBUILD_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        run: aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+
+      - name: Build Listener Docker Image
+        run: |
+          echo "Building Listener image with tag: ${{ needs.generate-tag.outputs.image_tag }}"
+          docker build --target listener -t $ECR_REGISTRY/listener:${{ needs.generate-tag.outputs.image_tag }} -t $ECR_REGISTRY/listener:latest ./scripts
+
+      - name: Push Listener Image
+        run: |
+          docker push $ECR_REGISTRY/listener:${{ needs.generate-tag.outputs.image_tag }}
+          docker push $ECR_REGISTRY/listener:latest
+
+  trigger-infra:
+    name: Trigger Infra
+    runs-on: ubuntu-latest
+    needs: [generate-tag] # no longer blocks on build-listener
+    if: always()
+    steps:
+      - name: Trigger infra workflow
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          repository: AITeeToolkit/aws-fargate-cdk
+          event-type: deploy-infra
+          client-payload: |
+            {
+              "listener_tag": "${{ needs.generate-tag.outputs.image_tag }}",
+              "components": { "listener": true }
+            }
