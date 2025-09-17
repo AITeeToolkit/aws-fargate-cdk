@@ -1,17 +1,17 @@
-name: Application Deployment
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: ["**"]
+    branches: ['**']
 
 env:
   AWS_REGION: us-east-1
   GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
 jobs:
-  # ------------------------------------------------------
-  # 1. Semantic Release (main only, not domain updates)
-  # ------------------------------------------------------
+  # ---------------------------
+  # Semantic Release (main only)
+  # ---------------------------
   semantic-release:
     name: Semantic Release
     runs-on: ubuntu-latest
@@ -19,42 +19,37 @@ jobs:
     outputs:
       new_release: ${{ steps.release_info.outputs.new_release }}
       latest_tag: ${{ steps.release_info.outputs.latest_tag }}
-
+      new-release-version: ${{ steps.release_info.outputs.latest_tag }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-
       - run: npm install --no-audit --no-fund
-
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           git fetch --tags
           npx semantic-release
-
-      - id: release_info
+      - name: Get release info
+        id: release_info
         run: |
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
-
           echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
           echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
-
           if [ "$LATEST_TAG" != "$PREVIOUS_TAG" ] && [ -n "$LATEST_TAG" ]; then
             echo "new_release=true" >> $GITHUB_OUTPUT
           else
             echo "new_release=false" >> $GITHUB_OUTPUT
           fi
 
-  # ------------------------------------------------------
-  # 2. Generate Image Tag
-  # ------------------------------------------------------
+  # ---------------------------
+  # Generate image tag
+  # ---------------------------
   generate-tag:
     name: Generate Image Tag
     runs-on: ubuntu-latest
@@ -64,7 +59,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - id: tag
         run: |
           BRANCH_NAME=${GITHUB_REF#refs/heads/}
@@ -80,9 +74,9 @@ jobs:
             echo "image_tag=${CLEAN_BRANCH}-${SHORT_SHA}" >> $GITHUB_OUTPUT
           fi
 
-  # ------------------------------------------------------
-  # 3. Detect Changes (domain-update always forces true)
-  # ------------------------------------------------------
+  # ---------------------------
+  # Detect changes
+  # ---------------------------
   check-changes:
     name: Check What Changed
     needs: generate-tag
@@ -94,7 +88,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - id: changes
         run: |
           BRANCH_NAME=${GITHUB_REF#refs/heads/}
@@ -104,21 +97,23 @@ jobs:
             exit 0
           fi
 
+          # Detect normal image changes
           if git diff --name-only HEAD~1 HEAD | grep -E '^(storefront/|scripts/listener_app\.py|scripts/Dockerfile)' > /dev/null; then
             echo "images=true" >> $GITHUB_OUTPUT
           else
             echo "images=false" >> $GITHUB_OUTPUT
           fi
 
+          # Detect infra changes
           if git diff --name-only HEAD~1 HEAD | grep -E '^(stacks/|cdk_constructs/|aspects/|app\.py|cdk\.json|requirements\.txt|\.github/workflows/)' > /dev/null; then
             echo "infra=true" >> $GITHUB_OUTPUT
           else
             echo "infra=false" >> $GITHUB_OUTPUT
           fi
 
-  # ------------------------------------------------------
-  # 4. Build Images
-  # ------------------------------------------------------
+  # ---------------------------
+  # Build images
+  # ---------------------------
   build-images:
     name: Build Images
     needs: [generate-tag, check-changes]
@@ -130,22 +125,22 @@ jobs:
       force_build: false
     secrets: inherit
 
-  # ------------------------------------------------------
-  # 5. Deploy Infrastructure
-  # ------------------------------------------------------
+  # ---------------------------
+  # Deploy infra (dev only)
+  # ---------------------------
   deploy-infrastructure:
     name: Deploy Infrastructure
     needs: [generate-tag, check-changes, build-images]
-    if: needs.check-changes.outputs.has_infra_changes == 'true'
+    if: always() && (needs.check-changes.outputs.has_infra_changes == 'true')
     uses: ./.github/workflows/infrastructure.yml
     with:
       environment: dev
       image_tag: ${{ needs.generate-tag.outputs.image_tag }}
     secrets: inherit
 
-  # ------------------------------------------------------
-  # 6. Deploy Production (only on new release from main)
-  # ------------------------------------------------------
+  # ---------------------------
+  # Production deploy (main only)
+  # ---------------------------
   deploy-production:
     name: Deploy to Production
     needs: [semantic-release, deploy-infrastructure]
