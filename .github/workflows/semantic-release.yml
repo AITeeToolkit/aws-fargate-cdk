@@ -3,19 +3,38 @@ name: CI/CD Pipeline
 on:
   push:
     branches: ['**']
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment
+        required: true
+        default: dev
+        type: choice
+        options: [dev, staging, prod]
+      force_infra:
+        description: Force infra deploy
+        required: false
+        default: true
+        type: boolean
+      listener_tag:
+        required: false
+        type: string
+      api_tag:
+        required: false
+        type: string
+      web_tag:
+        required: false
+        type: string
 
 env:
   AWS_REGION: us-east-1
   GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
 jobs:
-  # ---------------------------
-  # Semantic Release (main only)
-  # ---------------------------
   semantic-release:
     name: Semantic Release
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && !startsWith(github.ref_name, 'domain-updates')
+    if: github.ref == 'refs/heads/main' && github.ref_name != 'domain-updates'
     outputs:
       new_release: ${{ steps.release_info.outputs.new_release }}
       latest_tag: ${{ steps.release_info.outputs.latest_tag }}
@@ -47,9 +66,6 @@ jobs:
             echo "new_release=false" >> $GITHUB_OUTPUT
           fi
 
-  # ---------------------------
-  # Generate image tag
-  # ---------------------------
   generate-tag:
     name: Generate Image Tag
     runs-on: ubuntu-latest
@@ -62,7 +78,7 @@ jobs:
       - id: tag
         run: |
           BRANCH_NAME=${GITHUB_REF#refs/heads/}
-          if [[ "$BRANCH_NAME" == domain-updates ]]; then
+          if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
             SHORT_SHA=${GITHUB_SHA:0:7}
             echo "image_tag=domain-updates-$SHORT_SHA" >> $GITHUB_OUTPUT
           elif [ "$BRANCH_NAME" = "main" ]; then
@@ -74,9 +90,6 @@ jobs:
             echo "image_tag=${CLEAN_BRANCH}-${SHORT_SHA}" >> $GITHUB_OUTPUT
           fi
 
-  # ---------------------------
-  # Detect changes
-  # ---------------------------
   check-changes:
     name: Check What Changed
     needs: generate-tag
@@ -91,19 +104,16 @@ jobs:
       - id: changes
         run: |
           BRANCH_NAME=${GITHUB_REF#refs/heads/}
-          if [[ "$BRANCH_NAME" == domain-updates ]]; then
+          if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
             echo "images=true" >> $GITHUB_OUTPUT
             echo "infra=true" >> $GITHUB_OUTPUT
-            # Do not exit — allow step to finish so outputs are written
           else
-            # Detect normal image changes
             if git diff --name-only HEAD~1 HEAD | grep -E '^(storefront/|scripts/listener_app\.py|scripts/Dockerfile)' > /dev/null; then
               echo "images=true" >> $GITHUB_OUTPUT
             else
               echo "images=false" >> $GITHUB_OUTPUT
             fi
 
-            # Detect infra changes
             if git diff --name-only HEAD~1 HEAD | grep -E '^(stacks/|cdk_constructs/|aspects/|app\.py|cdk\.json|requirements\.txt|\.github/workflows/)' > /dev/null; then
               echo "infra=true" >> $GITHUB_OUTPUT
             else
@@ -111,9 +121,6 @@ jobs:
             fi
           fi
 
-  # ---------------------------
-  # Listener build
-  # ---------------------------
   build-listener:
     name: Build Listener
     needs: [generate-tag, check-changes]
@@ -125,9 +132,6 @@ jobs:
       force_build: false
     secrets: inherit
 
-  # ---------------------------
-  # Deploy infra (dev only)
-  # ---------------------------
   deploy-infrastructure:
     name: Deploy Infrastructure
     needs: [generate-tag, check-changes, build-listener]
@@ -138,9 +142,6 @@ jobs:
       image_tag: ${{ needs.generate-tag.outputs.image_tag }}
     secrets: inherit
 
-  # ---------------------------
-  # Production deploy (main only)
-  # ---------------------------
   deploy-production:
     name: Deploy to Production
     needs: [semantic-release, deploy-infrastructure]
