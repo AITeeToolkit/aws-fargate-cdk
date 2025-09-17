@@ -94,7 +94,9 @@ def trigger_github(domains):
 def fetch_domains():
     cur = conn.cursor()
     cur.execute("SELECT DISTINCT full_url FROM purchased_domains WHERE active_domain = 'Y';")
-    return [row[0] for row in cur.fetchall()]
+    result = [row[0] for row in cur.fetchall()]
+    cur.close()
+    return result
 
 def ensure_hosted_zones(domains):
     """Check for hosted zones and create missing ones"""
@@ -137,47 +139,75 @@ def ensure_hosted_zones(domains):
     
     return created_zones
 
-cur = conn.cursor()
-cur.execute("LISTEN domain_updates;")
-conn.commit()
-logging.info("✅ Listening for domain updates...")
+def setup_listener():
+    """Setup database listener connection"""
+    cur = conn.cursor()
+    cur.execute("LISTEN domain_updates;")
+    conn.commit()
+    cur.close()  # Close cursor after setup
+    logging.info("✅ Listening for domain updates...")
+
+setup_listener()
 
 while True:
     try:
+        # Check if connection is still alive
+        conn.poll()
+        if conn.closed:
+            raise psycopg2.OperationalError("Connection closed")
+            
         ready = select.select([conn], [], [], 60)
+        if ready == ([], [], []):
+            # Timeout - send a keepalive
+            logging.debug("🔄 Keepalive check")
+            continue
         
         conn.poll()
         while conn.notifies:
             notify = conn.notifies.pop(0)
             logging.info(f"🔔 Domain change detected: {notify.payload}")
-            domains = fetch_domains()
             
-            # Ensure hosted zones exist for all domains
-            created_zones = ensure_hosted_zones(domains)
-            if created_zones:
-                logging.info(f"⏳ Waiting 15 seconds for hosted zones to propagate...")
-                time.sleep(15)
+            try:
+                domains = fetch_domains()
+                
+                # Ensure hosted zones exist for all domains
+                created_zones = ensure_hosted_zones(domains)
+                if created_zones:
+                    logging.info(f"⏳ Waiting 15 seconds for hosted zones to propagate...")
+                    time.sleep(15)
+                
+                # Always trigger GitHub on domain notifications (domains.json changes)
+                trigger_github(domains)
+                logging.info("✅ Successfully processed domain update")
+                
+            except Exception as e:
+                logging.error(f"❌ Error processing domain update: {e}")
+                # Continue listening even if one update fails
+                continue
             
-            # Always trigger GitHub on domain notifications (domains.json changes)
-            trigger_github(domains)
-            
-    except Exception as e:
-        logging.error(f"💥 Error in listener loop: {e}")
+    except (psycopg2.OperationalError, psycopg2.InterfaceError, select.error) as e:
+        logging.error(f"💥 Database connection error: {e}")
         try:
             conn.close()
         except:
             pass
         
         logging.info("🔄 Reconnecting to database...")
-        conn = psycopg2.connect(
-            host=os.environ["PGHOST"],
-            user=os.environ["PGUSER"],
-            password=os.environ["PGPASSWORD"],
-            dbname=os.environ["PGDATABASE"],
-            port=os.environ.get("PGPORT", "5432")
-        )
-        cur = conn.cursor()
-        cur.execute("LISTEN domain_updates;")
-        conn.commit()
-        logging.info("✅ Reconnected and listening for domain updates...")
+        time.sleep(5)
+        
+        try:
+            conn = psycopg2.connect(
+                host=os.environ["PGHOST"],
+                user=os.environ["PGUSER"],
+                password=os.environ["PGPASSWORD"],
+                dbname=os.environ["PGDATABASE"],
+                port=os.environ.get("PGPORT", "5432")
+            )
+            setup_listener()
+        except Exception as reconnect_error:
+            logging.error(f"❌ Failed to reconnect: {reconnect_error}")
+            time.sleep(10)
+            
+    except Exception as e:
+        logging.error(f"💥 Unexpected error in listener loop: {e}")
         time.sleep(5)
