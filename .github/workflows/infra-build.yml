@@ -19,17 +19,6 @@ on:
       AWS_CODEBUILD_SECRET_ACCESS_KEY:
         required: true
 
-  push:
-    branches: ["**"]
-    paths:
-      - "stacks/**"
-      - "cdk_constructs/**"
-      - "aspects/**"
-      - "app.py"
-      - "requirements.txt"
-      - "cdk.json"
-      - ".github/workflows/infra-build.yml"
-
   repository_dispatch:
     types: [deploy-infra]
 
