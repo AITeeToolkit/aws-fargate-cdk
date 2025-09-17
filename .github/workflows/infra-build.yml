@@ -63,5 +63,5 @@ jobs:
       - name: CDK Deploy
         run: |
           echo "🚀 Deploying infra with API=$API_IMAGE_TAG, WEB=$WEB_IMAGE_TAG, LISTENER=$LISTENER_IMAGE_TAG"
-          cdk deploy --require-approval never --all \
-            --context env=${{ inputs.environment || 'dev' }}
+          CDK_IMAGE_TAG=$LISTENER_IMAGE_TAG cdk deploy --require-approval never --all \
+          --context env=${{ inputs.environment || 'dev' }}
