@@ -1,0 +1,41 @@
+# .github/workflows/infrastructure.yml
+name: Infrastructure Deploy
+
+on:
+  repository_dispatch:
+    types: [deploy-infra]
+  push:
+    branches: ["**"]
+    paths:
+      - "stacks/**"
+      - "cdk_constructs/**"
+      - "aspects/**"
+      - "app.py"
+      - "requirements.txt"
+      - "cdk.json"
+      - ".github/workflows/infrastructure.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_CODEBUILD_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Setup CDK
+        run: npm install -g aws-cdk
+      - run: pip install -r requirements.txt
+      - run: cdk bootstrap aws://${{ secrets.AWS_ACCOUNT_ID }}/us-east-1
+      run: |
+          echo "LISTENER_IMAGE_TAG=${{ github.event.client_payload.listener_tag || 'latest' }}" >> $GITHUB_ENV
+          echo "API_IMAGE_TAG=${{ github.event.client_payload.api_tag || 'latest' }}" >> $GITHUB_ENV
+          echo "WEB_IMAGE_TAG=${{ github.event.client_payload.web_tag || 'latest' }}" >> $GITHUB_ENV
+      - run: cdk deploy --require-approval never --all
