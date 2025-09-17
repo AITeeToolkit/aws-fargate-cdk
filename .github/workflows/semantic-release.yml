@@ -11,7 +11,7 @@ jobs:
   semantic-release:
     name: Semantic Release
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && !startsWith(github.ref_name, 'domain-update-')
     outputs:
       new_release: ${{ steps.release_info.outputs.new_release }}
       latest_tag: ${{ steps.release_info.outputs.latest_tag }}
