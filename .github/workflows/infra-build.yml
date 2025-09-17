@@ -1,6 +1,24 @@
 name: Infrastructure Deploy
 
 on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "Deployment environment (dev/prod)"
+        required: true
+        type: string
+      image_tag:
+        description: "Docker image tag to deploy"
+        required: true
+        type: string
+    secrets:
+      GH_TOKEN:
+        required: true
+      AWS_CODEBUILD_ACCESS_KEY_ID:
+        required: true
+      AWS_CODEBUILD_SECRET_ACCESS_KEY:
+        required: true
+
   repository_dispatch:
     types: [deploy-infra]
   push:
