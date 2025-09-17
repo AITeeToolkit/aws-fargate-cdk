@@ -161,6 +161,8 @@ while True:
                         time.sleep(15)
                         trigger_github(domains)
                 last_check = current_time
+            else:
+                logging.info("🔍 No new hosted zones created during periodic check")
         
         conn.poll()
         while conn.notifies:

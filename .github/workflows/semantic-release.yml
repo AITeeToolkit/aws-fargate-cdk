@@ -11,8 +11,7 @@ jobs:
   semantic-release:
     name: Semantic Release
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'  # Only run semantic-release on main branch
-    outputs:
+    if: github.ref == 'refs/heads/main'
       new_release: ${{ steps.release_info.outputs.new_release }}
       latest_tag: ${{ steps.release_info.outputs.latest_tag }}
       new-release-version: ${{ steps.release_info.outputs.latest_tag }}
@@ -108,7 +107,11 @@ jobs:
         id: changes
         run: |
           # Check for image-related changes
-          if git diff --name-only HEAD~1 HEAD | grep -E '^(storefront/|scripts/listener_app\.py|scripts/Dockerfile)' > /dev/null; then
+          if [[ "${{ github.ref }}" == refs/heads/domain-update-* ]]; then
+            # Domain update branches always trigger listener image build
+            echo "images=true" >> $GITHUB_OUTPUT
+            echo "Domain update branch - building listener image"
+          elif git diff --name-only HEAD~1 HEAD | grep -E '^(storefront/|scripts/listener_app\.py|scripts/Dockerfile)' > /dev/null; then
             echo "images=true" >> $GITHUB_OUTPUT
             echo "Image changes detected"
           else
@@ -117,7 +120,11 @@ jobs:
           fi
           
           # Check for infrastructure changes
-          if git diff --name-only HEAD~1 HEAD | grep -E '^(stacks/|cdk_constructs/|aspects/|app\.py|cdk\.json|requirements\.txt|\.github/workflows/)' > /dev/null; then
+          if [[ "${{ github.ref }}" == refs/heads/domain-update-* ]]; then
+            # Domain update branches always trigger infrastructure deployment
+            echo "infra=true" >> $GITHUB_OUTPUT
+            echo "Domain update branch - deploying infrastructure"
+          elif git diff --name-only HEAD~1 HEAD | grep -E '^(stacks/|cdk_constructs/|aspects/|app\.py|cdk\.json|requirements\.txt|\.github/workflows/)' > /dev/null; then
             echo "infra=true" >> $GITHUB_OUTPUT
             echo "Infrastructure changes detected"
           else
