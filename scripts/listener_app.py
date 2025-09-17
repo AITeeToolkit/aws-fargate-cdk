@@ -39,58 +39,55 @@ region_name = "us-east-1"
 
 logging.info(f"🔧 Configuration: REPO={REPO}, WORKFLOW={WORKFLOW}")
 
+
+# Trigger GitHub workflow
 def trigger_github(domains):
-    # Create a timestamped branch for the update
-    branch_name = f"domain-update-{int(time.time())}"
+    branch_name = "domain-updates"  # fixed branch for updates
     domains_content = json.dumps({"domains": domains}, indent=2)
-    
-    # Get the latest commit SHA from main
-    url = f"https://api.github.com/repos/{REPO}/git/refs/heads/main"
     headers = {"Authorization": f"token {GITHUB_PAT}"}
+
+    # 1. Get latest commit SHA from main
+    url = f"https://api.github.com/repos/{REPO}/git/refs/heads/main"
     r = requests.get(url, headers=headers)
     r.raise_for_status()
     main_sha = r.json()["object"]["sha"]
-    
-    # Create new branch from main
-    url = f"https://api.github.com/repos/{REPO}/git/refs"
-    payload = {
-        "ref": f"refs/heads/{branch_name}",
-        "sha": main_sha
-    }
-    r = requests.post(url, headers=headers, json=payload)
-    r.raise_for_status()
-    
-    # Get current domains.json file to get its SHA
+
+    # 2. Ensure the branch exists (create if missing)
+    url = f"https://api.github.com/repos/{REPO}/git/refs/heads/{branch_name}"
+    r = requests.get(url, headers=headers)
+    if r.status_code == 404:
+        logging.info(f"🌱 Creating branch '{branch_name}' from main")
+        url = f"https://api.github.com/repos/{REPO}/git/refs"
+        payload = {"ref": f"refs/heads/{branch_name}", "sha": main_sha}
+        r = requests.post(url, headers=headers, json=payload)
+        r.raise_for_status()
+
+    # 3. Get SHA of existing domains.json in this branch (if it exists)
     url = f"https://api.github.com/repos/{REPO}/contents/domains.json"
     params = {"ref": branch_name}
     r = requests.get(url, headers=headers, params=params)
-    
-    # Base64 encode the content
+    file_sha = r.json()["sha"] if r.status_code == 200 else None
+
+    # 4. Base64 encode content
     content_b64 = base64.b64encode(domains_content.encode()).decode()
-    
-    if r.status_code == 200:
-        file_sha = r.json()["sha"]
-        # Update existing file
-        payload = {
-            "message": f"Update domains.json with {len(domains)} active domains",
-            "content": content_b64,
-            "sha": file_sha,
-            "branch": branch_name
-        }
-    else:
-        # Create new file
-        payload = {
-            "message": f"Create domains.json with {len(domains)} active domains",
-            "content": content_b64,
-            "branch": branch_name
-        }
-    
+
+    # 5. Commit update (create if new, update if exists)
+    payload = {
+        "message": f"Update domains.json with {len(domains)} active domains",
+        "content": content_b64,
+        "branch": branch_name
+    }
+    if file_sha:
+        payload["sha"] = file_sha  # update existing
+
     url = f"https://api.github.com/repos/{REPO}/contents/domains.json"
     r = requests.put(url, headers=headers, json=payload)
     r.raise_for_status()
-    
-    logging.info(f"✅ Created branch '{branch_name}' and committed domains.json with {len(domains)} domains.")
 
+    logging.info(f"✅ Committed domains.json with {len(domains)} domains to '{branch_name}'")
+
+
+# Fetch active domains from database
 def fetch_domains():
     cur = conn.cursor()
     cur.execute("SELECT DISTINCT full_url FROM purchased_domains WHERE active_domain = 'Y';")
@@ -98,6 +95,8 @@ def fetch_domains():
     cur.close()
     return result
 
+
+# Ensure hosted zones exist
 def ensure_hosted_zones(domains):
     """Check for hosted zones and create missing ones"""
     route53_client = boto3.client("route53", region_name=region_name)
