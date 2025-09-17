@@ -2,6 +2,72 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.27.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.26.0...v1.27.0) (2025-09-17)
+
+
+### 🚀 Features
+
+* add cloud map DNS registration for listener service and disable force builds ([27ca401](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/27ca401188bf312b01126a8c9d21c337fdc165e4))
+* add CloudMap DNS registration and auto-trigger infrastructure workflow on code changes ([e00c4da](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/e00c4da3495a649982d6111f3f9cec43c33b4fb7))
+* add comprehensive logging to listener service for debugging ([6c2c9f7](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/6c2c9f7aead6d2aebc2a99c95eb0bd6f96dd85c3))
+* add database connection monitoring and auto-reconnect to domain listener ([55c388d](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/55c388de8a65dd7079399f19ef0f76caa5f95928))
+* add dynamic image tag generation for listener builds based on branch/SHA ([a4b5d67](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/a4b5d679e8db444358f9fa347217f45f835d242e))
+* add periodic domain check as fallback to notification-based updates ([f4ef5ab](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/f4ef5abe24c0a9b531072b1205c659d09b675da3))
+* add Route53 permissions to Fargate task role for hosted zone operations ([0e4d2e5](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/0e4d2e5e9c351856158a0ba50de2ab2ab825599c))
+* add special image tag handling for domain-update branches and skip prod deployment ([c4a6f60](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/c4a6f6019b9d825b5be7df7c0a7420851eb59aae))
+* add support for Secrets Manager secrets in FargateServiceConstruct ([8aaa37e](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/8aaa37ebf34e01423841ad636fe59ef43c159204))
+* add workflow dispatch inputs for environment selection and deployment options ([0d861bf](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/0d861bfb4bd9f76175a306872b8252e7b6230404))
+* add workflow_call inputs and secrets to infra-build workflow ([aeaaaaf](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/aeaaaaf309f764611899ba22b00a07a788ee644d))
+* auto-trigger image builds and infra deployments for domain update branches ([aeec6a7](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/aeec6a7221df8675ed2a8c50e8e568b05120babf))
+* auto-trigger infrastructure deployment when images are built successfully ([1406f2a](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/1406f2a2e9db8f2600e3aa3bb98db3526115c911))
+* create timestamped branch for domain updates instead of direct main commits ([e7d97b1](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/e7d97b16f6e97bdae59a41d11ebcf21f043d2e71))
+* expose image tag output from build workflow and use in semantic release ([b9c504f](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/b9c504f66849f5adac506ab8e65f4743975d7d8c))
+* expose semantic release outputs for downstream workflows ([fe4104c](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/fe4104c03cad12ec773b761713d5174ae967589b))
+* implement git branch-based domain updates instead of workflow dispatch ([5a92640](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/5a9264042c35a7d7c215134c8c9d0f1a2dce2504))
+* implement separate image tags for listener, API and web services ([986758d](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/986758d52b111f05af97ac96a94468f237bcc822))
+* improve image tag handling and add domain-updates branch support ([5c03087](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/5c03087d224b0ef197ab81015b1460eaac51d59d))
+* parse JSON notifications and handle active/inactive domain status changes ([52adf48](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/52adf4874033663088f0f5d40be37a5afb4dd7ac))
+* pass LISTENER_IMAGE_TAG as CDK_IMAGE_TAG env var during deployment ([2081743](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/2081743b522ffa50ae45da92b372e66bc9d8cca0))
+
+
+### 🐛 Bug Fixes
+
+* add cursor cleanup, connection health checks, and error handling in domain listener ([ed43988](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/ed43988a62f91414f7615c2d6e72be2336050f17))
+* add delay after creating hosted zones to allow DNS propagation ([0b8a26a](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/0b8a26a7d2b3c3079bc098740ec2e4dab2491d8d))
+* add quotes around boolean values and debug output in build check step ([d389a04](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/d389a04b555e579074c1b5038811df5ed17f9678))
+* improve database listener reliability with autocommit and simplified connection handling ([72d4adb](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/72d4adb8f071f1a9ec9c99db9bfbe515993e8a4b))
+* increase domain check interval to daily and remove redundant continue statement ([6819798](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/68197989421f2b8526831b25f192b5d9ecf60c75))
+* only trigger infrastructure deploy when image changes build successfully ([6f5aa91](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/6f5aa91683c6cba0946530d5cf34a5d76bd173ce))
+* simplify domain logging output by removing full URL extraction ([ec43b2f](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/ec43b2f9eef827fe8c91abd3ed3c6844d2822e87))
+* skip tag generation on main branch and improve log message timing ([a87b3ea](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/a87b3eae68f800203f1e09374db66de87ceb01ce))
+* syntax errors and file path in infra deployment workflow ([aca0c6c](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/aca0c6caeb5c4304e6562da70e35501c389bf05c))
+* update deployment summary job dependencies from dev-deployment to deploy-infrastructure ([97c43bb](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/97c43bb44c68fbfb266279835b5c82b4cba1ad57))
+* update domain-update branch name pattern to domain-updates ([055b9c2](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/055b9c29294035d1ccc1203fbc2cdb9e4abcd46c))
+* update image tag fallback logic in infra workflow to use generated tag ([f68fec2](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/f68fec24233bb0d3790853d1ae7158fb4cd742e2))
+* update workflow dependencies and tag reference in listener build pipeline ([65b2f73](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/65b2f731ed9cf00b19cf33d1be49ced0bbdb3e74))
+* use latest tag when no image changes or build fails in semantic release workflow ([676dfbe](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/676dfbe244d023f35cacabd6a065d4a7ef3bf99f))
+
+
+### ♻️ Code Refactoring
+
+* extract image building logic into reusable workflow with change detection ([bf081bc](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/bf081bc4c5fd5cd000a62cdab3cf3bfc0b741c55))
+* improve CI/CD workflows with better error handling and environment support ([e1780de](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/e1780de07e292bd0740d067075f3231159e4859e))
+* remove periodic domain check in favor of notification-only updates ([0a0d9cc](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/0a0d9cccd34423e7715729d52b48aa3b938746f9))
+* remove redundant comment about 60 second timeout in listener loop ([af01320](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/af01320e1ec269401cbd9fad48db52864f7cf8c1))
+* remove redundant comment about periodic check in listener loop ([f2a9a52](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/f2a9a52f468abb28bb2282d23ced52f0976d732c))
+* remove semantic-release dependency and simplify Fargate service configuration ([4c69a38](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/4c69a38a921c3eac60b689c9b282ca154f2405e1))
+* rename build-and-push-listener job and fix domain update detection logic ([c7b8a6b](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/c7b8a6bb411b294ee0ca84914d4b942bb205b1dc))
+* rename build-images workflow to listener-build and standardize workflow naming ([c327ecc](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/c327ecc2e5474e9c5ba2e6009bc6f50dcd8930c2))
+* replace FargateServiceConstruct with direct ECS task and service definitions ([b4839d1](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/b4839d13c2e99d38d0d72f90bb4c8a63967c86bf))
+* simplify GitHub integration by committing directly to main branch instead of creating PRs ([a508d19](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/a508d19379847a01636ac586f3f0d8932ae1d280))
+* simplify GitHub workflow trigger to use fixed branch for domain updates ([efa8214](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/efa8214cf767367a836d8ba7e0dde0acf348dce7))
+* simplify image tag handling to use separate environment variables per service ([e41789f](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/e41789f30d5f222aaf2fb1ab089a3823ea303b77))
+* simplify listener loop error handling and remove redundant reconnection logic ([a13e1a1](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/a13e1a1225eef9b6361251cddab9eec20d8afce7))
+* split build and deploy workflows to run conditionally based on change type ([cf0e665](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/cf0e66550658e2602701e41417945169b9c23152))
+* split monolithic workflow into separate build files for infra and listener ([fbb0be4](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/fbb0be412072d9a3d19cc195a927da600659a2f1))
+* streamline CI/CD pipeline with cleaner job organization and improved comments ([b143c55](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/b143c553e97a1c5b2a8ede1c05faf8ca1072c2ce))
+* streamline deployment workflow and remove verbose logging ([355a88a](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/355a88a91a29328b384d9dbd322245ac3130f04a))
+
 ## [1.26.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.25.0...v1.26.0) (2025-09-16)
 
 
