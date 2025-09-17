@@ -18,5 +18,9 @@
   "hosted-zone:account=156041439702:domainName=teslanope.com:region=us-east-1": {
     "Id": "/hostedzone/Z01958873BAJOW8RQQW5Q",
     "Name": "teslanope.com."
+  },
+  "hosted-zone:account=156041439702:domainName=015973.xyz:region=us-east-1": {
+    "Id": "/hostedzone/Z064697523I1HDRL3MAT5",
+    "Name": "015973.xyz."
   }
 }

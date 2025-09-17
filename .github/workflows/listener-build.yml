@@ -31,9 +31,6 @@ on:
       - "scripts/Dockerfile"
       - ".github/workflows/listener-build.yml"
 
-  repository_dispatch:
-    types: [deploy-listener]
-
 env:
   AWS_REGION: us-east-1
   ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/storefront/${{ inputs.environment || 'dev' }}
@@ -81,9 +78,8 @@ jobs:
         run: |
           BRANCH_NAME=${GITHUB_REF#refs/heads/}
           SHORT_SHA=${GITHUB_SHA:0:7}
-          if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
-            echo "image_tag=listener-${SHORT_SHA}" >> $GITHUB_OUTPUT
-          elif [[ "$BRANCH_NAME" == "domain-updates" ]]; then
+
+          if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
             echo "image_tag=domain-updates-${SHORT_SHA}" >> $GITHUB_OUTPUT
           else
             CLEAN_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9]/-/g')
@@ -121,8 +117,10 @@ jobs:
   trigger-infra:
     name: Trigger Infra
     runs-on: ubuntu-latest
-    needs: [generate-tag] # no longer blocks on build-listener
-    if: always()
+    needs: [generate-tag, build-listener]
+    if: |
+      (needs.build-listener.result == 'success') ||
+      (github.ref_name == 'domain-updates')
     steps:
       - name: Trigger infra workflow
         uses: peter-evans/repository-dispatch@v3

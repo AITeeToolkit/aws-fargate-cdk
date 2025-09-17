@@ -19,9 +19,6 @@ on:
       AWS_CODEBUILD_SECRET_ACCESS_KEY:
         required: true
 
-  repository_dispatch:
-    types: [deploy-infra]
-
 env:
   AWS_REGION: us-east-1
 
@@ -50,39 +47,26 @@ jobs:
 
       - name: Set image tags
         run: |
-          # Use payload values if provided, otherwise fallback
-          LISTENER_TAG="${{ github.event.client_payload.listener_tag || 'skip' }}"
-          API_TAG="${{ github.event.client_payload.api_tag || 'skip' }}"
-          WEB_TAG="${{ github.event.client_payload.web_tag || 'skip' }}"
-
-          # Write only if not skip
-          if [ "$LISTENER_TAG" != "skip" ]; then
-            echo "LISTENER_IMAGE_TAG=$LISTENER_TAG" >> $GITHUB_ENV
-          fi
-          if [ "$API_TAG" != "skip" ]; then
-            echo "API_IMAGE_TAG=$API_TAG" >> $GITHUB_ENV
-          fi
-          if [ "$WEB_TAG" != "skip" ]; then
-            echo "WEB_IMAGE_TAG=$WEB_TAG" >> $GITHUB_ENV
-          fi
+          echo "LISTENER_IMAGE_TAG=${{ github.event.inputs.listener_tag || 'skip' }}" >> $GITHUB_ENV
+          echo "API_IMAGE_TAG=${{ github.event.inputs.api_tag || 'skip' }}" >> $GITHUB_ENV
+          echo "WEB_IMAGE_TAG=${{ github.event.inputs.web_tag || 'skip' }}" >> $GITHUB_ENV
 
       - name: CDK Deploy
         run: |
           echo "🚀 Deploying infra"
-          echo "  API=${API_IMAGE_TAG:-unchanged}"
-          echo "  WEB=${WEB_IMAGE_TAG:-unchanged}"
-          echo "  LISTENER=${LISTENER_IMAGE_TAG:-unchanged}"
+          echo "  API=${API_IMAGE_TAG}"
+          echo "  WEB=${WEB_IMAGE_TAG}"
+          echo "  LISTENER=${LISTENER_IMAGE_TAG}"
 
-          # Only pass what exists in env
-          DEPLOY_ENV="--context env=${{ inputs.environment || 'dev' }}"
+          DEPLOY_ENV="--context env=${{ inputs.environment }}"
 
-          if [ -n "$API_IMAGE_TAG" ]; then
+          if [ "$API_IMAGE_TAG" != "skip" ]; then
             DEPLOY_ENV="$DEPLOY_ENV --context apiTag=$API_IMAGE_TAG"
           fi
-          if [ -n "$WEB_IMAGE_TAG" ]; then
+          if [ "$WEB_IMAGE_TAG" != "skip" ]; then
             DEPLOY_ENV="$DEPLOY_ENV --context webTag=$WEB_IMAGE_TAG"
           fi
-          if [ -n "$LISTENER_IMAGE_TAG" ]; then
+          if [ "$LISTENER_IMAGE_TAG" != "skip" ]; then
             DEPLOY_ENV="$DEPLOY_ENV --context listenerTag=$LISTENER_IMAGE_TAG"
           fi
 
