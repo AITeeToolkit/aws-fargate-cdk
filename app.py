@@ -23,13 +23,10 @@ env_name = app.node.try_get_context("env") or "dev"
 with open("domains.json") as f:
     domains = json.load(f)["domains"]
 
-# Get image tag from environment variable or use default
-base_image_tag = os.environ.get("CDK_IMAGE_TAG", "latest")
-
-# Use specific tags for each service - fallback to 'latest' if specific tag doesn't exist
-listener_tag = base_image_tag if base_image_tag != "latest" else "latest"
-api_tag = "latest"  # API uses latest unless specifically built
-web_tag = "latest"  # Web uses latest unless specifically built
+# Get image tags from environment variables (fallback to latest)
+listener_tag = os.environ.get("LISTENER_IMAGE_TAG", "latest")
+api_tag = os.environ.get("API_IMAGE_TAG", "latest")
+web_tag = os.environ.get("WEB_IMAGE_TAG", "latest")
 
 # IAM Stack for CI/CD permissions - deploy this first to bootstrap permissions
 # iam_stack = IAMStack(app, "StorefrontIAMStack", env=env)
