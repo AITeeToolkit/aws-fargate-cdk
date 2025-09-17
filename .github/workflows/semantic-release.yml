@@ -1,102 +1,142 @@
-name: Semantic Release
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: ['**']  # Run on all branches
+    branches: ['**']
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment
+        required: true
+        default: dev
+        type: choice
+        options: [dev, staging, prod]
+      force_infra:
+        description: Force infra deploy
+        required: false
+        default: true
+        type: boolean
+      listener_tag:
+        required: false
+        type: string
+      api_tag:
+        required: false
+        type: string
+      web_tag:
+        required: false
+        type: string
 
 env:
+  AWS_REGION: us-east-1
   GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
 jobs:
   semantic-release:
     name: Semantic Release
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'  # Only run semantic-release on main branch
+    if: github.ref == 'refs/heads/main'
     outputs:
       new_release: ${{ steps.release_info.outputs.new_release }}
       latest_tag: ${{ steps.release_info.outputs.latest_tag }}
       new-release-version: ${{ steps.release_info.outputs.latest_tag }}
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Required for semantic-release to detect previous tags
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
-
+      - run: npm install --no-audit --no-fund
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           git fetch --tags
-          
-          # Get the next version that semantic-release would create
-          NEXT_VERSION=$(npx semantic-release --dry-run 2>&1 | grep "The next release version is" | sed 's/.*The next release version is /v/')
-          
-          if [ -n "$NEXT_VERSION" ] && git tag -l | grep -q "^$NEXT_VERSION$"; then
-            echo "Deleting existing tag: $NEXT_VERSION"
-            git tag -d "$NEXT_VERSION"
-            git push origin ":refs/tags/$NEXT_VERSION" 2>/dev/null || true
-          fi
-          
           npx semantic-release
-
       - name: Get release info
         id: release_info
         run: |
-          # Check if semantic-release created a new tag
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
-          
           echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
           echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
-          
           if [ "$LATEST_TAG" != "$PREVIOUS_TAG" ] && [ -n "$LATEST_TAG" ]; then
             echo "new_release=true" >> $GITHUB_OUTPUT
-            echo "New release detected: $LATEST_TAG"
           else
             echo "new_release=false" >> $GITHUB_OUTPUT
-            echo "No new release created"
           fi
 
   generate-tag:
     name: Generate Image Tag
     runs-on: ubuntu-latest
-    needs: semantic-release
     outputs:
       image_tag: ${{ steps.tag.outputs.image_tag }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Generate image tag
-        id: tag
+      - id: tag
         run: |
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            # Use latest tag for main branch
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
+            SHORT_SHA=${GITHUB_SHA:0:7}
+            echo "image_tag=domain-updates-$SHORT_SHA" >> $GITHUB_OUTPUT
+          elif [ "$BRANCH_NAME" = "main" ]; then
             LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "latest")
             echo "image_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
           else
-            # Use branch name and short SHA for feature branches
-            BRANCH_NAME=${GITHUB_REF#refs/heads/}
             CLEAN_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]')
             SHORT_SHA=${GITHUB_SHA:0:7}
             echo "image_tag=${CLEAN_BRANCH}-${SHORT_SHA}" >> $GITHUB_OUTPUT
           fi
 
-  dev-deployment:
-    name: Deploy to Development
+  check-changes:
+    name: Check What Changed
     needs: generate-tag
-    uses: ./.github/workflows/application.yml
+    runs-on: ubuntu-latest
+    outputs:
+      has_image_changes: ${{ steps.changes.outputs.images }}
+      has_infra_changes: ${{ steps.changes.outputs.infra }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: changes
+        run: |
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
+            echo "images=true" >> $GITHUB_OUTPUT
+            echo "infra=true" >> $GITHUB_OUTPUT
+          else
+            if git diff --name-only HEAD~1 HEAD | grep -E '^(storefront/|scripts/listener_app\.py|scripts/Dockerfile)' > /dev/null; then
+              echo "images=true" >> $GITHUB_OUTPUT
+            else
+              echo "images=false" >> $GITHUB_OUTPUT
+            fi
+
+            if git diff --name-only HEAD~1 HEAD | grep -E '^(stacks/|cdk_constructs/|aspects/|app\.py|cdk\.json|requirements\.txt|\.github/workflows/)' > /dev/null; then
+              echo "infra=true" >> $GITHUB_OUTPUT
+            else
+              echo "infra=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+  build-listener:
+    name: Build Listener
+    needs: [generate-tag, check-changes]
+    if: needs.check-changes.outputs.has_image_changes == 'true'
+    uses: ./.github/workflows/listener-build.yml
+    with:
+      environment: dev
+      image_tag: ${{ needs.generate-tag.outputs.image_tag }}
+      force_build: false
+    secrets: inherit
+
+  deploy-infrastructure:
+    name: Deploy Infrastructure
+    needs: [generate-tag, check-changes, build-listener]
+    if: always() && (needs.check-changes.outputs.has_infra_changes == 'true')
+    uses: ./.github/workflows/infra-build.yml
     with:
       environment: dev
       image_tag: ${{ needs.generate-tag.outputs.image_tag }}
@@ -104,108 +144,10 @@ jobs:
 
   deploy-production:
     name: Deploy to Production
-    needs: [semantic-release, dev-deployment]
+    needs: [semantic-release, deploy-infrastructure]
     if: needs.semantic-release.outputs.new_release == 'true'
-    uses: ./.github/workflows/application.yml
+    uses: ./.github/workflows/infra-build.yml
     with:
       environment: prod
       image_tag: ${{ needs.semantic-release.outputs.latest_tag }}
     secrets: inherit
-
-  dev-summary:
-    name: Development Deployment Summary
-    needs: [generate-tag, dev-deployment]
-    if: github.ref != 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Generate Dev Summary
-        env:
-          IMAGE_TAG: ${{ needs.generate-tag.outputs.image_tag }}
-          DEV_STATUS: ${{ needs.dev-deployment.result }}
-          BRANCH_NAME: ${{ github.ref_name }}
-        run: |
-          echo "# 🔧 Development Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Branch Information" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch:** \`$BRANCH_NAME\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image Tag:** \`$IMAGE_TAG\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Environment:** Development Only" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          echo "## Deployment Status" >> $GITHUB_STEP_SUMMARY
-          echo "| Environment | Status | Result |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------------|--------|--------|" >> $GITHUB_STEP_SUMMARY
-          
-          if [ "$DEV_STATUS" = "success" ]; then
-            echo "| Development | ✅ Success | Deployed successfully |" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "| Development | ❌ Failed | Deployment failed |" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Next Steps" >> $GITHUB_STEP_SUMMARY
-          echo "- Test your changes in the development environment" >> $GITHUB_STEP_SUMMARY
-          echo "- Create a pull request to merge into main for production deployment" >> $GITHUB_STEP_SUMMARY
-          echo "- Production deployment will trigger automatically after PR merge" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Quick Links" >> $GITHUB_STEP_SUMMARY
-          echo "- [AWS Console](https://console.aws.amazon.com/ecs/home?region=us-east-1#/clusters)" >> $GITHUB_STEP_SUMMARY
-          echo "- [CloudWatch Logs](https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups)" >> $GITHUB_STEP_SUMMARY
-
-  deployment-summary:
-    name: Production Deployment Summary
-    needs: [semantic-release, dev-deployment, deploy-production]
-    if: needs.semantic-release.outputs.new_release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Generate Deployment Summary
-        env:
-          VERSION: ${{ needs.semantic-release.outputs.latest_tag }}
-          DEV_STATUS: ${{ needs.dev-deployment.result }}
-          PROD_STATUS: ${{ needs.deploy-production.result }}
-        run: |
-          echo "# 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Release Information" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version:** \`$VERSION\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Release Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          echo "## Deployment Status" >> $GITHUB_STEP_SUMMARY
-          echo "| Environment | Status | Result |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------------|--------|--------|" >> $GITHUB_STEP_SUMMARY
-          
-          # Development status
-          if [ "$DEV_STATUS" = "success" ]; then
-            echo "| Development | ✅ Success | Deployed successfully |" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "| Development | ❌ Failed | Deployment failed |" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          # Production status
-          if [ "$PROD_STATUS" = "success" ]; then
-            echo "| Production | ✅ Success | Deployed successfully |" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "| Production | ❌ Failed | Deployment failed |" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Infrastructure Details" >> $GITHUB_STEP_SUMMARY
-          echo "- **AWS Region:** us-east-1" >> $GITHUB_STEP_SUMMARY
-          echo "- **ECS Cluster:** Storefront" >> $GITHUB_STEP_SUMMARY
-          echo "- **Database:** PostgreSQL on RDS" >> $GITHUB_STEP_SUMMARY
-          echo "- **Container Registry:** ECR" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          echo "## Quick Links" >> $GITHUB_STEP_SUMMARY
-          echo "- [Release Notes](https://github.com/${{ github.repository }}/releases/tag/$VERSION)" >> $GITHUB_STEP_SUMMARY
-          echo "- [AWS Console](https://console.aws.amazon.com/ecs/home?region=us-east-1#/clusters)" >> $GITHUB_STEP_SUMMARY
-          echo "- [CloudWatch Logs](https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups)" >> $GITHUB_STEP_SUMMARY

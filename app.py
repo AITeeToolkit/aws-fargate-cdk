@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import os
 import json
 import aws_cdk as cdk
@@ -23,8 +21,17 @@ env_name = app.node.try_get_context("env") or "dev"
 with open("domains.json") as f:
     domains = json.load(f)["domains"]
 
-# Get the image tag from environment variable (set by CI/CD) or default to 'latest'
-image_tag = os.environ.get("CDK_IMAGE_TAG", "latest")
+# Helper to resolve image tag priority: CDK context -> env var -> "latest"
+def resolve_tag(context_key: str, env_var: str) -> str:
+    return (
+        app.node.try_get_context(context_key)
+        or os.environ.get(env_var)
+        or "latest"
+    )
+
+listener_tag = resolve_tag("listenerTag", "LISTENER_IMAGE_TAG")
+api_tag = resolve_tag("apiTag", "API_IMAGE_TAG")
+web_tag = resolve_tag("webTag", "WEB_IMAGE_TAG")
 
 # IAM Stack for CI/CD permissions - deploy this first to bootstrap permissions
 # iam_stack = IAMStack(app, "StorefrontIAMStack", env=env)
@@ -67,23 +74,13 @@ database_stack = DatabaseStack(
     environment=env_name
 )
 
-# Parameters Stack - independent of database stack
-# parameters_stack = ParametersStack(
-#     app, f"ParametersStack-{env_name}",
-#     env=env,
-#     environment=env_name,
-#     cluster=shared_stack.cluster,
-#     api_service_name="api-service",
-#     namespace=shared_stack.cluster.default_cloud_map_namespace
-# )
-
 # Deploy listener service
 listener_service = ListenerServiceStack(
     app, f"ListenerServiceStack-{env_name}",
     env=env,
     vpc=network_stack.vpc,
     cluster=shared_stack.cluster,
-    image_uri=f"{ecr_stack.repositories['listener'].repository_uri}:{image_tag}",
+    image_uri=f"{ecr_stack.repositories['listener'].repository_uri}:{listener_tag}",
     db_secret=database_stack.secret,
     environment=env_name,
     ecs_task_security_group=shared_stack.ecs_task_sg,
@@ -96,13 +93,12 @@ api_service = APIServiceStack(
     env=env,
     vpc=network_stack.vpc,
     cluster=shared_stack.cluster,
-    image_uri=f"{ecr_stack.repositories['api'].repository_uri}:{image_tag}",
+    image_uri=f"{ecr_stack.repositories['api'].repository_uri}:{api_tag}",
     db_secret=database_stack.secret,
     environment=env_name,
     ecs_task_security_group=shared_stack.ecs_task_sg,
     service_name="api-service"
 )
-
 
 # Deploy web service (just the ECS service, no ALB binding)
 web_service = WebServiceStack(
@@ -110,7 +106,7 @@ web_service = WebServiceStack(
     env=env,
     vpc=network_stack.vpc,
     cluster=shared_stack.cluster,
-    image_uri=f"{ecr_stack.repositories['web'].repository_uri}:{image_tag}",
+    image_uri=f"{ecr_stack.repositories['web'].repository_uri}:{web_tag}",
     db_secret=database_stack.secret,
     environment=env_name,
     ecs_task_security_group=shared_stack.ecs_task_sg,
