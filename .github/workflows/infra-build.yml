@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       image_tag:
-        description: "Docker image tag to deploy"
+        description: "Default docker image tag to deploy"
         required: true
         type: string
     secrets:
@@ -38,19 +38,52 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_CODEBUILD_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+
       - name: Install CDK
         run: npm install -g aws-cdk
+
       - name: Install dependencies
         run: pip install -r requirements.txt
+
       - name: CDK Bootstrap
         run: cdk bootstrap aws://${{ secrets.AWS_ACCOUNT_ID }}/us-east-1
+
       - name: Set image tags
         run: |
-          echo "LISTENER_IMAGE_TAG=${{ github.event.client_payload.listener_tag || 'latest' }}" >> $GITHUB_ENV
-          echo "API_IMAGE_TAG=${{ github.event.client_payload.api_tag || needs.generate-tag.outputs.image_tag || 'latest' }}" >> $GITHUB_ENV
-          echo "WEB_IMAGE_TAG=${{ github.event.client_payload.web_tag || needs.generate-tag.outputs.image_tag || 'latest' }}" >> $GITHUB_ENV
+          # Use payload values if provided, otherwise fallback
+          LISTENER_TAG="${{ github.event.client_payload.listener_tag || 'skip' }}"
+          API_TAG="${{ github.event.client_payload.api_tag || 'skip' }}"
+          WEB_TAG="${{ github.event.client_payload.web_tag || 'skip' }}"
+
+          # Write only if not skip
+          if [ "$LISTENER_TAG" != "skip" ]; then
+            echo "LISTENER_IMAGE_TAG=$LISTENER_TAG" >> $GITHUB_ENV
+          fi
+          if [ "$API_TAG" != "skip" ]; then
+            echo "API_IMAGE_TAG=$API_TAG" >> $GITHUB_ENV
+          fi
+          if [ "$WEB_TAG" != "skip" ]; then
+            echo "WEB_IMAGE_TAG=$WEB_TAG" >> $GITHUB_ENV
+          fi
+
       - name: CDK Deploy
         run: |
-          echo "🚀 Deploying infra with API=$API_IMAGE_TAG, WEB=$WEB_IMAGE_TAG, LISTENER=$LISTENER_IMAGE_TAG"
-          CDK_IMAGE_TAG=$LISTENER_IMAGE_TAG cdk deploy --require-approval never --all \
-          --context env=${{ inputs.environment || 'dev' }}
+          echo "🚀 Deploying infra"
+          echo "  API=${API_IMAGE_TAG:-unchanged}"
+          echo "  WEB=${WEB_IMAGE_TAG:-unchanged}"
+          echo "  LISTENER=${LISTENER_IMAGE_TAG:-unchanged}"
+
+          # Only pass what exists in env
+          DEPLOY_ENV="--context env=${{ inputs.environment || 'dev' }}"
+
+          if [ -n "$API_IMAGE_TAG" ]; then
+            DEPLOY_ENV="$DEPLOY_ENV --context apiTag=$API_IMAGE_TAG"
+          fi
+          if [ -n "$WEB_IMAGE_TAG" ]; then
+            DEPLOY_ENV="$DEPLOY_ENV --context webTag=$WEB_IMAGE_TAG"
+          fi
+          if [ -n "$LISTENER_IMAGE_TAG" ]; then
+            DEPLOY_ENV="$DEPLOY_ENV --context listenerTag=$LISTENER_IMAGE_TAG"
+          fi
+
+          cdk deploy --require-approval never --all $DEPLOY_ENV

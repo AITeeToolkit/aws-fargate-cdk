@@ -51,6 +51,13 @@ jobs:
 
       - id: diff
         run: |
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
+            # For domain-updates branch we always want infra to run
+            echo "listener=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           if [[ "${{ inputs.force_build }}" == "true" ]]; then
             echo "listener=true" >> $GITHUB_OUTPUT
             exit 0
@@ -72,12 +79,13 @@ jobs:
     steps:
       - id: tag
         run: |
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          SHORT_SHA=${GITHUB_SHA:0:7}
           if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
-            SHORT_SHA=${GITHUB_SHA:0:7}
             echo "image_tag=listener-${SHORT_SHA}" >> $GITHUB_OUTPUT
+          elif [[ "$BRANCH_NAME" == "domain-updates" ]]; then
+            echo "image_tag=domain-updates-${SHORT_SHA}" >> $GITHUB_OUTPUT
           else
-            BRANCH_NAME=${GITHUB_REF#refs/heads/}
-            SHORT_SHA=${GITHUB_SHA:0:7}
             CLEAN_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9]/-/g')
             echo "image_tag=${CLEAN_BRANCH}-${SHORT_SHA}" >> $GITHUB_OUTPUT
           fi
@@ -111,9 +119,10 @@ jobs:
           docker push $ECR_REGISTRY/listener:latest
 
   trigger-infra:
+    name: Trigger Infra
     runs-on: ubuntu-latest
-    needs: [build-listener, generate-tag]
-    if: needs.build-listener.result == 'success'
+    needs: [generate-tag] # no longer blocks on build-listener
+    if: always()
     steps:
       - name: Trigger infra workflow
         uses: peter-evans/repository-dispatch@v3
