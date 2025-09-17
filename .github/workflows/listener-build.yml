@@ -94,8 +94,8 @@ jobs:
 
   trigger-infra:
     runs-on: ubuntu-latest
-    needs: build-listener
-    if: needs.build-listener.result == 'success'
+    needs: build-and-push-listener
+    if: needs.build-and-push-listener.result == 'success'
     steps:
       - name: Trigger infra workflow
         uses: peter-evans/repository-dispatch@v3
@@ -105,6 +105,6 @@ jobs:
           event-type: deploy-infra
           client-payload: |
             {
-              "listener_tag": "${{ needs.generate-tag.outputs.image_tag }}",
+              "listener_tag": "${{ inputs.image_tag }}",
               "components": { "listener": true }
             }
