@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.27.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.27.0...v1.27.1) (2025-09-17)
+
+
+### ♻️ Code Refactoring
+
+* simplify workflow triggers by removing repository_dispatch events ([4b3bee8](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/4b3bee8b0a26de030ac7a19000622ff216f31db5))
+
 ## [1.27.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.26.0...v1.27.0) (2025-09-17)
 
 
