@@ -142,27 +142,9 @@ cur.execute("LISTEN domain_updates;")
 conn.commit()
 logging.info("✅ Listening for domain updates...")
 
-# Add periodic domain check
-last_check = time.time()
-CHECK_INTERVAL = 86400
-
 while True:
     try:
         ready = select.select([conn], [], [], 60)
-        if ready == ([], [], []):
-            current_time = time.time()
-            if current_time - last_check >= CHECK_INTERVAL:
-                logging.info("🕐 Periodic domain check")
-                domains = fetch_domains()
-                if domains:
-                    created_zones = ensure_hosted_zones(domains)
-                    if created_zones:
-                        logging.info(f"⏳ Waiting 15 seconds for hosted zones to propagate...")
-                        time.sleep(15)
-                        trigger_github(domains)
-                    else:
-                        logging.info("🔍 No new hosted zones created during periodic check")
-                last_check = current_time
         
         conn.poll()
         while conn.notifies:
@@ -178,7 +160,6 @@ while True:
             
             # Always trigger GitHub on domain notifications (domains.json changes)
             trigger_github(domains)
-            last_check = time.time()
             
     except Exception as e:
         logging.error(f"💥 Error in listener loop: {e}")
