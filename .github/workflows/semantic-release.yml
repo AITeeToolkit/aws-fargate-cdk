@@ -112,13 +112,13 @@ jobs:
           fi
 
   # ---------------------------
-  # Build images
+  # Listener build
   # ---------------------------
-  build-images:
-    name: Build Images
+  build-listener:
+    name: Build Listener
     needs: [generate-tag, check-changes]
     if: needs.check-changes.outputs.has_image_changes == 'true'
-    uses: ./.github/workflows/build-images.yml
+    uses: ./.github/workflows/listener-build.yml
     with:
       environment: dev
       image_tag: ${{ needs.generate-tag.outputs.image_tag }}
@@ -130,9 +130,9 @@ jobs:
   # ---------------------------
   deploy-infrastructure:
     name: Deploy Infrastructure
-    needs: [generate-tag, check-changes, build-images]
+    needs: [generate-tag, check-changes, build-listener]
     if: always() && (needs.check-changes.outputs.has_infra_changes == 'true')
-    uses: ./.github/workflows/infrastructure.yml
+    uses: ./.github/workflows/infra-build.yml
     with:
       environment: dev
       image_tag: ${{ needs.generate-tag.outputs.image_tag }}
@@ -145,7 +145,7 @@ jobs:
     name: Deploy to Production
     needs: [semantic-release, deploy-infrastructure]
     if: needs.semantic-release.outputs.new_release == 'true'
-    uses: ./.github/workflows/infrastructure.yml
+    uses: ./.github/workflows/infra-build.yml
     with:
       environment: prod
       image_tag: ${{ needs.semantic-release.outputs.latest_tag }}
