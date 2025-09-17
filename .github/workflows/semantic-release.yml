@@ -81,13 +81,14 @@ jobs:
       - name: Generate image tag
         id: tag
         run: |
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            # Use latest tag for main branch
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          if [[ "$BRANCH_NAME" == domain-update-* ]]; then
+            SHORT_SHA=${GITHUB_SHA:0:7}
+            echo "image_tag=domain-update-$SHORT_SHA" >> $GITHUB_OUTPUT
+          elif [ "$BRANCH_NAME" = "main" ]; then
             LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "latest")
             echo "image_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
           else
-            # Use branch name and short SHA for feature branches
-            BRANCH_NAME=${GITHUB_REF#refs/heads/}
             CLEAN_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]')
             SHORT_SHA=${GITHUB_SHA:0:7}
             echo "image_tag=${CLEAN_BRANCH}-${SHORT_SHA}" >> $GITHUB_OUTPUT
@@ -158,7 +159,7 @@ jobs:
   deploy-production:
     name: Deploy to Production
     needs: [semantic-release, deploy-infrastructure]
-    if: needs.semantic-release.outputs.new_release == 'true'
+    if: needs.semantic-release.outputs.new_release == 'true' && !startsWith(github.ref_name, 'domain-update-')
     uses: ./.github/workflows/infrastructure.yml
     with:
       environment: prod
