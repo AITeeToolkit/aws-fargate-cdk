@@ -94,21 +94,21 @@ jobs:
           if [[ "$BRANCH_NAME" == domain-update-* ]]; then
             echo "images=true" >> $GITHUB_OUTPUT
             echo "infra=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # Detect normal image changes
-          if git diff --name-only HEAD~1 HEAD | grep -E '^(storefront/|scripts/listener_app\.py|scripts/Dockerfile)' > /dev/null; then
-            echo "images=true" >> $GITHUB_OUTPUT
+            # Do not exit — allow step to finish so outputs are written
           else
-            echo "images=false" >> $GITHUB_OUTPUT
-          fi
+            # Detect normal image changes
+            if git diff --name-only HEAD~1 HEAD | grep -E '^(storefront/|scripts/listener_app\.py|scripts/Dockerfile)' > /dev/null; then
+              echo "images=true" >> $GITHUB_OUTPUT
+            else
+              echo "images=false" >> $GITHUB_OUTPUT
+            fi
 
-          # Detect infra changes
-          if git diff --name-only HEAD~1 HEAD | grep -E '^(stacks/|cdk_constructs/|aspects/|app\.py|cdk\.json|requirements\.txt|\.github/workflows/)' > /dev/null; then
-            echo "infra=true" >> $GITHUB_OUTPUT
-          else
-            echo "infra=false" >> $GITHUB_OUTPUT
+            # Detect infra changes
+            if git diff --name-only HEAD~1 HEAD | grep -E '^(stacks/|cdk_constructs/|aspects/|app\.py|cdk\.json|requirements\.txt|\.github/workflows/)' > /dev/null; then
+              echo "infra=true" >> $GITHUB_OUTPUT
+            else
+              echo "infra=false" >> $GITHUB_OUTPUT
+            fi
           fi
 
   # ---------------------------
