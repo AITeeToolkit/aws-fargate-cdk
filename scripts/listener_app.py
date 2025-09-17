@@ -149,69 +149,44 @@ def setup_listener():
 setup_listener()
 
 while True:
-    try:
-        # Block until notification or timeout
-        ready = select.select([conn], [], [], 60)
-        if not ready[0]:
-            logging.debug("🔄 Keepalive check (no notifications)")
-            continue
+    # Block until notification or timeout
+    ready = select.select([conn], [], [], 60)
+    if not ready[0]:
+        logging.debug("🔄 Keepalive check (no notifications)")
+        continue
 
+    try:
+        # Poll once per cycle
         conn.poll()
+
         while conn.notifies:
             notify = conn.notifies.pop(0)
             logging.info(f"🔔 Raw notification received: {notify.payload}")
 
-            try:
-                # Parse JSON payload
-                payload = json.loads(notify.payload)
-                domain_name = payload.get("domain_name")
-                active = payload.get("active")
+            # Parse JSON payload
+            payload = json.loads(notify.payload)
+            domain_name = payload.get("domain_name")
+            active = payload.get("active")
 
-                if not domain_name or active not in ("Y", "N"):
-                    logging.warning(f"⚠️ Invalid payload: {payload}")
-                    continue
-
-                logging.info(f"📌 Domain update → {domain_name} (active={active})")
-
-                if active == "Y":
-                    # Ensure hosted zone exists
-                    created_zones = ensure_hosted_zones([domain_name])
-                    if created_zones:
-                        logging.info("⏳ Waiting 15s for hosted zone to propagate...")
-                        time.sleep(15)
-                else:
-                    logging.info(f"🗑 Marked inactive → handle removal for {domain_name}")
-                    # TODO: remove hosted zone / update domains.json cleanup here
-
-                # Trigger GitHub workflow for this single domain change
-                trigger_github([domain_name])
-                logging.info("✅ Successfully processed domain update")
-
-            except Exception as e:
-                logging.error(f"❌ Error processing notification: {e}")
+            if not domain_name or active not in ("Y", "N"):
+                logging.warning(f"⚠️ Invalid payload: {payload}")
                 continue
 
-    except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
-        logging.error(f"💥 Database connection error: {e}")
-        try:
-            conn.close()
-        except:
-            pass
-        logging.info("🔄 Reconnecting to database...")
-        time.sleep(5)
-        try:
-            conn = psycopg2.connect(
-                host=os.environ["PGHOST"],
-                user=os.environ["PGUSER"],
-                password=os.environ["PGPASSWORD"],
-                dbname=os.environ["PGDATABASE"],
-                port=os.environ.get("PGPORT", "5432")
-            )
-            setup_listener()
-        except Exception as reconnect_error:
-            logging.error(f"❌ Failed to reconnect: {reconnect_error}")
-            time.sleep(10)
+            logging.info(f"📌 Domain update → {domain_name} (active={active})")
+
+            if active == "Y":
+                created_zones = ensure_hosted_zones([domain_name])
+                if created_zones:
+                    logging.info("⏳ Waiting 15s for hosted zone to propagate...")
+                    time.sleep(15)
+            else:
+                logging.info(f"🗑 Marked inactive → handle removal for {domain_name}")
+                # TODO: remove hosted zone / update domains.json cleanup
+
+            # Trigger GitHub workflow only once per notify
+            trigger_github([domain_name])
+            logging.info("✅ Successfully processed domain update")
 
     except Exception as e:
-        logging.error(f"💥 Unexpected error in listener loop: {e}")
-        time.sleep(5)
+        logging.error(f"❌ Error processing notification: {e}")
+        time.sleep(5)  # avoid a busy loop if something keeps failing
