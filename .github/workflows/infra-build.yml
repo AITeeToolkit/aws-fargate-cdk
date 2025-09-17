@@ -46,9 +46,9 @@ jobs:
         run: cdk bootstrap aws://${{ secrets.AWS_ACCOUNT_ID }}/us-east-1
       - name: Set image tags
         run: |
-          echo "LISTENER_IMAGE_TAG=${{ github.event.client_payload.listener_tag || inputs.image_tag || 'latest' }}" >> $GITHUB_ENV
-          echo "API_IMAGE_TAG=${{ github.event.client_payload.api_tag || inputs.image_tag || 'latest' }}" >> $GITHUB_ENV
-          echo "WEB_IMAGE_TAG=${{ github.event.client_payload.web_tag || inputs.image_tag || 'latest' }}" >> $GITHUB_ENV
+          echo "LISTENER_IMAGE_TAG=${{ github.event.client_payload.listener_tag || 'latest' }}" >> $GITHUB_ENV
+          echo "API_IMAGE_TAG=${{ github.event.client_payload.api_tag || needs.generate-tag.outputs.image_tag || 'latest' }}" >> $GITHUB_ENV
+          echo "WEB_IMAGE_TAG=${{ github.event.client_payload.web_tag || needs.generate-tag.outputs.image_tag || 'latest' }}" >> $GITHUB_ENV
       - name: CDK Deploy
         run: |
           echo "🚀 Deploying infra with API=$API_IMAGE_TAG, WEB=$WEB_IMAGE_TAG, LISTENER=$LISTENER_IMAGE_TAG"
