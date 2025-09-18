@@ -149,21 +149,18 @@ def setup_listener():
 setup_listener()
 
 while True:
-    # Block until notification or timeout
     ready = select.select([conn], [], [], 60)
     if not ready[0]:
         logging.debug("🔄 Keepalive check (no notifications)")
         continue
 
     try:
-        # Poll once per cycle
         conn.poll()
 
         while conn.notifies:
             notify = conn.notifies.pop(0)
             logging.info(f"🔔 Raw notification received: {notify.payload}")
 
-            # Parse JSON payload
             payload = json.loads(notify.payload)
             domain_name = payload.get("domain_name")
             active = payload.get("active")
@@ -175,18 +172,26 @@ while True:
             logging.info(f"📌 Domain update → {domain_name} (active={active})")
 
             if active == "Y":
-                created_zones = ensure_hosted_zones([domain_name])
+                # ✅ Step 1: Fetch all active domains
+                active_domains = fetch_domains()
+                logging.info(f"🌐 Active domains in RDS: {active_domains}")
+
+                # ✅ Step 2: Ensure all active domains have hosted zones
+                created_zones = ensure_hosted_zones(active_domains)
                 if created_zones:
-                    logging.info("⏳ Waiting 15s for hosted zone to propagate...")
+                    logging.info("⏳ Waiting 15s for hosted zone(s) to propagate...")
                     time.sleep(15)
+
+                # ✅ Step 3: Trigger GitHub Actions with full domain list
+                trigger_github(active_domains)
+                logging.info("✅ Successfully processed domain activation")
+
             else:
                 logging.info(f"🗑 Marked inactive → handle removal for {domain_name}")
-                # TODO: remove hosted zone / update domains.json cleanup
-
-            # Trigger GitHub workflow only once per notify
-            trigger_github([domain_name])
-            logging.info("✅ Successfully processed domain update")
+                # You could also refresh full domain list if needed
+                trigger_github([domain_name])
+                logging.info("✅ Successfully processed domain deactivation")
 
     except Exception as e:
         logging.error(f"❌ Error processing notification: {e}")
-        time.sleep(5)  # avoid a busy loop if something keeps failing
+        time.sleep(5)
