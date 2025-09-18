@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: ['**']
+    branches: ["**"]
   workflow_dispatch:
     inputs:
       environment:
@@ -25,6 +25,8 @@ on:
       web_tag:
         required: false
         type: string
+  repository_dispatch:
+    types: [api-web-updated]
 
 env:
   AWS_REGION: us-east-1
@@ -38,7 +40,6 @@ jobs:
     outputs:
       new_release: ${{ steps.release_info.outputs.new_release }}
       latest_tag: ${{ steps.release_info.outputs.latest_tag }}
-      new-release-version: ${{ steps.release_info.outputs.latest_tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -69,6 +70,7 @@ jobs:
   generate-tag:
     name: Generate Image Tag
     runs-on: ubuntu-latest
+    needs: [semantic-release]
     outputs:
       image_tag: ${{ steps.tag.outputs.image_tag }}
     steps:
@@ -92,7 +94,7 @@ jobs:
 
   check-changes:
     name: Check What Changed
-    needs: generate-tag
+    needs: [generate-tag]
     runs-on: ubuntu-latest
     outputs:
       has_image_changes: ${{ steps.changes.outputs.images }}
@@ -104,21 +106,24 @@ jobs:
       - id: changes
         run: |
           BRANCH_NAME=${GITHUB_REF#refs/heads/}
+
           if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
             echo "images=true" >> $GITHUB_OUTPUT
             echo "infra=true" >> $GITHUB_OUTPUT
-          else
-            if git diff --name-only HEAD~1 HEAD | grep -E '^(storefront/|scripts/listener_app\.py|scripts/Dockerfile)' > /dev/null; then
-              echo "images=true" >> $GITHUB_OUTPUT
-            else
-              echo "images=false" >> $GITHUB_OUTPUT
-            fi
+          fi
 
-            if git diff --name-only HEAD~1 HEAD | grep -E '^(stacks/|cdk_constructs/|aspects/|app\.py|cdk\.json|requirements\.txt|\.github/workflows/)' > /dev/null; then
-              echo "infra=true" >> $GITHUB_OUTPUT
-            else
-              echo "infra=false" >> $GITHUB_OUTPUT
-            fi
+          # Check for image-related changes (listener only for now)
+          if git diff --name-only HEAD~1 HEAD | grep -E '^(scripts/listener_app\.py|scripts/Dockerfile)' > /dev/null; then
+            echo "images=true" >> $GITHUB_OUTPUT
+          else
+            echo "images=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Check for infra-related changes
+          if git diff --name-only HEAD~1 HEAD | grep -E '^(stacks/|cdk_constructs/|aspects/|app\.py|cdk\.json|requirements\.txt|\.github/workflows/)' > /dev/null; then
+            echo "infra=true" >> $GITHUB_OUTPUT
+          else
+            echo "infra=false" >> $GITHUB_OUTPUT
           fi
 
   build-listener:
@@ -132,12 +137,113 @@ jobs:
       force_build: false
     secrets: inherit
 
-  deploy-production:
-    name: Deploy to Production
-    needs: [semantic-release]
-    if: needs.semantic-release.outputs.new_release == 'true'
+  deploy-infrastructure:
+    name: Deploy Infrastructure
+    needs: [generate-tag, check-changes, build-listener]
+    if: |
+      needs.check-changes.outputs.has_image_changes == 'true' ||
+      needs.check-changes.outputs.has_infra_changes == 'true' ||
+      github.event_name == 'repository_dispatch'
     uses: ./.github/workflows/infra-build.yml
     with:
-      environment: prod
-      image_tag: ${{ needs.semantic-release.outputs.latest_tag }}
+      environment: dev
+      image_tag: ${{ github.event.client_payload.api_tag || github.event.client_payload.web_tag || needs.generate-tag.outputs.image_tag }}
+      api_tag: ${{ github.event.client_payload.api_tag || '' }}
+      web_tag: ${{ github.event.client_payload.web_tag || '' }}
     secrets: inherit
+
+  dev-summary:
+    name: Development Deployment Summary
+    needs: [generate-tag, deploy-infrastructure]
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate Dev Summary
+        env:
+          IMAGE_TAG: ${{ needs.generate-tag.outputs.image_tag }}
+          DEV_STATUS: ${{ needs.deploy-infrastructure.result }}
+          BRANCH_NAME: ${{ github.ref_name }}
+        run: |
+          echo "# 🔧 Development Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Branch Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** \`$BRANCH_NAME\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Tag:** \`$IMAGE_TAG\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** Development Only" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | Status | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$DEV_STATUS" = "success" ]; then
+            echo "| Development | ✅ Success | Deployed successfully |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Development | ❌ Failed | Deployment failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "- Test your changes in the development environment" >> $GITHUB_STEP_SUMMARY
+          echo "- Create a pull request to merge into main for production deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- Production deployment will trigger automatically after PR merge" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Quick Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [AWS Console](https://console.aws.amazon.com/ecs/home?region=us-east-1#/clusters)" >> $GITHUB_STEP_SUMMARY
+          echo "- [CloudWatch Logs](https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups)" >> $GITHUB_STEP_SUMMARY
+
+  deployment-summary:
+    name: Production Deployment Summary
+    needs: [semantic-release, deploy-infrastructure, deploy-production]
+    if: needs.semantic-release.outputs.new_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate Deployment Summary
+        env:
+          VERSION: ${{ needs.semantic-release.outputs.latest_tag }}
+          DEV_STATUS: ${{ needs.deploy-infrastructure.result }}
+          PROD_STATUS: ${{ needs.deploy-production.result }}
+        run: |
+          echo "# 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Release Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** \`$VERSION\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | Status | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$DEV_STATUS" = "success" ]; then
+            echo "| Development | ✅ Success | Deployed successfully |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Development | ❌ Failed | Deployment failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "$PROD_STATUS" = "success" ]; then
+            echo "| Production | ✅ Success | Deployed successfully |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Production | ❌ Failed | Deployment failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Infrastructure Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **AWS Region:** us-east-1" >> $GITHUB_STEP_SUMMARY
+          echo "- **ECS Cluster:** Storefront" >> $GITHUB_STEP_SUMMARY
+          echo "- **Database:** PostgreSQL on RDS" >> $GITHUB_STEP_SUMMARY
+          echo "- **Container Registry:** ECR" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## Quick Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [Release Notes](https://github.com/${{ github.repository }}/releases/tag/$VERSION)" >> $GITHUB_STEP_SUMMARY
+          echo "- [AWS Console](https://console.aws.amazon.com/ecs/home?region=us-east-1#/clusters)" >> $GITHUB_STEP_SUMMARY
+          echo "- [CloudWatch Logs](https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups)" >> $GITHUB_STEP_SUMMARY

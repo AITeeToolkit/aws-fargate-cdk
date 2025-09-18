@@ -4,15 +4,12 @@ on:
   workflow_call:
     inputs:
       environment:
-        description: "Deployment environment (dev/prod)"
         required: true
         type: string
       image_tag:
-        description: "Docker image tag"
         required: true
         type: string
       force_build:
-        description: "Force rebuild even if no changes detected"
         required: false
         default: false
         type: boolean
@@ -23,13 +20,6 @@ on:
         required: true
       AWS_CODEBUILD_SECRET_ACCESS_KEY:
         required: true
-
-  push:
-    branches: ["**"]
-    paths:
-      - "scripts/listener_app.py"
-      - "scripts/Dockerfile"
-      - ".github/workflows/listener-build.yml"
 
 env:
   AWS_REGION: us-east-1
@@ -48,13 +38,6 @@ jobs:
 
       - id: diff
         run: |
-          BRANCH_NAME=${GITHUB_REF#refs/heads/}
-          if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
-            # For domain-updates branch we always want infra to run
-            echo "listener=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
           if [[ "${{ inputs.force_build }}" == "true" ]]; then
             echo "listener=true" >> $GITHUB_OUTPUT
             exit 0
@@ -62,34 +45,17 @@ jobs:
 
           BASE_SHA="${{ github.event.before || github.sha }}~1"
           HEAD_SHA="${{ github.sha }}"
+
           if git diff --name-only $BASE_SHA $HEAD_SHA | grep -E '^(scripts/listener_app\.py|scripts/Dockerfile)' > /dev/null; then
             echo "listener=true" >> $GITHUB_OUTPUT
           else
             echo "listener=false" >> $GITHUB_OUTPUT
           fi
 
-  generate-tag:
-    name: Generate Image Tag
-    runs-on: ubuntu-latest
-    outputs:
-      image_tag: ${{ steps.tag.outputs.image_tag }}
-    steps:
-      - id: tag
-        run: |
-          BRANCH_NAME=${GITHUB_REF#refs/heads/}
-          SHORT_SHA=${GITHUB_SHA:0:7}
-
-          if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
-            echo "image_tag=domain-updates-${SHORT_SHA}" >> $GITHUB_OUTPUT
-          else
-            CLEAN_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9]/-/g')
-            echo "image_tag=${CLEAN_BRANCH}-${SHORT_SHA}" >> $GITHUB_OUTPUT
-          fi
-
   build-listener:
     name: Build & Push Listener Image
     runs-on: ubuntu-latest
-    needs: [detect-changes, generate-tag]
+    needs: [detect-changes]
     if: needs.detect-changes.outputs.listener_changed == 'true'
     steps:
       - uses: actions/checkout@v4
@@ -106,30 +72,17 @@ jobs:
 
       - name: Build Listener Docker Image
         run: |
-          echo "Building Listener image with tag: ${{ needs.generate-tag.outputs.image_tag }}"
-          docker build --target listener -t $ECR_REGISTRY/listener:${{ needs.generate-tag.outputs.image_tag }} -t $ECR_REGISTRY/listener:latest ./scripts
+          echo "🔧 Building Listener image with tag: ${{ inputs.image_tag }}"
+          docker build --target listener -t $ECR_REGISTRY/listener:${{ inputs.image_tag }} ./scripts
+
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            docker tag $ECR_REGISTRY/listener:${{ inputs.image_tag }} $ECR_REGISTRY/listener:latest
+          fi
 
       - name: Push Listener Image
         run: |
-          docker push $ECR_REGISTRY/listener:${{ needs.generate-tag.outputs.image_tag }}
-          docker push $ECR_REGISTRY/listener:latest
+          docker push $ECR_REGISTRY/listener:${{ inputs.image_tag }}
 
-  trigger-infra:
-    name: Trigger Infra
-    runs-on: ubuntu-latest
-    needs: [generate-tag, build-listener]
-    if: |
-      (needs.build-listener.result == 'success') ||
-      (github.ref_name == 'domain-updates')
-    steps:
-      - name: Trigger infra workflow
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.GH_TOKEN }}
-          repository: AITeeToolkit/aws-fargate-cdk
-          event-type: deploy-infra
-          client-payload: |
-            {
-              "listener_tag": "${{ needs.generate-tag.outputs.image_tag }}",
-              "components": { "listener": true }
-            }
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            docker push $ECR_REGISTRY/listener:latest
+          fi
