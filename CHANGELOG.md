@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.29.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.28.0...v1.29.0) (2025-09-18)
+
+
+### 🚀 Features
+
+* add debug logging to GitHub workflow change detection script ([e48674d](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/e48674d7a6f2bc99b03c3d3d13490ce3503f240b))
+
 ## [1.28.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.27.2...v1.28.0) (2025-09-18)
 
 
