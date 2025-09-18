@@ -132,19 +132,9 @@ jobs:
       force_build: false
     secrets: inherit
 
-  deploy-infrastructure:
-    name: Deploy Infrastructure
-    needs: [generate-tag, check-changes, build-listener]
-    if: always() && (needs.check-changes.outputs.has_infra_changes == 'true')
-    uses: ./.github/workflows/infra-build.yml
-    with:
-      environment: dev
-      image_tag: ${{ needs.generate-tag.outputs.image_tag }}
-    secrets: inherit
-
   deploy-production:
     name: Deploy to Production
-    needs: [semantic-release, deploy-infrastructure]
+    needs: [semantic-release]
     if: needs.semantic-release.outputs.new_release == 'true'
     uses: ./.github/workflows/infra-build.yml
     with:
