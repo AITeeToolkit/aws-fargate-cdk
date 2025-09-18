@@ -7,6 +7,10 @@ on:
         description: "Deployment environment (dev/prod)"
         required: true
         type: string
+      image_tag:
+        description: "Image tag"
+        required: true
+        type: string
       listener_tag:
         description: "Listener image tag"
         required: false
