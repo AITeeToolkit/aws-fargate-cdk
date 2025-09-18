@@ -106,14 +106,43 @@ jobs:
       - id: changes
         run: |
           set -x  # ✅ Trace all commands
-
+        
           BRANCH_NAME=${GITHUB_REF#refs/heads/}
           echo "🔍 Branch detected: $BRANCH_NAME"
-
+        
           CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
           echo "📂 Changed files:"
           echo "$CHANGED_FILES"
-
+        
+          IMAGE_FLAG=false
+          INFRA_FLAG=false
+        
+          if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
+            echo "🟡 Domain updates branch: forcing all image & infra flags to true"
+            IMAGE_FLAG=true
+            INFRA_FLAG=true
+            echo "images=true" >> $GITHUB_OUTPUT
+            echo "infra=true" >> $GITHUB_OUTPUT
+          else
+            if echo "$CHANGED_FILES" | grep -E '^(scripts/listener_app\.py|scripts/Dockerfile)' > /dev/null; then
+              echo "✅ Detected changes in image-related files"
+              IMAGE_FLAG=true
+            else
+              echo "🚫 No image-related changes detected"
+            fi
+        
+            if echo "$CHANGED_FILES" | grep -E '^(stacks/|cdk_constructs/|aspects/|app\.py|cdk\.json|requirements\.txt|\.github/workflows/)' > /dev/null; then
+              echo "✅ Detected changes in infrastructure-related files"
+              INFRA_FLAG=true
+            else
+              echo "🚫 No infra-related changes detected"
+            fi
+        
+            echo "images=$IMAGE_FLAG" >> $GITHUB_OUTPUT
+            echo "infra=$INFRA_FLAG" >> $GITHUB_OUTPUT
+          fi
+        
+          # 📝 Write to the GitHub Actions summary UI
           {
             echo "## 🔍 Change Detection Summary"
             echo ""
@@ -123,30 +152,11 @@ jobs:
             echo '```'
             echo "$CHANGED_FILES"
             echo '```'
+            echo ""
+            echo "**Flags Set:**"
+            echo "- Image Changes: \`$IMAGE_FLAG\`"
+            echo "- Infra Changes: \`$INFRA_FLAG\`"
           } >> $GITHUB_STEP_SUMMARY
-
-          if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
-            echo "🟡 Domain updates branch: forcing all image & infra flags to true"
-            echo "images=true" >> $GITHUB_OUTPUT
-            echo "infra=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          if echo "$CHANGED_FILES" | grep -E '^(scripts/listener_app\.py|scripts/Dockerfile)' > /dev/null; then
-            echo "✅ Detected changes in image-related files"
-            echo "images=true" >> $GITHUB_OUTPUT
-          else
-            echo "🚫 No image-related changes detected"
-            echo "images=false" >> $GITHUB_OUTPUT
-          fi
-
-          if echo "$CHANGED_FILES" | grep -E '^(stacks/|cdk_constructs/|aspects/|app\.py|cdk\.json|requirements\.txt|\.github/workflows/)' > /dev/null; then
-            echo "✅ Detected changes in infrastructure-related files"
-            echo "infra=true" >> $GITHUB_OUTPUT
-          else
-            echo "🚫 No infra-related changes detected"
-            echo "infra=false" >> $GITHUB_OUTPUT
-          fi
 
   build-listener:
     name: Build Listener
