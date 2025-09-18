@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.28.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.27.2...v1.28.0) (2025-09-18)
+
+
+### 🚀 Features
+
+* add image_tag input parameter to infrastructure build workflow ([65d2790](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/65d279053b72b23686a870acf001631297e3279b))
+
+
+### ♻️ Code Refactoring
+
+* update GitHub Actions workflows with separate image tags and improved deployment summaries ([8a87c5c](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/8a87c5cd201afa34202d6141edf9e81f9d90a8a4))
+
 ## [1.27.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.27.1...v1.27.2) (2025-09-18)
 
 
