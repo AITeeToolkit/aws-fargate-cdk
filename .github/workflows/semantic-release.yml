@@ -105,12 +105,25 @@ jobs:
           fetch-depth: 0
       - id: changes
         run: |
+          set -x  # ✅ Trace all commands
+
           BRANCH_NAME=${GITHUB_REF#refs/heads/}
           echo "🔍 Branch detected: $BRANCH_NAME"
 
           CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
           echo "📂 Changed files:"
           echo "$CHANGED_FILES"
+
+          {
+            echo "## 🔍 Change Detection Summary"
+            echo ""
+            echo "**Branch**: \`$BRANCH_NAME\`"
+            echo ""
+            echo "**Changed Files:**"
+            echo '```'
+            echo "$CHANGED_FILES"
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
 
           if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
             echo "🟡 Domain updates branch: forcing all image & infra flags to true"
@@ -119,7 +132,6 @@ jobs:
             exit 0
           fi
 
-          # Check for image-related changes (listener only for now)
           if echo "$CHANGED_FILES" | grep -E '^(scripts/listener_app\.py|scripts/Dockerfile)' > /dev/null; then
             echo "✅ Detected changes in image-related files"
             echo "images=true" >> $GITHUB_OUTPUT
@@ -128,7 +140,6 @@ jobs:
             echo "images=false" >> $GITHUB_OUTPUT
           fi
 
-          # Check for infra-related changes
           if echo "$CHANGED_FILES" | grep -E '^(stacks/|cdk_constructs/|aspects/|app\.py|cdk\.json|requirements\.txt|\.github/workflows/)' > /dev/null; then
             echo "✅ Detected changes in infrastructure-related files"
             echo "infra=true" >> $GITHUB_OUTPUT
