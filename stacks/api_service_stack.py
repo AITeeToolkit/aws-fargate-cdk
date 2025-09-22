@@ -39,7 +39,8 @@ class APIServiceStack(Stack):
             "PORT": "3001",
             "FORCE_UPDATE": "1",
             "DATABASE_URL": database_url,
-            "HEALTH_CHECK_PATH": "/v1/api/health"
+            "HEALTH_CHECK_PATH": "/v1/api/health",
+            "AWS_REGION": "us-east-1"
         }
 
         # Secrets configuration (from CloudFormation template)
