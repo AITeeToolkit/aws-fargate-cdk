@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.35.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.34.0...v1.35.0) (2025-09-22)
+
+
+### 🚀 Features
+
+* add extensive debug logging for AWS credentials and database connectivity ([55f5aa4](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/55f5aa478dfa5ae48a2d6de0fbf492efeeb30ea3))
+
 ## [1.34.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.33.0...v1.34.0) (2025-09-22)
 
 
