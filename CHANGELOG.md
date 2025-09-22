@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.35.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.35.1...v1.35.2) (2025-09-22)
+
+
+### ♻️ Code Refactoring
+
+* comment out unused ParametersStack initialization ([42c56da](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/42c56da9aae309e4911d5585ebd593257cc10ca8))
+
 ## [1.35.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.35.0...v1.35.1) (2025-09-22)
 
 
