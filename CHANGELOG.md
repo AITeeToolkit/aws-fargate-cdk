@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.37.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.36.0...v1.37.0) (2025-09-22)
+
+
+### 🚀 Features
+
+* enhance domain fallback and image tag resolution with git-aware defaults ([2ba1a80](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/2ba1a806360db10f0bfa8cfe3d7d430cd22097eb))
+
 ## [1.36.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.35.2...v1.36.0) (2025-09-22)
 
 
