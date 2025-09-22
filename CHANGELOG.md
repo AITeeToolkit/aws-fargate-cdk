@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.31.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.30.1...v1.31.0) (2025-09-22)
+
+
+### 🚀 Features
+
+* add OpenSearch stack with public domain and migration scripts ([0a3c3ad](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/0a3c3adca81e0d3725e864129258d99d3157da65))
+
 ## [1.30.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.30.0...v1.30.1) (2025-09-18)
 
 
