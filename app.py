@@ -98,14 +98,14 @@ opensearch_stack = OpenSearchStack(
 )
 
 # Parameters stack for SSM parameters
-parameters_stack = ParametersStack(
-    app, f"ParametersStack-{env_name}",
-    env=env,
-    environment=env_name,
-    cluster=shared_stack.cluster,
-    namespace=shared_stack.cluster.default_cloud_map_namespace,
-    api_service_name="api-service"  # This should match your service name
-)
+# parameters_stack = ParametersStack(
+#     app, f"ParametersStack-{env_name}",
+#     env=env,
+#     environment=env_name,
+#     cluster=shared_stack.cluster,
+#     namespace=shared_stack.cluster.default_cloud_map_namespace,
+#     api_service_name="api-service"  # This should match your service name
+# )
 
 # Deploy listener service
 listener_service = ListenerServiceStack(
