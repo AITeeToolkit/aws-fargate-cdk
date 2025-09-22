@@ -25,9 +25,13 @@ print("🔄 Updating domains from database...")
 result = subprocess.run(["python", "scripts/update_domains.py"], 
                        capture_output=True, text=True, cwd=os.getcwd())
 if result.returncode != 0:
-    print(f"❌ Error updating domains: {result.stderr}")
+    print(f"❌ Error updating domains:")
+    print(f"STDOUT: {result.stdout}")
+    print(f"STDERR: {result.stderr}")
+    print(f"Return code: {result.returncode}")
     exit(1)
 else:
+    print(f"✅ Domains updated successfully")
     print(result.stdout.strip())
 
 with open("domains.json") as f:

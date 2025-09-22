@@ -63,7 +63,7 @@ class WebServiceStack(Stack):
             "AWS_SECRET_ACCESS_KEY": f"/storefront-{environment}/route53/AWS_SECRET_ACCESS_KEY",
             "POSTGRES_USER": f"/storefront-{environment}/database/username",
             "POSTGRES_PASSWORD": f"/storefront-{environment}/database/password",
-            "ELASTICSEARCH_URL": f"/storefront-{environment}/opensearch/endpoint"
+            "OPENSEARCH_ENDPOINT": f"/storefront-{environment}/opensearch/endpoint"
         }
 
         # Define Fargate service (no ALB attachment here)
@@ -76,7 +76,7 @@ class WebServiceStack(Stack):
             container_port=3000,
             environment=web_environment,
             secrets=web_secrets,
-            desired_count=2,
+            desired_count=1,
             security_groups=[ecs_task_security_group] if ecs_task_security_group else [],
             service_name=service_name,
             cloud_map_options=ecs.CloudMapOptions(

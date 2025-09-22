@@ -72,7 +72,7 @@ class APIServiceStack(Stack):
             container_port=3001,
             environment=api_environment,
             secrets=api_secrets,
-            desired_count=2,
+            desired_count=1,
             security_groups=[ecs_task_security_group] if ecs_task_security_group else [],
             service_name=service_name,
             opensearch_task_role=opensearch_role,  # Pass the OpenSearch role
