@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.31.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.31.0...v1.31.1) (2025-09-22)
+
+
+### 🐛 Bug Fixes
+
+* remove build-listener dependency from deploy-infrastructure ([094ae41](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/094ae412fae33c6d966d3cf91350af15ababa044))
+
 ## [1.31.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.30.1...v1.31.0) (2025-09-22)
 
 
