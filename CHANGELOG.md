@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.34.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.33.0...v1.34.0) (2025-09-22)
+
+
+### 🚀 Features
+
+* improve domain update logging and reduce service instance count to 1 ([2d3618f](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/2d3618f362fb4ee385886a7f9eba1bd91b4cd7fe))
+
 ## [1.33.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.32.0...v1.33.0) (2025-09-22)
 
 
