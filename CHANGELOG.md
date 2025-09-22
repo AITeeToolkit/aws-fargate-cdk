@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.32.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.31.1...v1.32.0) (2025-09-22)
+
+
+### 🚀 Features
+
+* add OpenSearch service role for S3 snapshot access ([a0784c4](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/a0784c42c5fff19f97b776b2facbebdee44bf284))
+
 ## [1.31.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.31.0...v1.31.1) (2025-09-22)
 
 
