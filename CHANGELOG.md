@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.35.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.35.0...v1.35.1) (2025-09-22)
+
+
+### ♻️ Code Refactoring
+
+* gracefully handle domain update failures with empty fallback list ([2c74bda](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/2c74bda3cd6f8b3d003bd9526def8421867edbee))
+
 ## [1.35.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.34.0...v1.35.0) (2025-09-22)
 
 
