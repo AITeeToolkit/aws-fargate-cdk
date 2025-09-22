@@ -2,6 +2,7 @@ from aws_cdk import (
     Stack,
     aws_ecs as ecs,
     aws_ec2 as ec2,
+    aws_iam as iam,
     aws_secretsmanager as secretsmanager,
     aws_servicediscovery as servicediscovery,
     Duration,
@@ -23,6 +24,7 @@ class WebServiceStack(Stack):
         environment: str = "dev",
         service_name: str,
         ecs_task_security_group: ec2.ISecurityGroup = None,
+        opensearch_role: iam.IRole = None,
         **kwargs
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -60,7 +62,8 @@ class WebServiceStack(Stack):
             "AWS_ACCESS_KEY_ID": f"/storefront-{environment}/route53/AWS_ACCESS_KEY_ID",
             "AWS_SECRET_ACCESS_KEY": f"/storefront-{environment}/route53/AWS_SECRET_ACCESS_KEY",
             "POSTGRES_USER": f"/storefront-{environment}/database/username",
-            "POSTGRES_PASSWORD": f"/storefront-{environment}/database/password"
+            "POSTGRES_PASSWORD": f"/storefront-{environment}/database/password",
+            "ELASTICSEARCH_URL": f"/storefront-{environment}/opensearch/endpoint"
         }
 
         # Define Fargate service (no ALB attachment here)

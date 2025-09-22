@@ -2,6 +2,7 @@ from aws_cdk import (
     Stack,
     aws_ecs as ecs,
     aws_ec2 as ec2,
+    aws_iam as iam,
     aws_logs as logs,
     aws_secretsmanager as secretsmanager,
     aws_servicediscovery as servicediscovery,
@@ -24,6 +25,7 @@ class APIServiceStack(Stack):
         environment: str = "dev",
         service_name: str,
         ecs_task_security_group: ec2.ISecurityGroup = None,
+        opensearch_role: iam.IRole = None,
         **kwargs
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -57,7 +59,8 @@ class APIServiceStack(Stack):
             "POSTGRES_HOST": f"/storefront-{environment}/database/host",
             "POSTGRES_PORT": f"/storefront-{environment}/database/port",
             "POSTGRES_DB": f"/storefront-{environment}/database/name",
-            "REDIS_URL": f"/storefront-{environment}/redis-url"
+            "REDIS_URL": f"/storefront-{environment}/redis-url",
+            "ELASTICSEARCH_URL": f"/storefront-{environment}/opensearch/endpoint"
         }
 
         # Use the Fargate service construct for consistency

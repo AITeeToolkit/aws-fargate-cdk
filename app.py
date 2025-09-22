@@ -1,5 +1,6 @@
 import os
 import json
+import subprocess
 import aws_cdk as cdk
 from stacks.network_stack import NetworkStack
 from stacks.shared_stack import SharedStack
@@ -11,12 +12,23 @@ from stacks.api_service_stack import APIServiceStack
 from stacks.iam_stack import IAMStack
 from stacks.web_multialb_stack import MultiAlbStack
 from stacks.listener_service_stack import ListenerServiceStack
+from stacks.opensearch_stack import OpenSearchStack
 # from stacks.parameters_stack import ParametersStack
 
 app = cdk.App()
 
 env = cdk.Environment(account="156041439702", region="us-east-1")
 env_name = app.node.try_get_context("env") or "dev"
+
+# Update domains from database before deployment
+print("🔄 Updating domains from database...")
+result = subprocess.run(["python", "scripts/update_domains.py"], 
+                       capture_output=True, text=True, cwd=os.getcwd())
+if result.returncode != 0:
+    print(f"❌ Error updating domains: {result.stderr}")
+    exit(1)
+else:
+    print(result.stdout.strip())
 
 with open("domains.json") as f:
     domains = json.load(f)["domains"]
@@ -74,6 +86,23 @@ database_stack = DatabaseStack(
     environment=env_name
 )
 
+# OpenSearch domain for logging and search (public access)
+opensearch_stack = OpenSearchStack(
+    app, f"OpenSearchStack-{env_name}",
+    env=env,
+    environment=env_name
+)
+
+# Parameters stack for SSM parameters
+parameters_stack = ParametersStack(
+    app, f"ParametersStack-{env_name}",
+    env=env,
+    environment=env_name,
+    cluster=shared_stack.cluster,
+    namespace=shared_stack.cluster.default_cloud_map_namespace,
+    api_service_name="api-service"  # This should match your service name
+)
+
 # Deploy listener service
 listener_service = ListenerServiceStack(
     app, f"ListenerServiceStack-{env_name}",
@@ -97,7 +126,8 @@ api_service = APIServiceStack(
     db_secret=database_stack.secret,
     environment=env_name,
     ecs_task_security_group=shared_stack.ecs_task_sg,
-    service_name="api-service"
+    service_name="api-service",
+    opensearch_role=opensearch_stack.fargate_opensearch_role
 )
 
 # Deploy web service (just the ECS service, no ALB binding)
@@ -110,7 +140,8 @@ web_service = WebServiceStack(
     db_secret=database_stack.secret,
     environment=env_name,
     ecs_task_security_group=shared_stack.ecs_task_sg,
-    service_name="web-service"
+    service_name="web-service",
+    opensearch_role=opensearch_stack.fargate_opensearch_role
 )
 
 multi_alb_stack.attach_service(web_service.service, port=3000)
