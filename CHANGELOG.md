@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.33.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.32.0...v1.33.0) (2025-09-22)
+
+
+### 🚀 Features
+
+* add custom OpenSearch task role support and direct migration script ([c8c485c](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/c8c485c84248312c56c4c09bb533dcc0d2dff34e))
+
 ## [1.32.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.31.1...v1.32.0) (2025-09-22)
 
 
