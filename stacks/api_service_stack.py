@@ -60,7 +60,7 @@ class APIServiceStack(Stack):
             "POSTGRES_PORT": f"/storefront-{environment}/database/port",
             "POSTGRES_DB": f"/storefront-{environment}/database/name",
             "REDIS_URL": f"/storefront-{environment}/redis-url",
-            "ELASTICSEARCH_URL": f"/storefront-{environment}/opensearch/endpoint"
+            "OPENSEARCH_ENDPOINT": f"/storefront-{environment}/opensearch/endpoint"
         }
 
         # Use the Fargate service construct for consistency
@@ -75,6 +75,7 @@ class APIServiceStack(Stack):
             desired_count=2,
             security_groups=[ecs_task_security_group] if ecs_task_security_group else [],
             service_name=service_name,
+            opensearch_task_role=opensearch_role,  # Pass the OpenSearch role
             cloud_map_options=ecs.CloudMapOptions(
                 name=service_name,
                 dns_record_type=servicediscovery.DnsRecordType.A,

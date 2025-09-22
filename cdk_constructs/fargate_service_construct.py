@@ -27,6 +27,7 @@ class FargateServiceConstruct(Construct):
         service_name: str = None,
         cloud_map_options: ecs.CloudMapOptions = None,
         subnet_type: ec2.SubnetType = ec2.SubnetType.PRIVATE_ISOLATED,
+        opensearch_task_role: iam.IRole = None,
     ) -> None:
         super().__init__(scope, id)
 
@@ -69,53 +70,103 @@ class FargateServiceConstruct(Construct):
             memory_limit_mib=512,
             cpu=256,
             execution_role=execution_role,
+            task_role=opensearch_task_role if opensearch_task_role else None,
         )
 
-        # Task role permissions
-        task_def.task_role.add_managed_policy(
-            iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2ContainerRegistryReadOnly")
-        )
-        task_def.task_role.add_to_policy(
-            iam.PolicyStatement(
-                actions=[
-                    "ssm:GetParameter",
-                    "ssm:GetParameters",
-                    "ssm:GetParametersByPath",
-                ],
-                resources=["*"],
+        # Add additional task role permissions if we're not using a custom OpenSearch role
+        # or if we need to add permissions to the provided role
+        if opensearch_task_role:
+            # Add additional permissions to the provided OpenSearch role
+            opensearch_task_role.add_managed_policy(
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2ContainerRegistryReadOnly")
             )
-        )
-        task_def.task_role.add_to_policy(
-            iam.PolicyStatement(
-                actions=[
-                    "logs:CreateLogGroup",
-                    "logs:CreateLogStream",
-                    "logs:PutLogEvents",
-                    "logs:DescribeLogStreams",
-                ],
-                resources=["arn:aws:logs:*:*:*"],
+            opensearch_task_role.add_to_policy(
+                iam.PolicyStatement(
+                    actions=[
+                        "ssm:GetParameter",
+                        "ssm:GetParameters",
+                        "ssm:GetParametersByPath",
+                    ],
+                    resources=["*"],
+                )
             )
-        )
-        task_def.task_role.add_to_policy(
-            iam.PolicyStatement(
-                actions=[
-                    "secretsmanager:GetSecretValue",
-                    "secretsmanager:DescribeSecret",
-                ],
-                resources=["*"],
+            opensearch_task_role.add_to_policy(
+                iam.PolicyStatement(
+                    actions=[
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents",
+                        "logs:DescribeLogStreams",
+                    ],
+                    resources=["arn:aws:logs:*:*:*"],
+                )
             )
-        )
-        task_def.task_role.add_to_policy(
-            iam.PolicyStatement(
-                actions=[
-                    "route53:ListHostedZonesByName",
-                    "route53:CreateHostedZone",
-                    "route53:GetHostedZone",
-                    "route53:ListHostedZones",
-                ],
-                resources=["*"],
+            opensearch_task_role.add_to_policy(
+                iam.PolicyStatement(
+                    actions=[
+                        "secretsmanager:GetSecretValue",
+                        "secretsmanager:DescribeSecret",
+                    ],
+                    resources=["*"],
+                )
             )
-        )
+            opensearch_task_role.add_to_policy(
+                iam.PolicyStatement(
+                    actions=[
+                        "route53:ListHostedZonesByName",
+                        "route53:CreateHostedZone",
+                        "route53:GetHostedZone",
+                        "route53:ListHostedZones",
+                    ],
+                    resources=["*"],
+                )
+            )
+        else:
+            # Use default task role permissions
+            task_def.task_role.add_managed_policy(
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2ContainerRegistryReadOnly")
+            )
+            task_def.task_role.add_to_policy(
+                iam.PolicyStatement(
+                    actions=[
+                        "ssm:GetParameter",
+                        "ssm:GetParameters",
+                        "ssm:GetParametersByPath",
+                    ],
+                    resources=["*"],
+                )
+            )
+            task_def.task_role.add_to_policy(
+                iam.PolicyStatement(
+                    actions=[
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents",
+                        "logs:DescribeLogStreams",
+                    ],
+                    resources=["arn:aws:logs:*:*:*"],
+                )
+            )
+            task_def.task_role.add_to_policy(
+                iam.PolicyStatement(
+                    actions=[
+                        "secretsmanager:GetSecretValue",
+                        "secretsmanager:DescribeSecret",
+                    ],
+                    resources=["*"],
+                )
+            )
+            task_def.task_role.add_to_policy(
+                iam.PolicyStatement(
+                    actions=[
+                        "route53:ListHostedZonesByName",
+                        "route53:CreateHostedZone",
+                        "route53:GetHostedZone",
+                        "route53:ListHostedZones",
+                    ],
+                    resources=["*"],
+                )
+            )
 
         # Handle both SSM parameters and Secrets Manager secrets
         ecs_secrets = {}
