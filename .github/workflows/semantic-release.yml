@@ -171,10 +171,11 @@ jobs:
 
   deploy-infrastructure:
     name: Deploy Infrastructure
-    needs: [generate-tag, check-changes, build-listener]
+    needs: [generate-tag, check-changes]
+    # Always run if infra changes OR if listener changes (regardless of build-listener job status)
     if: |
-      needs.check-changes.outputs.has_image_changes == 'true' ||
       needs.check-changes.outputs.has_infra_changes == 'true' ||
+      needs.check-changes.outputs.has_image_changes == 'true' ||
       github.event_name == 'repository_dispatch'
     uses: ./.github/workflows/infra-build.yml
     with:
@@ -187,7 +188,7 @@ jobs:
   dev-summary:
     name: Development Deployment Summary
     needs: [generate-tag, deploy-infrastructure]
-    if: github.ref != 'refs/heads/main'
+    if: github.ref != 'refs/heads/main' && always()
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
