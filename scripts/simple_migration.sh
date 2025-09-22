@@ -191,6 +191,28 @@ print("🔧 Setting up repository on public OpenSearch domain...")
 session = boto3.Session()
 credentials = session.get_credentials()
 
+# Get the OpenSearch service role ARN from CloudFormation outputs
+import subprocess
+try:
+    role_arn = subprocess.check_output([
+        "aws", "cloudformation", "describe-stacks", "--stack-name", "OpenSearchStack-dev",
+        "--query", "Stacks[0].Outputs[?OutputKey=='OpenSearchServiceRoleArn'].OutputValue | [0]",
+        "--output", "text"
+    ], text=True).strip()
+    print(f"🔑 Using OpenSearch service role: {role_arn}")
+except:
+    # Fallback: try to find the role by pattern
+    try:
+        role_arn = subprocess.check_output([
+            "aws", "iam", "list-roles", "--query", 
+            "Roles[?contains(RoleName, 'OpenSearchServiceRole')].Arn | [0]", 
+            "--output", "text"
+        ], text=True).strip()
+        print(f"🔑 Found service role: {role_arn}")
+    except:
+        print("❌ Could not find OpenSearch service role")
+        role_arn = None
+
 repo_config = {
     "type": "s3",
     "settings": {
@@ -199,6 +221,9 @@ repo_config = {
         "region": "us-east-1"
     }
 }
+
+if role_arn and role_arn != "None":
+    repo_config["settings"]["role_arn"] = role_arn
 
 url = "https://$OPENSEARCH_ENDPOINT/_snapshot/$REPO_NAME"
 request = AWSRequest(method='PUT', url=url, data=json.dumps(repo_config))

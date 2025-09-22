@@ -98,6 +98,41 @@ class OpenSearchStack(Stack):
 
         self.fargate_opensearch_role.add_to_policy(opensearch_policy)
 
+        # Create service role for OpenSearch to access S3 for snapshots
+        self.opensearch_service_role = iam.Role(
+            self, "OpenSearchServiceRole",
+            assumed_by=iam.ServicePrincipal("es.amazonaws.com"),
+            description="Role for OpenSearch to access S3 for snapshots"
+        )
+
+        # Add S3 permissions for snapshots
+        self.opensearch_service_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "s3:ListBucket",
+                    "s3:GetBucketLocation",
+                    "s3:ListBucketMultipartUploads",
+                    "s3:ListBucketVersions"
+                ],
+                resources=["arn:aws:s3:::opensearch-migration-*"]
+            )
+        )
+
+        self.opensearch_service_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:DeleteObject",
+                    "s3:AbortMultipartUpload",
+                    "s3:ListMultipartUploadParts"
+                ],
+                resources=["arn:aws:s3:::opensearch-migration-*/*"]
+            )
+        )
+
         # Add access policy to OpenSearch domain for public access
         self.domain.add_access_policies(
             iam.PolicyStatement(
@@ -155,6 +190,12 @@ class OpenSearchStack(Stack):
             self, "FargateOpenSearchRoleArn",
             value=self.fargate_opensearch_role.role_arn,
             description="IAM role ARN for Fargate tasks to access OpenSearch"
+        )
+
+        CfnOutput(
+            self, "OpenSearchServiceRoleArn",
+            value=self.opensearch_service_role.role_arn,
+            description="IAM role ARN for OpenSearch service to access S3"
         )
 
     @property
