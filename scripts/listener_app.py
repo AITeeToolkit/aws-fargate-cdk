@@ -140,7 +140,7 @@ def ensure_hosted_zones(domains):
 
 def setup_listener():
     """Setup database listener connection"""
-    conn.set_session(autocommit=True)  # <-- ensures LISTEN persists
+    conn.set_session(autocommit=True)
     cur = conn.cursor()
     cur.execute("LISTEN domain_status_changed;")
     cur.close()
