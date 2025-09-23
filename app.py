@@ -21,6 +21,8 @@ app = cdk.App()
 env = cdk.Environment(account="156041439702", region="us-east-1")
 env_name = app.node.try_get_context("env") or "dev"
 
+with open("domains.json", "r") as f:
+    domains = json.load(f)
 
 # Helper to resolve image tag priority: CDK context -> env var -> smart default
 def resolve_tag(context_key: str, env_var: str) -> str:
