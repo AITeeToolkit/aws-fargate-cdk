@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.43.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.42.1...v1.43.0) (2025-09-23)
+
+
+### 🚀 Features
+
+* add skipped status handling in deployment summary report ([312359f](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/312359fe1d51b173a73694d33e9bb00b1d384732))
+
 ## [1.42.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.42.0...v1.42.1) (2025-09-23)
 
 
