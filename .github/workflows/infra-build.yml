@@ -2,6 +2,8 @@ name: Infrastructure Build & Deploy
 
 on:
   workflow_call:
+  repository_dispatch:
+    types: [deploy-infrastructure]
     inputs:
       environment:
         description: "Deployment environment (dev/prod)"
@@ -62,9 +64,18 @@ jobs:
 
       - name: Set Image Tags
         run: |
-          echo "LISTENER_IMAGE_TAG=${{ inputs.listener_tag || 'skip' }}" >> $GITHUB_ENV
-          echo "API_IMAGE_TAG=${{ inputs.api_tag || 'skip' }}" >> $GITHUB_ENV
-          echo "WEB_IMAGE_TAG=${{ inputs.web_tag || 'skip' }}" >> $GITHUB_ENV
+          # Handle both workflow_call inputs and repository_dispatch client_payload
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "LISTENER_IMAGE_TAG=skip" >> $GITHUB_ENV
+            echo "API_IMAGE_TAG=${{ github.event.client_payload.api_tag || 'skip' }}" >> $GITHUB_ENV
+            echo "WEB_IMAGE_TAG=${{ github.event.client_payload.web_tag || 'skip' }}" >> $GITHUB_ENV
+            echo "ENVIRONMENT=${{ github.event.client_payload.environment || 'dev' }}" >> $GITHUB_ENV
+          else
+            echo "LISTENER_IMAGE_TAG=${{ inputs.listener_tag || 'skip' }}" >> $GITHUB_ENV
+            echo "API_IMAGE_TAG=${{ inputs.api_tag || 'skip' }}" >> $GITHUB_ENV
+            echo "WEB_IMAGE_TAG=${{ inputs.web_tag || 'skip' }}" >> $GITHUB_ENV
+            echo "ENVIRONMENT=${{ inputs.environment || 'dev' }}" >> $GITHUB_ENV
+          fi
 
       - name: CDK Deploy
         run: |
@@ -73,7 +84,7 @@ jobs:
           echo "  API:      $API_IMAGE_TAG"
           echo "  Web:      $WEB_IMAGE_TAG"
           
-          CONTEXT="--context env=${{ inputs.environment }}"
+          CONTEXT="--context env=$ENVIRONMENT"
 
           if [ "$LISTENER_IMAGE_TAG" != "skip" ]; then
             CONTEXT="$CONTEXT --context listenerTag=$LISTENER_IMAGE_TAG"
