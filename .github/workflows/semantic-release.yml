@@ -131,7 +131,7 @@ jobs:
               echo "🚫 No image-related changes detected"
             fi
         
-            if echo "$CHANGED_FILES" | grep -E '^(stacks/|cdk_constructs/|aspects/|app\.py|cdk\.json|requirements\.txt|\.github/workflows/)' > /dev/null; then
+            if echo "$CHANGED_FILES" | grep -E '^(stacks/|cdk_constructs/|aspects/|app\.py|domains\.json|cdk\.json|requirements\.txt|\.github/workflows/)' > /dev/null; then
               echo "✅ Detected changes in infrastructure-related files"
               INFRA_FLAG=true
             else
