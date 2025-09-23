@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.42.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.41.0...v1.42.0) (2025-09-23)
+
+
+### 🚀 Features
+
+* add error handling for domains.json file loading with fallback ([9cb13f0](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/9cb13f08f8f5fee806157670109090fca948753b))
+
 ## [1.41.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.40.0...v1.41.0) (2025-09-23)
 
 
