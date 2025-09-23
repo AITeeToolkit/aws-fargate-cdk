@@ -144,7 +144,7 @@ def setup_listener():
     cur = conn.cursor()
     cur.execute("LISTEN domain_status_changed;")
     cur.close()
-    logging.info("✅ Listening for domain updates...")
+    logging.info("✅ Listening on domain_status_changed channel...")
 
 setup_listener()
 
