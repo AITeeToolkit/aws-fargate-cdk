@@ -2,11 +2,10 @@ from aws_cdk import (
     Stack,
     aws_ecs as ecs,
     aws_ec2 as ec2,
-    aws_iam as iam,
-    aws_logs as logs,
     aws_secretsmanager as secretsmanager,
+    aws_iam as iam,
     aws_servicediscovery as servicediscovery,
-    RemovalPolicy
+    aws_ssm as ssm
 )
 import aws_cdk as cdk
 from constructs import Construct
@@ -33,6 +32,11 @@ class APIServiceStack(Stack):
         # Create DATABASE_URL from database instance properties
         database_url = f"postgresql://{db_secret.secret_value_from_json('username').unsafe_unwrap()}:{db_secret.secret_value_from_json('password').unsafe_unwrap()}@{db_secret.secret_value_from_json('host').unsafe_unwrap()}:{db_secret.secret_value_from_json('port').unsafe_unwrap()}/{db_secret.secret_value_from_json('dbname').unsafe_unwrap()}?sslmode=no-verify"
 
+        # Get OpenSearch endpoint from SSM Parameter
+        opensearch_endpoint = ssm.StringParameter.value_for_string_parameter(
+            self, f"/storefront-{environment}/opensearch/endpoint"
+        )
+
         # Environment variables for API service (from CloudFormation template)
         api_environment = {
             "NODE_ENV": "production",
@@ -40,7 +44,8 @@ class APIServiceStack(Stack):
             "FORCE_UPDATE": "1",
             "DATABASE_URL": database_url,
             "HEALTH_CHECK_PATH": "/v1/api/health",
-            "AWS_REGION": "us-east-1"
+            "AWS_REGION": "us-east-1",
+            "OPENSEARCH_ENDPOINT": opensearch_endpoint
         }
 
         # Secrets configuration (from CloudFormation template)
