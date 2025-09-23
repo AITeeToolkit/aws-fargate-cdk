@@ -110,7 +110,17 @@ jobs:
           BRANCH_NAME=${GITHUB_REF#refs/heads/}
           echo "🔍 Branch detected: $BRANCH_NAME"
         
-          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          # Handle merge commits differently
+          if git show --no-patch --format="%P" HEAD | grep -q " "; then
+            echo "🔀 Merge commit detected - checking against merge base"
+            # For merge commits, compare against the merge base of the two parents
+            MERGE_BASE=$(git merge-base HEAD~1 HEAD~2 2>/dev/null || echo "HEAD~1")
+            CHANGED_FILES=$(git diff --name-only $MERGE_BASE HEAD)
+          else
+            echo "📝 Regular commit - checking against previous commit"
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          fi
+          
           echo "📂 Changed files:"
           echo "$CHANGED_FILES"
         
