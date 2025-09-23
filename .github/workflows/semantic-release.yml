@@ -244,6 +244,3 @@ jobs:
           echo "- [ECS Clusters](https://console.aws.amazon.com/ecs/home?region=us-east-1#/clusters)" >> $GITHUB_STEP_SUMMARY
           echo "- [CloudFormation Stacks](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks)" >> $GITHUB_STEP_SUMMARY
           echo "- [CloudWatch Logs](https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups)" >> $GITHUB_STEP_SUMMARY
-          
-          echo "### Application Services" >> $GITHUB_STEP_SUMMARY
-          echo "- [Listener Service Logs](https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/\$252Fecs\$252Flistener-service)" >> $GITHUB_STEP_SUMMARY
