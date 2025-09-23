@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.44.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.43.4...v1.44.0) (2025-09-23)
+
+
+### 🚀 Features
+
+* add manual infrastructure deployment trigger and improve flag display in workflow summary ([e01cea2](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/e01cea2b6a03ac9e19529deae558d0d08e85fe56))
+
 ## [1.43.4](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.43.3...v1.43.4) (2025-09-23)
 
 
