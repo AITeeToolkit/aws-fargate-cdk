@@ -142,7 +142,7 @@ def setup_listener():
     """Setup database listener connection"""
     conn.set_session(autocommit=True)  # <-- ensures LISTEN persists
     cur = conn.cursor()
-    cur.execute("LISTEN domain_updates;")
+    cur.execute("LISTEN domain_status_changed;")
     cur.close()
     logging.info("✅ Listening for domain updates...")
 
