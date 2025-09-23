@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.43.3](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.43.2...v1.43.3) (2025-09-23)
+
+
+### ♻️ Code Refactoring
+
+* remove unused opensearch_role parameter from service stacks ([b16e27c](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/b16e27c10aa058c3f01499aad17b1ea5bce0a05a))
+
 ## [1.43.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.43.1...v1.43.2) (2025-09-23)
 
 
