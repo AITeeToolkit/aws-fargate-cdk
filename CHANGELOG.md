@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.48.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.47.0...v1.48.0) (2025-09-23)
+
+
+### 🚀 Features
+
+* add dedicated FIFO dead letter queue for FIFO message handling ([a8e6207](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/a8e6207f0b940313ca6a1629ef7ec8252d63b11d))
+
 ## [1.47.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.46.1...v1.47.0) (2025-09-23)
 
 
