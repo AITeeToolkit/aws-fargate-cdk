@@ -25,6 +25,7 @@ class APIServiceStack(Stack):
         service_name: str,
         ecs_task_security_group: ec2.ISecurityGroup = None,
         opensearch_role: iam.IRole = None,
+        sqs_managed_policy: iam.IManagedPolicy = None,
         **kwargs
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -37,6 +38,23 @@ class APIServiceStack(Stack):
             self, f"/storefront-{environment}/opensearch/endpoint"
         )
 
+        # Get SQS queue URLs from SSM Parameters
+        main_queue_url = ssm.StringParameter.value_for_string_parameter(
+            self, f"/storefront-{environment}/sqs/main-queue-url"
+        )
+        priority_queue_url = ssm.StringParameter.value_for_string_parameter(
+            self, f"/storefront-{environment}/sqs/priority-queue-url"
+        )
+        email_queue_url = ssm.StringParameter.value_for_string_parameter(
+            self, f"/storefront-{environment}/sqs/email-queue-url"
+        )
+        image_processing_queue_url = ssm.StringParameter.value_for_string_parameter(
+            self, f"/storefront-{environment}/sqs/image-processing-queue-url"
+        )
+        order_processing_queue_url = ssm.StringParameter.value_for_string_parameter(
+            self, f"/storefront-{environment}/sqs/order-processing-queue-url"
+        )
+
         # Environment variables for API service (from CloudFormation template)
         api_environment = {
             "NODE_ENV": "production",
@@ -45,7 +63,12 @@ class APIServiceStack(Stack):
             "DATABASE_URL": database_url,
             "HEALTH_CHECK_PATH": "/v1/api/health",
             "AWS_REGION": "us-east-1",
-            "OPENSEARCH_ENDPOINT": opensearch_endpoint
+            "OPENSEARCH_ENDPOINT": opensearch_endpoint,
+            "SQS_MAIN_QUEUE_URL": main_queue_url,
+            "SQS_PRIORITY_QUEUE_URL": priority_queue_url,
+            "SQS_EMAIL_QUEUE_URL": email_queue_url,
+            "SQS_IMAGE_PROCESSING_QUEUE_URL": image_processing_queue_url,
+            "SQS_ORDER_PROCESSING_QUEUE_URL": order_processing_queue_url
         }
 
         # Secrets configuration (from CloudFormation template)
@@ -81,6 +104,7 @@ class APIServiceStack(Stack):
             security_groups=[ecs_task_security_group] if ecs_task_security_group else [],
             service_name=service_name,
             opensearch_task_role=opensearch_role,  # Pass the OpenSearch role
+            sqs_managed_policy=sqs_managed_policy,  # Pass the SQS managed policy
             cloud_map_options=ecs.CloudMapOptions(
                 name=service_name,
                 dns_record_type=servicediscovery.DnsRecordType.A,

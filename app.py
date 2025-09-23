@@ -14,6 +14,7 @@ from stacks.iam_stack import IAMStack
 from stacks.web_multialb_stack import MultiAlbStack
 from stacks.listener_service_stack import ListenerServiceStack
 from stacks.opensearch_stack import OpenSearchStack
+from stacks.sqs_stack import SQSStack
 # from stacks.parameters_stack import ParametersStack
 
 app = cdk.App()
@@ -133,6 +134,13 @@ opensearch_stack = OpenSearchStack(
     environment=env_name
 )
 
+# SQS queues for message processing
+sqs_stack = SQSStack(
+    app, f"SQSStack-{env_name}",
+    env=env,
+    environment=env_name
+)
+
 # Parameters stack for SSM parameters
 # parameters_stack = ParametersStack(
 #     app, f"ParametersStack-{env_name}",
@@ -167,7 +175,8 @@ api_service = APIServiceStack(
     environment=env_name,
     ecs_task_security_group=shared_stack.ecs_task_sg,
     service_name="api-service",
-    opensearch_role=opensearch_stack.fargate_opensearch_role
+    opensearch_role=opensearch_stack.fargate_opensearch_role,
+    sqs_managed_policy=sqs_stack.sqs_managed_policy
 )
 
 # Deploy web service (just the ECS service, no ALB binding)

@@ -28,6 +28,7 @@ class FargateServiceConstruct(Construct):
         cloud_map_options: ecs.CloudMapOptions = None,
         subnet_type: ec2.SubnetType = ec2.SubnetType.PRIVATE_ISOLATED,
         opensearch_task_role: iam.IRole = None,
+        sqs_managed_policy: iam.IManagedPolicy = None,
     ) -> None:
         super().__init__(scope, id)
 
@@ -77,12 +78,16 @@ class FargateServiceConstruct(Construct):
         )
 
         # Add additional task role permissions if we're not using a custom OpenSearch role
-        # TODO: Add additional permissions to the provided OpenSearch role
         if opensearch_task_role:
             # Add additional permissions to the provided OpenSearch role
             opensearch_task_role.add_managed_policy(
                 iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2ContainerRegistryReadOnly")
             )
+            
+            # Add SQS permissions if provided
+            if sqs_managed_policy:
+                opensearch_task_role.add_managed_policy(sqs_managed_policy)
+            
             opensearch_task_role.add_to_policy(
                 iam.PolicyStatement(
                     actions=[
@@ -129,6 +134,11 @@ class FargateServiceConstruct(Construct):
             task_def.task_role.add_managed_policy(
                 iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2ContainerRegistryReadOnly")
             )
+            
+            # Add SQS permissions if provided
+            if sqs_managed_policy:
+                task_def.task_role.add_managed_policy(sqs_managed_policy)
+            
             task_def.task_role.add_to_policy(
                 iam.PolicyStatement(
                     actions=[
