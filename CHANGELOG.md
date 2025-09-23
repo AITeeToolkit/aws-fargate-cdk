@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.39.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.39.1...v1.39.2) (2025-09-23)
+
+
+### ♻️ Code Refactoring
+
+* remove domain sync logic from CDK app deployment ([b660d31](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/b660d315fe845f7c48a976520dd78fe66efa20e0))
+
 ## [1.39.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.39.0...v1.39.1) (2025-09-23)
 
 
