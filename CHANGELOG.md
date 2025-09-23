@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.40.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.39.2...v1.40.0) (2025-09-23)
+
+
+### 🚀 Features
+
+* enhance deployment summary with conditional steps and expanded AWS links ([7909cfd](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/7909cfd7f373d5a7b26a0aafb7a0c1dd76d63ab0))
+
 ## [1.39.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.39.1...v1.39.2) (2025-09-23)
 
 
