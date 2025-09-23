@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.43.4](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.43.3...v1.43.4) (2025-09-23)
+
+
+### ♻️ Code Refactoring
+
+* remove OpenSearch role assignments from API and web services ([4756212](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/475621248b841852c374414ec90745e76eb41316))
+
 ## [1.43.3](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.43.2...v1.43.3) (2025-09-23)
 
 
