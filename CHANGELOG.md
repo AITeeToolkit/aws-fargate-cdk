@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.43.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.43.1...v1.43.2) (2025-09-23)
+
+
+### 🐛 Bug Fixes
+
+* use provided OpenSearch task role or create new one for Fargate service ([d32fb3d](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/d32fb3d525f5377dffd7a4e1ee119e550ea62548))
+
 ## [1.43.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.43.0...v1.43.1) (2025-09-23)
 
 
