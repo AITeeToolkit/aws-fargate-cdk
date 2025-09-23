@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.38.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.38.0...v1.38.1) (2025-09-23)
+
+
+### 📚 Documentation
+
+* remove outdated comment about LISTEN persistence in setup_listener ([42f8926](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/42f892694ef7fe675ddc923bd426772f0d4f8b60))
+
 ## [1.38.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.37.0...v1.38.0) (2025-09-23)
 
 
