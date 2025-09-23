@@ -21,29 +21,6 @@ app = cdk.App()
 env = cdk.Environment(account="156041439702", region="us-east-1")
 env_name = app.node.try_get_context("env") or "dev"
 
-# Update domains from database before deployment
-print("🔄 Updating domains from database...")
-result = subprocess.run(["python", "scripts/update_domains.py"], 
-                       capture_output=True, text=True, cwd=os.getcwd())
-if result.returncode != 0:
-    print(f"⚠️  Warning: Could not update domains from database (likely network connectivity)")
-    
-    # Try to use existing domains.json as fallback
-    try:
-        with open("domains.json", "r") as f:
-            existing_domains = json.load(f)["domains"]
-        print(f"📝 Using existing domains.json as fallback ({len(existing_domains)} domains)")
-        domains = existing_domains
-    except (FileNotFoundError, json.JSONDecodeError, KeyError):
-        print(f"❌ CRITICAL: No existing domains.json found and database is unreachable!")
-        print(f"❌ Cannot safely determine domain list - deployment would be destructive")
-        print(f"❌ Please ensure database connectivity or create domains.json manually")
-        print(f"❌ Stopping deployment to prevent infrastructure destruction")
-        exit(1)
-else:
-    print(f"✅ Domains updated successfully")
-    with open("domains.json") as f:
-        domains = json.load(f)["domains"]
 
 # Helper to resolve image tag priority: CDK context -> env var -> smart default
 def resolve_tag(context_key: str, env_var: str) -> str:
