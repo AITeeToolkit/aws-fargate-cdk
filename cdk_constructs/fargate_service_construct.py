@@ -70,7 +70,10 @@ class FargateServiceConstruct(Construct):
             memory_limit_mib=512,
             cpu=256,
             execution_role=execution_role,
-            task_role=iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
+            task_role=opensearch_task_role or iam.Role(
+                self, f"{id}TaskRole",
+                assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
+            ),
         )
 
         # Add additional task role permissions if we're not using a custom OpenSearch role
