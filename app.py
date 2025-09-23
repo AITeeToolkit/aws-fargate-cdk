@@ -167,7 +167,7 @@ api_service = APIServiceStack(
     environment=env_name,
     ecs_task_security_group=shared_stack.ecs_task_sg,
     service_name="api-service",
-    opensearch_role=opensearch_stack.fargate_opensearch_role
+    # opensearch_role=opensearch_stack.fargate_opensearch_role
 )
 
 # Deploy web service (just the ECS service, no ALB binding)
@@ -181,7 +181,7 @@ web_service = WebServiceStack(
     environment=env_name,
     ecs_task_security_group=shared_stack.ecs_task_sg,
     service_name="web-service",
-    opensearch_role=opensearch_stack.fargate_opensearch_role
+    # opensearch_role=opensearch_stack.fargate_opensearch_role
 )
 
 multi_alb_stack.attach_service(web_service.service, port=3000)
