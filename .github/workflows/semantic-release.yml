@@ -227,11 +227,23 @@ jobs:
           fi
           
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Next Steps" >> $GITHUB_STEP_SUMMARY
-          echo "- Test your changes in the development environment" >> $GITHUB_STEP_SUMMARY
-          echo "- Create a pull request to merge into main for production deployment" >> $GITHUB_STEP_SUMMARY
-          echo "- Production deployment will trigger automatically after PR merge" >> $GITHUB_STEP_SUMMARY
+          echo "## 📋 Next Steps" >> $GITHUB_STEP_SUMMARY
+          if [ "$DEV_STATUS" = "success" ]; then
+            echo "- 🧪 Test your changes in the development environment" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔍 Monitor application logs for any issues" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- 🔧 Check deployment logs for error details" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔄 Fix issues and re-run deployment" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- 📝 Create a pull request to merge into main for production deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- 🚀 Production deployment will trigger automatically after PR merge" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Quick Links" >> $GITHUB_STEP_SUMMARY
-          echo "- [AWS Console](https://console.aws.amazon.com/ecs/home?region=us-east-1#/clusters)" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## 🔗 Quick Links" >> $GITHUB_STEP_SUMMARY
+          echo "### AWS Console" >> $GITHUB_STEP_SUMMARY
+          echo "- [ECS Clusters](https://console.aws.amazon.com/ecs/home?region=us-east-1#/clusters)" >> $GITHUB_STEP_SUMMARY
+          echo "- [CloudFormation Stacks](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks)" >> $GITHUB_STEP_SUMMARY
           echo "- [CloudWatch Logs](https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups)" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Application Services" >> $GITHUB_STEP_SUMMARY
+          echo "- [Listener Service Logs](https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/\$252Fecs\$252Flistener-service)" >> $GITHUB_STEP_SUMMARY
