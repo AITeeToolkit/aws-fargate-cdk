@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.47.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.46.1...v1.47.0) (2025-09-23)
+
+
+### 🚀 Features
+
+* add SQS queues and integrate with API service for message processing ([6f3b403](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/6f3b4030168147529030861385b6ddcd74148eda))
+
 ## [1.46.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.46.0...v1.46.1) (2025-09-23)
 
 
