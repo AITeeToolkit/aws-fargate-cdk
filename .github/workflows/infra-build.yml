@@ -85,15 +85,8 @@ jobs:
           echo "  Web:      $WEB_IMAGE_TAG"
           
           CONTEXT="--context env=$ENVIRONMENT"
-
-          if [ "$LISTENER_IMAGE_TAG" != "skip" ]; then
-            CONTEXT="$CONTEXT --context listenerTag=$LISTENER_IMAGE_TAG"
-          fi
-          if [ "$API_IMAGE_TAG" != "skip" ]; then
-            CONTEXT="$CONTEXT --context apiTag=$API_IMAGE_TAG"
-          fi
-          if [ "$WEB_IMAGE_TAG" != "skip" ]; then
-            CONTEXT="$CONTEXT --context webTag=$WEB_IMAGE_TAG"
-          fi
+          CONTEXT="$CONTEXT --context listenerTag=$LISTENER_IMAGE_TAG"
+          CONTEXT="$CONTEXT --context apiTag=$API_IMAGE_TAG"
+          CONTEXT="$CONTEXT --context webTag=$WEB_IMAGE_TAG"
 
           cdk deploy --require-approval never --all $CONTEXT

@@ -50,7 +50,7 @@ else:
 def resolve_tag(context_key: str, env_var: str) -> str:
     # Priority 1: CDK context (from pipeline)
     context_tag = app.node.try_get_context(context_key)
-    if context_tag:
+    if context_tag and context_tag != "skip":
         print(f"🏷️  Using context tag for {context_key}: {context_tag}")
         return context_tag
     
