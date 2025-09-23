@@ -21,8 +21,13 @@ app = cdk.App()
 env = cdk.Environment(account="156041439702", region="us-east-1")
 env_name = app.node.try_get_context("env") or "dev"
 
-with open("domains.json", "r") as f:
-    domains = json.load(f)
+try:
+    with open("domains.json", "r") as f:
+        domains_data = json.load(f)
+        domains = domains_data["domains"]
+except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
+    print(f"⚠️ Could not read domains.json: {e}")
+    domains = []  # or some default value
 
 # Helper to resolve image tag priority: CDK context -> env var -> smart default
 def resolve_tag(context_key: str, env_var: str) -> str:
