@@ -193,9 +193,9 @@ jobs:
     secrets: inherit
 
   dev-summary:
-    name: Development Deployment Summary
+    name: Deployment Summary
     needs: [generate-tag, deploy-infrastructure]
-    if: github.ref != 'refs/heads/main' && always()
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
