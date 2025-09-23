@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.39.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.39.0...v1.39.1) (2025-09-23)
+
+
+### 🐛 Bug Fixes
+
+* remove hardcoded domain fallback and exit deployment if domains cannot be determined safely ([dc31237](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/dc3123767a9c4db7faa1e7903ccfccf3eef74276))
+
 ## [1.39.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.38.1...v1.39.0) (2025-09-23)
 
 
