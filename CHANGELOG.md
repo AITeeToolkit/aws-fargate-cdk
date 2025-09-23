@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.46.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.46.0...v1.46.1) (2025-09-23)
+
+
+### ♻️ Code Refactoring
+
+* remove OpenSearch endpoint from API and web service stacks ([3a39039](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/3a3903961c85124eef911d18aa0f7fe3f5f84952))
+
 ## [1.46.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.45.1...v1.46.0) (2025-09-23)
 
 
