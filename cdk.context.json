@@ -22,5 +22,9 @@
   "hosted-zone:account=156041439702:domainName=015973.xyz:region=us-east-1": {
     "Id": "/hostedzone/Z064697523I1HDRL3MAT5",
     "Name": "015973.xyz."
+  },
+  "hosted-zone:account=156041439702:domainName=042325.xyz:region=us-east-1": {
+    "Id": "/hostedzone/Z04972061PLKC7U6D1RAA",
+    "Name": "042325.xyz."
   }
 }

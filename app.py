@@ -1,6 +1,7 @@
 import os
 import json
 import subprocess
+from aws_cdk import App, Environment
 import aws_cdk as cdk
 from stacks.network_stack import NetworkStack
 from stacks.shared_stack import SharedStack
@@ -34,13 +35,11 @@ if result.returncode != 0:
         print(f"📝 Using existing domains.json as fallback ({len(existing_domains)} domains)")
         domains = existing_domains
     except (FileNotFoundError, json.JSONDecodeError, KeyError):
-        print(f"📝 No existing domains.json found, using hardcoded fallback domains")
-        # Use known domains as last resort to prevent infrastructure destruction
-        domains = ["040992.xyz", "cidertees.com"]
-        
-        # Create domains.json with fallback
-        with open("domains.json", "w") as f:
-            json.dump({"domains": domains}, f, indent=2)
+        print(f"❌ CRITICAL: No existing domains.json found and database is unreachable!")
+        print(f"❌ Cannot safely determine domain list - deployment would be destructive")
+        print(f"❌ Please ensure database connectivity or create domains.json manually")
+        print(f"❌ Stopping deployment to prevent infrastructure destruction")
+        exit(1)
 else:
     print(f"✅ Domains updated successfully")
     with open("domains.json") as f:
