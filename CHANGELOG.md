@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.39.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.38.1...v1.39.0) (2025-09-23)
+
+
+### 🚀 Features
+
+* add domains.json to infrastructure file change detection patterns ([2e9fe7d](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/2e9fe7dbe871f57f35ba0da7e196617bd9f34f22))
+
 ## [1.38.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.38.0...v1.38.1) (2025-09-23)
 
 
