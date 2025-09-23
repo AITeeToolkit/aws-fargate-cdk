@@ -65,8 +65,7 @@ class APIServiceStack(Stack):
             "POSTGRES_HOST": f"/storefront-{environment}/database/host",
             "POSTGRES_PORT": f"/storefront-{environment}/database/port",
             "POSTGRES_DB": f"/storefront-{environment}/database/name",
-            "REDIS_URL": f"/storefront-{environment}/redis-url",
-            "OPENSEARCH_ENDPOINT": f"/storefront-{environment}/opensearch/endpoint"
+            "REDIS_URL": f"/storefront-{environment}/redis-url"
         }
 
         # Use the Fargate service construct for consistency

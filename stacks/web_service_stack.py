@@ -70,8 +70,7 @@ class WebServiceStack(Stack):
             "AWS_ACCESS_KEY_ID": f"/storefront-{environment}/route53/AWS_ACCESS_KEY_ID",
             "AWS_SECRET_ACCESS_KEY": f"/storefront-{environment}/route53/AWS_SECRET_ACCESS_KEY",
             "POSTGRES_USER": f"/storefront-{environment}/database/username",
-            "POSTGRES_PASSWORD": f"/storefront-{environment}/database/password",
-            "OPENSEARCH_ENDPOINT": f"/storefront-{environment}/opensearch/endpoint"
+            "POSTGRES_PASSWORD": f"/storefront-{environment}/database/password"
         }
 
         # Define Fargate service (no ALB attachment here)
