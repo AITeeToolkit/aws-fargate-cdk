@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.46.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.45.1...v1.46.0) (2025-09-23)
+
+
+### 🚀 Features
+
+* add OpenSearch endpoint configuration to API and web services ([a3da3e5](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/a3da3e52bf07f33ac27ccf720a03243ef9d54264))
+
 ## [1.45.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.45.0...v1.45.1) (2025-09-23)
 
 
