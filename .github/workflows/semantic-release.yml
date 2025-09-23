@@ -244,3 +244,9 @@ jobs:
           echo "- [ECS Clusters](https://console.aws.amazon.com/ecs/home?region=us-east-1#/clusters)" >> $GITHUB_STEP_SUMMARY
           echo "- [CloudFormation Stacks](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks)" >> $GITHUB_STEP_SUMMARY
           echo "- [CloudWatch Logs](https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Deployment Logs & History" >> $GITHUB_STEP_SUMMARY
+          echo "- [This Workflow Run](https://github.com/AITeeToolkit/aws-fargate-cdk/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [All Infrastructure Deployments](https://github.com/AITeeToolkit/aws-fargate-cdk/actions)" >> $GITHUB_STEP_SUMMARY
+          echo "- [📋 Infrastructure & Listener Changelog](https://github.com/AITeeToolkit/aws-fargate-cdk/blob/main/CHANGELOG.md)" >> $GITHUB_STEP_SUMMARY
