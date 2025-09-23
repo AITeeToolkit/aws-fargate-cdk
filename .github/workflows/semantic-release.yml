@@ -171,16 +171,23 @@ jobs:
 
   deploy-infrastructure:
     name: Deploy Infrastructure
-    needs: [generate-tag, check-changes]
-    # Always run if infra changes OR if listener changes (regardless of build-listener job status)
+    needs: [generate-tag, check-changes, build-listener]
+    # Always run if infra changes OR if listener changes (after build-listener completes or is skipped)
     if: |
-      needs.check-changes.outputs.has_infra_changes == 'true' ||
-      needs.check-changes.outputs.has_image_changes == 'true' ||
-      github.event_name == 'repository_dispatch'
+      always() && (
+        needs.check-changes.outputs.has_infra_changes == 'true' ||
+        needs.check-changes.outputs.has_image_changes == 'true' ||
+        github.event_name == 'repository_dispatch'
+      ) && (
+        needs.build-listener.result == 'success' ||
+        needs.build-listener.result == 'skipped' ||
+        needs.check-changes.outputs.has_image_changes == 'false'
+      )
     uses: ./.github/workflows/infra-build.yml
     with:
       environment: dev
       image_tag: ${{ github.event.client_payload.api_tag || github.event.client_payload.web_tag || needs.generate-tag.outputs.image_tag }}
+      listener_tag: ${{ needs.build-listener.result == 'success' && needs.generate-tag.outputs.image_tag || 'skip' }}
       api_tag: ${{ github.event.client_payload.api_tag || '' }}
       web_tag: ${{ github.event.client_payload.web_tag || '' }}
     secrets: inherit
