@@ -77,6 +77,7 @@ class FargateServiceConstruct(Construct):
         )
 
         # Add additional task role permissions if we're not using a custom OpenSearch role
+        # TODO: Add additional permissions to the provided OpenSearch role
         if opensearch_task_role:
             # Add additional permissions to the provided OpenSearch role
             opensearch_task_role.add_managed_policy(

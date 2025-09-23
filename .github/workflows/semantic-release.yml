@@ -117,6 +117,12 @@ jobs:
           IMAGE_FLAG=false
           INFRA_FLAG=false
         
+          # Check for manual force infrastructure deploy
+          if [[ "${{ github.event.inputs.force_infra }}" == "true" ]]; then
+            echo "🔴 Manual force infra deploy requested"
+            INFRA_FLAG=true
+          fi
+        
           if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
             echo "🟡 Domain updates branch: forcing all image & infra flags to true"
             IMAGE_FLAG=true
@@ -154,8 +160,12 @@ jobs:
             echo '```'
             echo ""
             echo "**Flags Set:**"
-            echo "- Image Changes: \`$IMAGE_FLAG\`"
-            echo "- Infra Changes: \`$INFRA_FLAG\`"
+            echo ""
+            echo "• Image Changes: \`$IMAGE_FLAG\`"
+            echo "• Infra Changes: \`$INFRA_FLAG\`"
+            if [[ "${{ github.event.inputs.force_infra }}" == "true" ]]; then
+              echo "• 🔴 **Force Infra Deploy: ENABLED**"
+            fi
           } >> $GITHUB_STEP_SUMMARY
 
   build-listener:
