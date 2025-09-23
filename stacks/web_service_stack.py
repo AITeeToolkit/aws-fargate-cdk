@@ -24,7 +24,7 @@ class WebServiceStack(Stack):
         environment: str = "dev",
         service_name: str,
         ecs_task_security_group: ec2.ISecurityGroup = None,
-        opensearch_role: iam.IRole = None,
+        # opensearch_role: iam.IRole = None,
         **kwargs
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
