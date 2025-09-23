@@ -222,6 +222,8 @@ jobs:
           
           if [ "$DEV_STATUS" = "success" ]; then
             echo "| Development | ✅ Success | Deployed successfully |" >> $GITHUB_STEP_SUMMARY
+          elif [ "$DEV_STATUS" = "skipped" ]; then
+            echo "| Development | ⏭️ Skipped | No infrastructure changes detected |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| Development | ❌ Failed | Deployment failed |" >> $GITHUB_STEP_SUMMARY
           fi
@@ -231,6 +233,9 @@ jobs:
           if [ "$DEV_STATUS" = "success" ]; then
             echo "- 🧪 Test your changes in the development environment" >> $GITHUB_STEP_SUMMARY
             echo "- 🔍 Monitor application logs for any issues" >> $GITHUB_STEP_SUMMARY
+          elif [ "$DEV_STATUS" = "skipped" ]; then
+            echo "- ✅ No deployment needed - only non-infrastructure files changed" >> $GITHUB_STEP_SUMMARY
+            echo "- 📝 Changes were documentation, workflow, or other non-deployment files" >> $GITHUB_STEP_SUMMARY
           else
             echo "- 🔧 Check deployment logs for error details" >> $GITHUB_STEP_SUMMARY
             echo "- 🔄 Fix issues and re-run deployment" >> $GITHUB_STEP_SUMMARY
