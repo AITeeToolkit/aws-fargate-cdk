@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.38.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.37.0...v1.38.0) (2025-09-23)
+
+
+### 🚀 Features
+
+* add clean restore option to Kubegres-to-RDS backup script and reorder workflow inputs ([2f796bb](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/2f796bb8cd54adc2d51778c0f11b4c3f907b52ac))
+* add repository_dispatch trigger for infrastructure deployment workflow ([7de174e](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/7de174e187f9475f1dfc6c5cff3687ad198af930))
+
+
+### 🐛 Bug Fixes
+
+* update PostgreSQL LISTEN channel name to domain_status_changed ([d5d18e4](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/d5d18e4921f9f7013339591c991e126f81d90660))
+
+
+### ♻️ Code Refactoring
+
+* simplify image tag handling in CDK deployment workflow ([faa73d4](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/faa73d46ae7aecf85d2d0b43adb1453a865ba6ed))
+
 ## [1.37.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.36.0...v1.37.0) (2025-09-22)
 
 
