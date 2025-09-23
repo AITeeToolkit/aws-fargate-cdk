@@ -21,10 +21,19 @@ class SQSStack(Stack):
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # Dead Letter Queue for failed messages
+        # Dead Letter Queue for failed messages (standard)
         self.dlq = sqs.Queue(
             self, "StorefrontDLQ",
             queue_name=f"storefront-{environment}-dlq",
+            retention_period=Duration.days(14),
+            removal_policy=RemovalPolicy.DESTROY if environment == "dev" else RemovalPolicy.RETAIN
+        )
+
+        # Dead Letter Queue for FIFO queues (must be FIFO)
+        self.fifo_dlq = sqs.Queue(
+            self, "StorefrontFifoDLQ",
+            queue_name=f"storefront-{environment}-fifo-dlq.fifo",
+            fifo=True,
             retention_period=Duration.days(14),
             removal_policy=RemovalPolicy.DESTROY if environment == "dev" else RemovalPolicy.RETAIN
         )
@@ -91,7 +100,7 @@ class SQSStack(Stack):
             retention_period=Duration.days(14),
             dead_letter_queue=sqs.DeadLetterQueue(
                 max_receive_count=3,
-                queue=self.dlq
+                queue=self.fifo_dlq
             ),
             removal_policy=RemovalPolicy.DESTROY if environment == "dev" else RemovalPolicy.RETAIN
         )
@@ -139,6 +148,13 @@ class SQSStack(Stack):
             description="Dead Letter Queue URL for failed messages"
         )
 
+        ssm.StringParameter(
+            self, "FifoDLQUrlParameter",
+            parameter_name=f"/storefront-{environment}/sqs/fifo-dlq-url",
+            string_value=self.fifo_dlq.queue_url,
+            description="FIFO Dead Letter Queue URL for failed FIFO messages"
+        )
+
         # Create IAM policy for SQS access
         self.sqs_policy = iam.PolicyDocument(
             statements=[
@@ -158,7 +174,8 @@ class SQSStack(Stack):
                         self.email_queue.queue_arn,
                         self.image_processing_queue.queue_arn,
                         self.order_processing_queue.queue_arn,
-                        self.dlq.queue_arn
+                        self.dlq.queue_arn,
+                        self.fifo_dlq.queue_arn
                     ]
                 )
             ]
