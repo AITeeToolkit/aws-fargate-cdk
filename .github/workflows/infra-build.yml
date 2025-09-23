@@ -2,8 +2,6 @@ name: Infrastructure Build & Deploy
 
 on:
   workflow_call:
-  repository_dispatch:
-    types: [deploy-infrastructure]
     inputs:
       environment:
         description: "Deployment environment (dev/prod)"
@@ -11,7 +9,7 @@ on:
         type: string
       image_tag:
         description: "Image tag"
-        required: true
+        required: false
         type: string
       listener_tag:
         description: "Listener image tag"
@@ -25,6 +23,8 @@ on:
         description: "Web image tag"
         required: false
         type: string
+  repository_dispatch:
+    types: [deploy-infrastructure]
     secrets:
       GH_TOKEN:
         required: true

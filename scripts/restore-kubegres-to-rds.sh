@@ -172,13 +172,48 @@ extract_backup() {
     echo "$extracted_file"
 }
 
+# Function to drop and recreate database
+drop_and_recreate_database() {
+    local target_db=$1
+    
+    print_warning "Dropping and recreating database '$target_db'..."
+    
+    # Step 1: Terminate all connections to the target database
+    print_status "Terminating connections to database '$target_db'..."
+    psql -h "$RDS_HOST" -p "$RDS_PORT" -U "$RDS_USER" -d "postgres" -c "
+        SELECT pg_terminate_backend(pid) 
+        FROM pg_stat_activity 
+        WHERE datname = '$target_db' AND pid <> pg_backend_pid();
+    " || {
+        print_warning "Could not terminate all connections (this may be normal)"
+    }
+    
+    # Step 2: Drop the database (using echo to pipe command)
+    print_status "Dropping database '$target_db'..."
+    echo "DROP DATABASE IF EXISTS \"$target_db\";" | psql -h "$RDS_HOST" -p "$RDS_PORT" -U "$RDS_USER" -d "postgres" || {
+        print_error "Failed to drop database '$target_db'"
+        exit 1
+    }
+    
+    # Step 3: Create a fresh database (using echo to pipe command)
+    print_status "Creating database '$target_db'..."
+    echo "CREATE DATABASE \"$target_db\";" | psql -h "$RDS_HOST" -p "$RDS_PORT" -U "$RDS_USER" -d "postgres" || {
+        print_error "Failed to create database '$target_db'"
+        exit 1
+    }
+    
+    print_status "Successfully recreated database '$target_db'"
+}
+
 # Function to restore backup to RDS
 restore_to_rds() {
     local sql_file=$1
+    local clean_restore=${2:-false}
     
     print_status "Restoring backup to RDS instance..."
     print_status "RDS Host: $RDS_HOST"
     print_status "Database: $RDS_DATABASE"
+    print_status "Clean restore: $clean_restore"
     
     if [ -z "$PGPASSWORD" ]; then
         print_error "PGPASSWORD environment variable is not set"
@@ -186,7 +221,15 @@ restore_to_rds() {
         exit 1
     fi
     
+    # Drop and recreate database if clean restore is requested
+    if [ "$clean_restore" = true ]; then
+        drop_and_recreate_database "$RDS_DATABASE"
+    fi
+    
     print_warning "Starting restoration process. This may take several minutes..."
+    if [ "$clean_restore" = false ]; then
+        print_warning "Some 'already exists' errors are expected when restoring over existing data."
+    fi
     print_warning "Some permission-related errors are expected when restoring to RDS and can be ignored."
     
     psql -h "$RDS_HOST" -p "$RDS_PORT" -U "$RDS_USER" -d "$RDS_DATABASE" -f "$sql_file" || {
@@ -210,7 +253,31 @@ cleanup() {
 
 # Main execution
 main() {
+    local clean_restore=false
+    
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --clean)
+                clean_restore=true
+                shift
+                ;;
+            --help|-h)
+                show_usage
+                exit 0
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+    
     print_status "Starting Kubegres to RDS backup restoration process..."
+    if [ "$clean_restore" = true ]; then
+        print_warning "Clean restore mode: Database will be dropped and recreated!"
+    fi
     
     # Check dependencies
     check_dependencies
@@ -233,7 +300,7 @@ main() {
     local sql_file=$(extract_backup "$local_backup")
     
     # Restore to RDS
-    restore_to_rds "$sql_file"
+    restore_to_rds "$sql_file" "$clean_restore"
     
     print_status "Backup restoration process completed successfully!"
     
@@ -243,30 +310,38 @@ main() {
     print_status "All done! Your RDS instance has been restored with data from Kubegres."
 }
 
-# Handle script interruption
-trap 'print_error "Script interrupted"; exit 1' INT TERM
-
-# Show usage if help is requested
-if [[ "$1" == "-h" || "$1" == "--help" ]]; then
-    echo "Usage: $0"
+# Function to show usage information
+show_usage() {
+    echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "This script extracts the latest backup from a Kubegres PostgreSQL pod"
     echo "and restores it to an RDS PostgreSQL instance."
     echo ""
+    echo "OPTIONS:"
+    echo "  --clean     Drop and recreate the database before restoring (clean restore)"
+    echo "  -h, --help  Show this help message and exit"
+    echo ""
     echo "Prerequisites:"
     echo "  - kubectl configured and connected to your cluster"
     echo "  - psql client installed"
-    echo "  - PGPASSWORD environment variable set with RDS password"
+    echo "  - AWS CLI configured with appropriate permissions"
     echo ""
     echo "Configuration:"
     echo "  Edit the configuration variables at the top of this script to match"
     echo "  your environment (namespace, pod selector, RDS connection details, etc.)"
     echo ""
-    echo "Example:"
-    echo "  export PGPASSWORD='your_rds_password'"
-    echo "  $0"
-    exit 0
-fi
+    echo "Examples:"
+    echo "  $0                    # Restore over existing data (may show 'already exists' errors)"
+    echo "  $0 --clean           # Clean restore (drops and recreates database first)"
+    echo ""
+    echo "Notes:"
+    echo "  - Clean restore eliminates 'already exists' errors but destroys existing data"
+    echo "  - Regular restore preserves existing data but may show harmless errors"
+    echo "  - Some permission-related errors are always expected with RDS"
+}
+
+# Handle script interruption
+trap 'print_error "Script interrupted"; exit 1' INT TERM
 
 # Run main function
 main "$@"
