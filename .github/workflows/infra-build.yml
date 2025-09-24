@@ -1,5 +1,9 @@
 name: Infrastructure Build & Deploy
 
+concurrency:
+  group: infrastructure-deployment
+  cancel-in-progress: false  # Don't cancel, queue instead
+
 on:
   workflow_call:
     inputs:
@@ -63,6 +67,52 @@ jobs:
       - name: Install CDK
         run: npm install -g aws-cdk
 
+      - name: Check Stack Status
+        id: stack-status
+        run: |
+          echo "🔍 Checking CloudFormation stack status..."
+          
+          # List of critical stacks to check
+          STACKS=(
+            "APIServiceStack-${{ env.ENVIRONMENT }}"
+            "WebServiceStack-${{ env.ENVIRONMENT }}"
+            "ListenerServiceStack-${{ env.ENVIRONMENT }}"
+            "DNSWorkerServiceStack-${{ env.ENVIRONMENT }}"
+            "SharedStack-${{ env.ENVIRONMENT }}"
+          )
+          
+          BUSY_STACKS=()
+          
+          for stack in "${STACKS[@]}"; do
+            echo "Checking $stack..."
+            STATUS=$(aws cloudformation describe-stacks \
+              --stack-name "$stack" \
+              --query 'Stacks[0].StackStatus' \
+              --output text 2>/dev/null || echo "NOT_FOUND")
+            
+            case "$STATUS" in
+              *"IN_PROGRESS")
+                echo "⚠️  $stack is busy: $STATUS"
+                BUSY_STACKS+=("$stack:$STATUS")
+                ;;
+              "NOT_FOUND")
+                echo "ℹ️  $stack not found (will be created)"
+                ;;
+              *)
+                echo "✅ $stack is ready: $STATUS"
+                ;;
+            esac
+          done
+          
+          if [ ${#BUSY_STACKS[@]} -gt 0 ]; then
+            echo "busy_stacks=true" >> $GITHUB_OUTPUT
+            echo "busy_list=${BUSY_STACKS[*]}" >> $GITHUB_OUTPUT
+            echo "❌ Found busy stacks: ${BUSY_STACKS[*]}"
+          else
+            echo "busy_stacks=false" >> $GITHUB_OUTPUT
+            echo "✅ All stacks are ready for deployment"
+          fi
+
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
@@ -86,7 +136,48 @@ jobs:
             echo "ENVIRONMENT=${{ inputs.environment || 'dev' }}" >> $GITHUB_ENV
           fi
 
+      - name: Wait for Busy Stacks
+        if: steps.stack-status.outputs.busy_stacks == 'true'
+        run: |
+          echo "⏳ Infrastructure is busy, waiting for completion..."
+          echo "Busy stacks: ${{ steps.stack-status.outputs.busy_list }}"
+          
+          # Wait up to 20 minutes for stacks to become available
+          TIMEOUT=1200  # 20 minutes
+          ELAPSED=0
+          INTERVAL=60   # Check every minute
+          
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            echo "⏱️  Waiting... ($ELAPSED/$TIMEOUT seconds)"
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+            
+            # Re-check stack status
+            ALL_READY=true
+            STACKS=("APIServiceStack-${{ env.ENVIRONMENT }}" "WebServiceStack-${{ env.ENVIRONMENT }}" "ListenerServiceStack-${{ env.ENVIRONMENT }}" "DNSWorkerServiceStack-${{ env.ENVIRONMENT }}" "SharedStack-${{ env.ENVIRONMENT }}")
+            
+            for stack in "${STACKS[@]}"; do
+              STATUS=$(aws cloudformation describe-stacks --stack-name "$stack" --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")
+              if [[ "$STATUS" == *"IN_PROGRESS" ]]; then
+                echo "⚠️  $stack still busy: $STATUS"
+                ALL_READY=false
+                break
+              fi
+            done
+            
+            if [ "$ALL_READY" = true ]; then
+              echo "✅ All stacks are now ready!"
+              break
+            fi
+          done
+          
+          if [ $ELAPSED -ge $TIMEOUT ]; then
+            echo "❌ Timeout waiting for stacks to become ready"
+            exit 1
+          fi
+
       - name: CDK Deploy
+        if: steps.stack-status.outputs.busy_stacks == 'false' || success()
         run: |
           echo "🚀 Deploying with image tags:"
           echo "  Listener:   $LISTENER_IMAGE_TAG"
@@ -100,4 +191,33 @@ jobs:
           CONTEXT="$CONTEXT --context apiTag=$API_IMAGE_TAG"
           CONTEXT="$CONTEXT --context webTag=$WEB_IMAGE_TAG"
 
-          cdk deploy --require-approval never --all $CONTEXT
+          cdk deploy --all --require-approval never $CONTEXT
+
+      - name: Deployment Summary
+        if: always()
+        run: |
+          echo "# 🚀 Infrastructure Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## 🔒 Collision Prevention" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.stack-status.outputs.busy_stacks }}" = "true" ]; then
+            echo "- ⏳ **Waited for busy stacks**: ${{ steps.stack-status.outputs.busy_list }}" >> $GITHUB_STEP_SUMMARY
+            echo "- 🚦 **Concurrency control**: Active (queued deployment)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ✅ **No conflicts detected**: All stacks were ready" >> $GITHUB_STEP_SUMMARY
+            echo "- 🚦 **Concurrency control**: Active (prevented parallel runs)" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## 📋 Deployment Details" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Tag | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Listener** | \`$LISTENER_IMAGE_TAG\` | ${{ job.status == 'success' && '✅ Deployed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **DNS Worker** | \`$DNS_WORKER_IMAGE_TAG\` | ${{ job.status == 'success' && '✅ Deployed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **API** | \`$API_IMAGE_TAG\` | ${{ job.status == 'success' && '✅ Deployed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Web** | \`$WEB_IMAGE_TAG\` | ${{ job.status == 'success' && '✅ Deployed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## 🔗 Quick Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [CloudFormation Stacks](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks)" >> $GITHUB_STEP_SUMMARY
+          echo "- [ECS Services](https://console.aws.amazon.com/ecs/home?region=us-east-1#/clusters/storefront-cluster/services)" >> $GITHUB_STEP_SUMMARY

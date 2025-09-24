@@ -1,5 +1,9 @@
 name: CI/CD Pipeline
 
+concurrency:
+  group: infrastructure-deployment
+  cancel-in-progress: false  # Don't cancel, queue instead
+
 on:
   push:
     branches: ["**"]
