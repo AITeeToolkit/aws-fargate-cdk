@@ -19,6 +19,9 @@ on:
       listener_tag:
         required: false
         type: string
+      dns_worker_tag:
+        required: false
+        type: string
       api_tag:
         required: false
         type: string
