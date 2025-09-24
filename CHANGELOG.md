@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.54.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.53.1...v1.54.0) (2025-09-24)
+
+
+### 🚀 Features
+
+* implement service-specific versioning with automatic version increments ([d154e69](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/d154e694fbc2fe64de2285e396d3bd6bbc0fc500))
+
 ## [1.53.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.53.0...v1.53.1) (2025-09-24)
 
 
