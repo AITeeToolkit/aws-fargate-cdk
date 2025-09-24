@@ -105,6 +105,21 @@ class SQSStack(Stack):
             removal_policy=RemovalPolicy.DESTROY if environment == "dev" else RemovalPolicy.RETAIN
         )
 
+        # DNS operations queue (FIFO for deduplication)
+        self.dns_operations_queue = sqs.Queue(
+            self, "StorefrontDnsOperationsQueue",
+            queue_name=f"storefront-{environment}-dns-operations-queue.fifo",
+            fifo=True,
+            content_based_deduplication=False,  # We provide explicit deduplication IDs
+            visibility_timeout=Duration.minutes(5),
+            retention_period=Duration.days(14),
+            dead_letter_queue=sqs.DeadLetterQueue(
+                max_receive_count=3,
+                queue=self.fifo_dlq
+            ),
+            removal_policy=RemovalPolicy.DESTROY if environment == "dev" else RemovalPolicy.RETAIN
+        )
+
         # Store queue URLs in SSM Parameter Store for easy access
         ssm.StringParameter(
             self, "MainQueueUrlParameter",
@@ -142,6 +157,13 @@ class SQSStack(Stack):
         )
 
         ssm.StringParameter(
+            self, "DnsOperationsQueueUrlParameter",
+            parameter_name=f"/storefront-{environment}/sqs/dns-operations-queue-url",
+            string_value=self.dns_operations_queue.queue_url,
+            description="DNS operations FIFO SQS queue URL"
+        )
+
+        ssm.StringParameter(
             self, "DLQUrlParameter",
             parameter_name=f"/storefront-{environment}/sqs/dlq-url",
             string_value=self.dlq.queue_url,
@@ -174,6 +196,7 @@ class SQSStack(Stack):
                         self.email_queue.queue_arn,
                         self.image_processing_queue.queue_arn,
                         self.order_processing_queue.queue_arn,
+                        self.dns_operations_queue.queue_arn,
                         self.dlq.queue_arn,
                         self.fifo_dlq.queue_arn
                     ]
@@ -218,4 +241,10 @@ class SQSStack(Stack):
             self, "OrderProcessingQueueUrl",
             value=self.order_processing_queue.queue_url,
             description="Order Processing FIFO SQS Queue URL"
+        )
+
+        cdk.CfnOutput(
+            self, "DnsOperationsQueueUrl",
+            value=self.dns_operations_queue.queue_url,
+            description="DNS Operations FIFO SQS Queue URL"
         )

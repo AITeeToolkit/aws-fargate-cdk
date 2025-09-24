@@ -15,5 +15,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Listener service stage
 FROM base as listener
-COPY listener_app.py .
-CMD ["python", "listener_app.py"]
+COPY listener_app_sqs.py .
+CMD ["python", "listener_app_sqs.py"]
