@@ -36,9 +36,11 @@ class DNSWorkerServiceStack(Stack):
 
         # Secrets for the DNS worker service
         dns_worker_secrets = {
-            "GH_TOKEN": f"/storefront-{environment}/github/PAT",  # SSM parameter
-            "AWS_ACCESS_KEY_ID": f"/storefront-{environment}/route53/AWS_ACCESS_KEY_ID",  # SSM parameter
-            "AWS_SECRET_ACCESS_KEY": f"/storefront-{environment}/route53/AWS_SECRET_ACCESS_KEY",  # SSM parameter
+            "GH_TOKEN": ecs.Secret.from_ssm_parameter(
+                ssm.StringParameter.from_string_parameter_name(
+                    self, "GHTokenParam", f"/storefront-{environment}/github/PAT"
+                )
+            ),
         }
 
         # Create the Fargate service using the construct

@@ -34,8 +34,6 @@ class SQSDNSWorker:
         self,
         queue_url: str = None,
         region_name: str = None,
-        aws_access_key_id: str = None,
-        aws_secret_access_key: str = None,
         github_token: str = None,
         repo: str = None,
         max_messages: int = 10,
@@ -46,10 +44,8 @@ class SQSDNSWorker:
         Initialize SQS DNS worker.
         
         Args:
-            queue_url: SQS queue URL to consume from
-            region_name: AWS region
-            aws_access_key_id: AWS access key (optional, uses IAM role if not provided)
-            aws_secret_access_key: AWS secret key (optional, uses IAM role if not provided)
+            queue_url: SQS queue URL for DNS operations
+            region_name: AWS region (uses IAM role for authentication)
             github_token: GitHub personal access token
             repo: GitHub repository (e.g., "AITeeToolkit/aws-fargate-cdk")
             max_messages: Maximum messages to receive per poll (1-10)
@@ -58,8 +54,9 @@ class SQSDNSWorker:
         """
         self.queue_url = queue_url or os.environ.get('SQS_DNS_OPERATIONS_QUEUE_URL')
         self.region_name = region_name or os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')
-        self.aws_access_key_id = aws_access_key_id or os.environ.get('AWS_ACCESS_KEY_ID')
-        self.aws_secret_access_key = aws_secret_access_key or os.environ.get('AWS_SECRET_ACCESS_KEY')
+        # Use IAM role for AWS authentication (no explicit credentials needed)
+        self.aws_access_key_id = None
+        self.aws_secret_access_key = None
         self.github_token = github_token or os.environ.get('GH_TOKEN')
         self.repo = repo or os.environ.get('REPO', 'AITeeToolkit/aws-fargate-cdk')
         
