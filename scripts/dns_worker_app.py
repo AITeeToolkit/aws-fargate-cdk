@@ -48,7 +48,7 @@ def main():
         # Initialize the DNS worker
         worker = SQSDNSWorker(
             max_messages=10,           # Process up to 10 messages per batch
-            wait_time_seconds=20,      # Long polling for efficiency
+            wait_time_seconds=20,      # Long efficient polling
             batch_timeout=30           # Process batch every 30 seconds
         )
         
