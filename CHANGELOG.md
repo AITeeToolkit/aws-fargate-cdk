@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.49.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.48.0...v1.49.0) (2025-09-24)
+
+
+### 🚀 Features
+
+* migrate DNS operations to SQS-based batch processing system ([90c5389](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/90c5389dbc6cafd8e43c641166bec2cd397040be))
+
 ## [1.48.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.47.0...v1.48.0) (2025-09-23)
 
 
