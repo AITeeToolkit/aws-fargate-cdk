@@ -13,6 +13,7 @@ from stacks.api_service_stack import APIServiceStack
 from stacks.iam_stack import IAMStack
 from stacks.web_multialb_stack import MultiAlbStack
 from stacks.listener_service_stack import ListenerServiceStack
+from stacks.dns_worker_service_stack import DNSWorkerServiceStack
 from stacks.opensearch_stack import OpenSearchStack
 from stacks.sqs_stack import SQSStack
 # from stacks.parameters_stack import ParametersStack
@@ -83,6 +84,7 @@ def resolve_tag(context_key: str, env_var: str) -> str:
     return "latest"
 
 listener_tag = resolve_tag("listenerTag", "LISTENER_IMAGE_TAG")
+dns_worker_tag = resolve_tag("dnsWorkerTag", "DNS_WORKER_IMAGE_TAG")
 api_tag = resolve_tag("apiTag", "API_IMAGE_TAG")
 web_tag = resolve_tag("webTag", "WEB_IMAGE_TAG")
 
@@ -116,7 +118,7 @@ for domain, alb in multi_alb_stack.domain_to_alb.items():
 ecr_stack = ECRStack(
     app, "StorefrontECRStack",
     env=env,
-    repository_names=["api", "web", "listener"]
+    repository_names=["api", "web", "listener", "dns-worker"]
 )
 
 # RDS instance with Secrets Manager
@@ -162,6 +164,19 @@ listener_service = ListenerServiceStack(
     environment=env_name,
     ecs_task_security_group=shared_stack.ecs_task_sg,
     service_name="listener-service",
+    sqs_managed_policy=sqs_stack.sqs_managed_policy
+)
+
+# Deploy DNS worker service
+dns_worker_service = DNSWorkerServiceStack(
+    app, f"DNSWorkerServiceStack-{env_name}",
+    env=env,
+    vpc=network_stack.vpc,
+    cluster=shared_stack.cluster,
+    image_uri=f"{ecr_stack.repositories['dns-worker'].repository_uri}:{dns_worker_tag}",
+    environment=env_name,
+    ecs_task_security_group=shared_stack.ecs_task_sg,
+    service_name="dns-worker-service",
     sqs_managed_policy=sqs_stack.sqs_managed_policy
 )
 

@@ -186,21 +186,30 @@ jobs:
     with:
       environment: dev
       image_tag: ${{ needs.generate-tag.outputs.image_tag }}
-      force_build: false
+    secrets: inherit
+
+  build-dns-worker:
+    name: Build DNS Worker
+    needs: [generate-tag, check-changes]
+    if: needs.check-changes.outputs.has_image_changes == 'true'
+    uses: ./.github/workflows/dns-worker-build.yml
+    with:
+      environment: dev
+      image_tag: ${{ needs.generate-tag.outputs.image_tag }}
     secrets: inherit
 
   deploy-infrastructure:
     name: Deploy Infrastructure
-    needs: [generate-tag, check-changes, build-listener]
-    # Always run if infra changes OR if listener changes (after build-listener completes or is skipped)
+    needs: [generate-tag, check-changes, build-listener, build-dns-worker]
+    # Always run if infra changes OR if image changes (after build jobs complete or are skipped)
     if: |
       always() && (
         needs.check-changes.outputs.has_infra_changes == 'true' ||
         needs.check-changes.outputs.has_image_changes == 'true' ||
         github.event_name == 'repository_dispatch'
       ) && (
-        needs.build-listener.result == 'success' ||
-        needs.build-listener.result == 'skipped' ||
+        (needs.build-listener.result == 'success' || needs.build-listener.result == 'skipped') &&
+        (needs.build-dns-worker.result == 'success' || needs.build-dns-worker.result == 'skipped') ||
         needs.check-changes.outputs.has_image_changes == 'false'
       )
     uses: ./.github/workflows/infra-build.yml
@@ -208,6 +217,7 @@ jobs:
       environment: dev
       image_tag: ${{ github.event.client_payload.api_tag || github.event.client_payload.web_tag || needs.generate-tag.outputs.image_tag }}
       listener_tag: ${{ needs.build-listener.result == 'success' && needs.generate-tag.outputs.image_tag || 'skip' }}
+      dns_worker_tag: ${{ needs.build-dns-worker.result == 'success' && needs.generate-tag.outputs.image_tag || 'skip' }}
       api_tag: ${{ github.event.client_payload.api_tag || '' }}
       web_tag: ${{ github.event.client_payload.web_tag || '' }}
     secrets: inherit
@@ -251,17 +261,17 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 📋 Next Steps" >> $GITHUB_STEP_SUMMARY
           if [ "$DEV_STATUS" = "success" ]; then
-            echo "- 🧪 Test your changes in the development environment" >> $GITHUB_STEP_SUMMARY
-            echo "- 🔍 Monitor application logs for any issues" >> $GITHUB_STEP_SUMMARY
+            echo "- Test your changes in the development environment" >> $GITHUB_STEP_SUMMARY
+            echo "- Monitor application logs for any issues" >> $GITHUB_STEP_SUMMARY
           elif [ "$DEV_STATUS" = "skipped" ]; then
             echo "- ✅ No deployment needed - only non-infrastructure files changed" >> $GITHUB_STEP_SUMMARY
             echo "- 📝 Changes were documentation, workflow, or other non-deployment files" >> $GITHUB_STEP_SUMMARY
           else
-            echo "- 🔧 Check deployment logs for error details" >> $GITHUB_STEP_SUMMARY
-            echo "- 🔄 Fix issues and re-run deployment" >> $GITHUB_STEP_SUMMARY
+            echo "- Check deployment logs for error details" >> $GITHUB_STEP_SUMMARY
+            echo "- Fix issues and re-run deployment" >> $GITHUB_STEP_SUMMARY
           fi
-          echo "- 📝 Create a pull request to merge into main for production deployment" >> $GITHUB_STEP_SUMMARY
-          echo "- 🚀 Production deployment will trigger automatically after PR merge" >> $GITHUB_STEP_SUMMARY
+          echo "- Create a pull request to merge into main for production deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- Production deployment will trigger automatically after PR merge" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           echo "## 🔗 Quick Links" >> $GITHUB_STEP_SUMMARY
@@ -274,4 +284,4 @@ jobs:
           echo "### Deployment Logs & History" >> $GITHUB_STEP_SUMMARY
           echo "- [This Workflow Run](https://github.com/AITeeToolkit/aws-fargate-cdk/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
           echo "- [All Infrastructure Deployments](https://github.com/AITeeToolkit/aws-fargate-cdk/actions)" >> $GITHUB_STEP_SUMMARY
-          echo "- [📋 Infrastructure & Listener Changelog](https://github.com/AITeeToolkit/aws-fargate-cdk/blob/main/CHANGELOG.md)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Infrastructure & Listener Changelog](https://github.com/AITeeToolkit/aws-fargate-cdk/blob/main/CHANGELOG.md)" >> $GITHUB_STEP_SUMMARY

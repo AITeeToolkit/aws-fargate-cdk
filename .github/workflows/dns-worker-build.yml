@@ -1,0 +1,90 @@
+name: Build DNS Worker Image
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      image_tag:
+        required: true
+        type: string
+      force_build:
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      GH_TOKEN:
+        required: true
+      AWS_CODEBUILD_ACCESS_KEY_ID:
+        required: true
+      AWS_CODEBUILD_SECRET_ACCESS_KEY:
+        required: true
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/storefront/${{ inputs.environment || 'dev' }}
+
+jobs:
+  detect-changes:
+    name: Detect DNS Worker Changes
+    runs-on: ubuntu-latest
+    outputs:
+      dns_worker_changed: ${{ steps.diff.outputs.dns_worker }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: diff
+        run: |
+          if [[ "${{ inputs.force_build }}" == "true" ]]; then
+            echo "dns_worker=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          BASE_SHA="${{ github.event.before || github.sha }}~1"
+          HEAD_SHA="${{ github.sha }}"
+
+          # Check for changes in DNS worker related files
+          if git diff --name-only $BASE_SHA $HEAD_SHA | grep -E '^scripts/(dns_worker_app\.py|sqs_dns_worker\.py|Dockerfile|requirements\.txt)$' > /dev/null; then
+            echo "dns_worker=true" >> $GITHUB_OUTPUT
+          else
+            echo "dns_worker=false" >> $GITHUB_OUTPUT
+          fi
+
+  build-dns-worker:
+    name: Build & Push DNS Worker Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.dns_worker_changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_CODEBUILD_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        run: aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+
+      - name: Build DNS Worker Docker Image
+        run: |
+          echo "🔧 Building DNS Worker image with tag: ${{ inputs.image_tag }}"
+          docker build --target dns-worker -t $ECR_REGISTRY/dns-worker:${{ inputs.image_tag }} ./scripts
+
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            docker tag $ECR_REGISTRY/dns-worker:${{ inputs.image_tag }} $ECR_REGISTRY/dns-worker:latest
+          fi
+
+      - name: Push DNS Worker Image
+        run: |
+          docker push $ECR_REGISTRY/dns-worker:${{ inputs.image_tag }}
+
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            docker push $ECR_REGISTRY/dns-worker:latest
+          fi
