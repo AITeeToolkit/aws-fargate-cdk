@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.50.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.49.0...v1.50.0) (2025-09-24)
+
+
+### 🚀 Features
+
+* add deployment circuit breaker and job timeouts to CI/CD workflows ([6ab1a04](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/6ab1a0461530e022f437c35e7d139f497b823e9c))
+
 ## [1.49.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.48.0...v1.49.0) (2025-09-24)
 
 
