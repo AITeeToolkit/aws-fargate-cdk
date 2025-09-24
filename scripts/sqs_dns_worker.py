@@ -68,7 +68,7 @@ class SQSDNSWorker:
         self.batch_timeout = batch_timeout
         
         if not self.queue_url:
-            raise ValueError("SQS_DNS_QUEUE_URL must be configured")
+            raise ValueError("SQS_DNS_OPERATIONS_QUEUE_URL must be configured")
         if not self.github_token:
             raise ValueError("GH_TOKEN must be configured")
         

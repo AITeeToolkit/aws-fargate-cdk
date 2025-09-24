@@ -56,7 +56,7 @@ class SQSDNSPublisher:
         self.aws_secret_access_key = aws_secret_access_key or os.environ.get('AWS_SECRET_ACCESS_KEY')
         
         if not self.queue_url:
-            raise ValueError("SQS_DNS_QUEUE_URL must be provided")
+            raise ValueError("SQS_DNS_OPERATIONS_QUEUE_URL must be provided")
         
         self.sqs_client = None
         self._connected = False
