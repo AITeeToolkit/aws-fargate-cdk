@@ -33,6 +33,7 @@ class ListenerServiceStack(Stack):
         # Environment variables for the listener service
         listener_environment = {
             "REPO": "AITeeToolkit/aws-fargate-cdk",
+            "SQS_DNS_QUEUE_URL": ssm.StringParameter.value_for_string_parameter(self, f"/storefront-{environment}/sqs/dns-operations-queue-url")
         }
 
         # Mixed secrets: SSM parameters (strings) and Secrets Manager (ECS Secret objects)
