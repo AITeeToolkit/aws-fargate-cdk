@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.56.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.56.0...v1.56.1) (2025-09-24)
+
+
+### 📚 Documentation
+
+* clarify comment about long polling efficiency in DNS worker ([356e7b0](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/356e7b0b486b299710aa0d2685bd9f1c8664146d))
+
 ## [1.56.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.55.0...v1.56.0) (2025-09-24)
 
 
