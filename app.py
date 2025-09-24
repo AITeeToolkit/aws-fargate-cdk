@@ -161,7 +161,8 @@ listener_service = ListenerServiceStack(
     db_secret=database_stack.secret,
     environment=env_name,
     ecs_task_security_group=shared_stack.ecs_task_sg,
-    service_name="listener-service"
+    service_name="listener-service",
+    sqs_managed_policy=sqs_stack.sqs_managed_policy
 )
 
 # Deploy API service (internal only)

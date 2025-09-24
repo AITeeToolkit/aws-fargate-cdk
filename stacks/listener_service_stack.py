@@ -3,13 +3,12 @@ from aws_cdk import (
     Duration,
     aws_ecs as ecs,
     aws_ec2 as ec2,
-    aws_iam as iam,
-    aws_logs as logs,
     aws_secretsmanager as secretsmanager,
     aws_ssm as ssm,
+    aws_servicediscovery as servicediscovery,
+    aws_iam as iam,
 )
 from constructs import Construct
-from aws_cdk import aws_servicediscovery as servicediscovery
 from cdk_constructs.fargate_service_construct import FargateServiceConstruct
 
 
@@ -26,6 +25,7 @@ class ListenerServiceStack(Stack):
         environment: str,
         ecs_task_security_group: ec2.ISecurityGroup,
         service_name: str,
+        sqs_managed_policy: iam.IManagedPolicy = None,
         **kwargs
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -58,6 +58,7 @@ class ListenerServiceStack(Stack):
             secrets=listener_secrets,
             security_groups=[ecs_task_security_group],
             desired_count=1,
+            sqs_managed_policy=sqs_managed_policy,
             cloud_map_options=ecs.CloudMapOptions(
                 name=service_name,
                 dns_record_type=servicediscovery.DnsRecordType.A,
