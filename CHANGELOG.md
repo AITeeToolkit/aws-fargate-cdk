@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.55.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.54.0...v1.55.0) (2025-09-24)
+
+
+### 🚀 Features
+
+* update DNS worker to use IAM role instead of explicit AWS credentials ([69dbd1e](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/69dbd1e43074bcc74ff452df5ede6e83cafa70f2))
+
 ## [1.54.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.53.1...v1.54.0) (2025-09-24)
 
 
