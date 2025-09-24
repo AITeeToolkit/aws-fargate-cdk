@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.53.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.53.0...v1.53.1) (2025-09-24)
+
+
+### ♻️ Code Refactoring
+
+* improve tag resolution with service-specific file change detection ([55abab8](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/55abab8048b86e3f4188925b36596f35937a356f))
+
 ## [1.53.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.52.0...v1.53.0) (2025-09-24)
 
 
