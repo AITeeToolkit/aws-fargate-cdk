@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.58.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.57.0...v1.58.0) (2025-09-24)
+
+
+### 🚀 Features
+
+* add concurrency control and stack status checks to infrastructure deployment workflow ([ea61fb9](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/ea61fb9b44936cd384c8095b06d67155b3237513))
+
 ## [1.57.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.56.1...v1.57.0) (2025-09-24)
 
 
