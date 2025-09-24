@@ -192,6 +192,7 @@ jobs:
   deploy-infrastructure:
     name: Deploy Infrastructure
     needs: [generate-tag, check-changes, build-listener]
+    timeout-minutes: 30
     # Always run if infra changes OR if listener changes (after build-listener completes or is skipped)
     if: |
       always() && (

@@ -55,6 +55,7 @@ jobs:
   build-listener:
     name: Build & Push Listener Image
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [detect-changes]
     if: needs.detect-changes.outputs.listener_changed == 'true'
     steps:

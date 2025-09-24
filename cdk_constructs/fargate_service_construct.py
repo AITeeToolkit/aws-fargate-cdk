@@ -229,6 +229,15 @@ class FargateServiceConstruct(Construct):
             vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),  # Use public subnets
             security_groups=security_groups or [],
             cloud_map_options=cloud_map_options,
+            # Deployment configuration with circuit breaker
+            deployment_configuration=ecs.DeploymentConfiguration(
+                maximum_percent=200,
+                minimum_healthy_percent=50,
+                deployment_circuit_breaker=ecs.DeploymentCircuitBreaker(
+                    enable=True,
+                    rollback=True
+                )
+            ),
         )
 
         self.service = service
