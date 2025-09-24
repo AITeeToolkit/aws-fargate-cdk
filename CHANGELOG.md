@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.53.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.52.0...v1.53.0) (2025-09-24)
+
+
+### 🚀 Features
+
+* add DNS worker service with Docker build and deployment workflow ([d54e91e](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/d54e91e6aa39a7c3ce6e6eff387ee10ef86dc4d3))
+
 ## [1.52.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.51.1...v1.52.0) (2025-09-24)
 
 
