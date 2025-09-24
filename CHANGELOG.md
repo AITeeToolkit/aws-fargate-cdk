@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.50.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.50.0...v1.50.1) (2025-09-24)
+
+
+### 🐛 Bug Fixes
+
+* update deprecated ECS deployment configuration classes to use CfnService properties ([88f5923](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/88f5923fc800180d86db90f8e1f29c0a0b6ece2e))
+
 ## [1.50.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.49.0...v1.50.0) (2025-09-24)
 
 
