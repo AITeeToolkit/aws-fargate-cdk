@@ -94,11 +94,18 @@ def resolve_tag(context_key: str, env_var: str, app_context, service_files: Opti
                                                        capture_output=True, text=True, cwd=os.getcwd())
                             
                             if diff_result.stdout.strip():
-                                # Service files changed, increment version
-                                new_version = _increment_version(service_version)
-                                new_tag = f"{service_name}-{new_version}"
-                                print(f"🏷️  Service files changed since {latest_service_tag}, using new version for {context_key}: {new_version}")
-                                return new_version
+                                # Service files changed - check if we're actually building this service
+                                service_tag_input = os.environ.get(f"{service_name.upper().replace('-', '_')}_IMAGE_TAG")
+                                if service_tag_input and service_tag_input != "skip":
+                                    # Service is being built, increment version
+                                    new_version = _increment_version(service_version)
+                                    new_tag = f"{service_name}-{new_version}"
+                                    print(f"🏷️  Service files changed since {latest_service_tag}, using new version for {context_key}: {new_version}")
+                                    return new_version
+                                else:
+                                    # Service files changed but build skipped, use existing version
+                                    print(f"🏷️  Service files changed since {latest_service_tag}, but build skipped, using existing for {context_key}: {service_version}")
+                                    return service_version
                             else:
                                 # Service files unchanged, use existing version
                                 print(f"🏷️  Service unchanged since {latest_service_tag}, using existing for {context_key}: {service_version}")
