@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.52.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.51.1...v1.52.0) (2025-09-24)
+
+
+### 🚀 Features
+
+* add SQS managed policy to listener service stack ([4c08a44](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/4c08a44b923291e79366a74d5d0cb7627ec44737))
+
 ## [1.51.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.51.0...v1.51.1) (2025-09-24)
 
 
