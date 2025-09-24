@@ -33,11 +33,11 @@ except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
 
 
 listener_tag = resolve_tag("listenerTag", "LISTENER_IMAGE_TAG", app,
-                          ["scripts/listener_app_sqs.py", "scripts/sqs_dns_publisher.py"])
+                          ["scripts/listener_app_sqs.py", "scripts/sqs_dns_publisher.py"], "listener")
 dns_worker_tag = resolve_tag("dnsWorkerTag", "DNS_WORKER_IMAGE_TAG", app,
-                            ["scripts/dns_worker_app.py", "scripts/sqs_dns_worker.py"])
-api_tag = resolve_tag("apiTag", "API_IMAGE_TAG", app)
-web_tag = resolve_tag("webTag", "WEB_IMAGE_TAG", app)
+                            ["scripts/dns_worker_app.py", "scripts/sqs_dns_worker.py"], "dns-worker")
+api_tag = resolve_tag("apiTag", "API_IMAGE_TAG", app, None, "api")
+web_tag = resolve_tag("webTag", "WEB_IMAGE_TAG", app, None, "web")
 
 # IAM Stack for CI/CD permissions - deploy this first to bootstrap permissions
 # iam_stack = IAMStack(app, "StorefrontIAMStack", env=env)
