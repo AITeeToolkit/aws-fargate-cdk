@@ -230,10 +230,10 @@ class FargateServiceConstruct(Construct):
             security_groups=security_groups or [],
             cloud_map_options=cloud_map_options,
             # Deployment configuration with circuit breaker
-            deployment_configuration=ecs.DeploymentConfiguration(
+            deployment_configuration=ecs.CfnService.DeploymentConfigurationProperty(
                 maximum_percent=200,
                 minimum_healthy_percent=50,
-                deployment_circuit_breaker=ecs.DeploymentCircuitBreaker(
+                deployment_circuit_breaker=ecs.CfnService.DeploymentCircuitBreakerProperty(
                     enable=True,
                     rollback=True
                 )
