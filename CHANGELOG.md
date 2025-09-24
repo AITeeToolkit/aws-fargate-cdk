@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.50.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.50.1...v1.50.2) (2025-09-24)
+
+
+### 🐛 Bug Fixes
+
+* set ECS deployment circuit breaker via CloudFormation override instead of service config ([80b9f64](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/80b9f64852da66251509b6880c9f32f92b3a20eb))
+
 ## [1.50.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.50.0...v1.50.1) (2025-09-24)
 
 
