@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.56.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.55.0...v1.56.0) (2025-09-24)
+
+
+### 🚀 Features
+
+* implement service-specific versioning for container images ([311f6c4](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/311f6c474a61d91b261b4ed932b09b326ceb0598))
+
 ## [1.55.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.54.0...v1.55.0) (2025-09-24)
 
 
