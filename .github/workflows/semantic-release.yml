@@ -140,7 +140,7 @@ jobs:
             echo "images=true" >> $GITHUB_OUTPUT
             echo "infra=true" >> $GITHUB_OUTPUT
           else
-            if echo "$CHANGED_FILES" | grep -E '^(scripts/listener_app\.py|scripts/Dockerfile)' > /dev/null; then
+            if echo "$CHANGED_FILES" | grep -E '^scripts/' > /dev/null; then
               echo "✅ Detected changes in image-related files"
               IMAGE_FLAG=true
             else
