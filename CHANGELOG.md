@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.51.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.51.0...v1.51.1) (2025-09-24)
+
+
+### 🐛 Bug Fixes
+
+* update environment variable name from SQS_DNS_QUEUE_URL to SQS_DNS_OPERATIONS_QUEUE_URL ([388f389](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/388f38919d5876071dafe39e2918b641e93db3d0))
+
 ## [1.51.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.50.2...v1.51.0) (2025-09-24)
 
 
