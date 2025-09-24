@@ -1,8 +1,8 @@
 import os
 import json
-import subprocess
-from aws_cdk import App, Environment
 import aws_cdk as cdk
+from aws_cdk import App, Environment
+from scripts.tag_resolver import resolve_tag
 from stacks.network_stack import NetworkStack
 from stacks.shared_stack import SharedStack
 from stacks.route53_stack import Route53Stack
@@ -31,62 +31,13 @@ except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
     print(f"⚠️ Could not read domains.json: {e}")
     domains = []  # or some default value
 
-# Helper to resolve image tag priority: CDK context -> env var -> smart default
-def resolve_tag(context_key: str, env_var: str) -> str:
-    # Priority 1: CDK context (from pipeline)
-    context_tag = app.node.try_get_context(context_key)
-    if context_tag and context_tag != "skip":
-        print(f"🏷️  Using context tag for {context_key}: {context_tag}")
-        return context_tag
-    
-    # Priority 2: Environment variable (from pipeline)
-    env_tag = os.environ.get(env_var)
-    if env_tag and env_tag != "skip":
-        print(f"🏷️  Using env tag for {env_var}: {env_tag}")
-        return env_tag
-    
-    # Priority 3: Smart default based on git branch
-    try:
-        import subprocess
-        # Get current git branch
-        branch_result = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], 
-                                     capture_output=True, text=True, cwd=os.getcwd())
-        if branch_result.returncode == 0:
-            branch = branch_result.stdout.strip()
-            
-            if branch == "main":
-                # On main branch, try to get latest semantic release tag
-                tag_result = subprocess.run(['git', 'describe', '--tags', '--abbrev=0'], 
-                                          capture_output=True, text=True, cwd=os.getcwd())
-                if tag_result.returncode == 0:
-                    latest_tag = tag_result.stdout.strip()
-                    print(f"🏷️  Using semantic release tag for {context_key}: {latest_tag}")
-                    return latest_tag
-                else:
-                    print(f"🏷️  No semantic release tag found, using latest for {context_key}")
-                    return "latest"
-            else:
-                # On feature branch, use branch-sha format
-                sha_result = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], 
-                                          capture_output=True, text=True, cwd=os.getcwd())
-                if sha_result.returncode == 0:
-                    short_sha = sha_result.stdout.strip()
-                    # Clean branch name (replace non-alphanumeric with hyphens)
-                    clean_branch = ''.join(c if c.isalnum() else '-' for c in branch).lower()
-                    branch_tag = f"{clean_branch}-{short_sha}"
-                    print(f"🏷️  Using branch tag for {context_key}: {branch_tag}")
-                    return branch_tag
-    except Exception as e:
-        print(f"⚠️  Could not determine git context: {e}")
-    
-    # Fallback to latest
-    print(f"🏷️  Using fallback tag for {context_key}: latest")
-    return "latest"
 
-listener_tag = resolve_tag("listenerTag", "LISTENER_IMAGE_TAG")
-dns_worker_tag = resolve_tag("dnsWorkerTag", "DNS_WORKER_IMAGE_TAG")
-api_tag = resolve_tag("apiTag", "API_IMAGE_TAG")
-web_tag = resolve_tag("webTag", "WEB_IMAGE_TAG")
+listener_tag = resolve_tag("listenerTag", "LISTENER_IMAGE_TAG", app,
+                          ["scripts/listener_app_sqs.py", "scripts/sqs_dns_publisher.py"])
+dns_worker_tag = resolve_tag("dnsWorkerTag", "DNS_WORKER_IMAGE_TAG", app,
+                            ["scripts/dns_worker_app.py", "scripts/sqs_dns_worker.py"])
+api_tag = resolve_tag("apiTag", "API_IMAGE_TAG", app)
+web_tag = resolve_tag("webTag", "WEB_IMAGE_TAG", app)
 
 # IAM Stack for CI/CD permissions - deploy this first to bootstrap permissions
 # iam_stack = IAMStack(app, "StorefrontIAMStack", env=env)
