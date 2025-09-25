@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.64.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.63.0...v1.64.0) (2025-09-25)
+
+
+### 🚀 Features
+
+* add database credentials to DNS worker service environment variables ([4753cab](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/4753cabe154c9c3554a9fad992ec2dec768ad2c6))
+
 ## [1.63.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.62.2...v1.63.0) (2025-09-25)
 
 
