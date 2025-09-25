@@ -40,94 +40,8 @@ env:
   GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
 jobs:
-  semantic-release:
-    name: Semantic Release
-    runs-on: ubuntu-latest
-    needs: [check-changes]
-    if: github.ref == 'refs/heads/main' && (needs.check-changes.outputs.has_image_changes == 'true' || needs.check-changes.outputs.has_infra_changes == 'true')
-    outputs:
-      new_release: ${{ steps.release_info.outputs.new_release }}
-      latest_tag: ${{ steps.release_info.outputs.latest_tag }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: npm install --no-audit --no-fund
-      - name: Run semantic-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          git fetch --tags
-          npx semantic-release
-      - name: Get release info
-        id: release_info
-        run: |
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
-          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-          echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
-          if [ "$LATEST_TAG" != "$PREVIOUS_TAG" ] && [ -n "$LATEST_TAG" ]; then
-            echo "new_release=true" >> $GITHUB_OUTPUT
-          else
-            echo "new_release=false" >> $GITHUB_OUTPUT
-          fi
-
-  generate-tag:
-    name: Generate Image Tag
-    runs-on: ubuntu-latest
-    outputs:
-      image_tag: ${{ steps.tag.outputs.image_tag }}
-      listener_tag: ${{ steps.tag.outputs.listener_tag }}
-      dns_worker_tag: ${{ steps.tag.outputs.dns_worker_tag }}
-      api_tag: ${{ steps.tag.outputs.api_tag }}
-      web_tag: ${{ steps.tag.outputs.web_tag }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - id: tag
-        run: |
-          BRANCH_NAME=${GITHUB_REF#refs/heads/}
-          if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
-            SHORT_SHA=${GITHUB_SHA:0:7}
-            echo "image_tag=domain-updates-$SHORT_SHA" >> $GITHUB_OUTPUT
-            echo "listener_tag=domain-updates-$SHORT_SHA" >> $GITHUB_OUTPUT
-            echo "dns_worker_tag=domain-updates-$SHORT_SHA" >> $GITHUB_OUTPUT
-            echo "api_tag=domain-updates-$SHORT_SHA" >> $GITHUB_OUTPUT
-            echo "web_tag=domain-updates-$SHORT_SHA" >> $GITHUB_OUTPUT
-          elif [ "$BRANCH_NAME" = "main" ]; then
-            # Repository-wide tag for infrastructure
-            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "latest")
-            echo "image_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-            
-            # Service-specific tags
-            LISTENER_TAG=$(git tag -l "listener-v*" --sort=-version:refname | head -n1 | sed 's/listener-//' || echo "v1.0.0")
-            DNS_WORKER_TAG=$(git tag -l "dns-worker-v*" --sort=-version:refname | head -n1 | sed 's/dns-worker-//' || echo "v1.0.0")
-            API_TAG=$(git tag -l "api-v*" --sort=-version:refname | head -n1 | sed 's/api-//' || echo "v1.0.0")
-            WEB_TAG=$(git tag -l "web-v*" --sort=-version:refname | head -n1 | sed 's/web-//' || echo "v1.0.0")
-            
-            echo "listener_tag=$LISTENER_TAG" >> $GITHUB_OUTPUT
-            echo "dns_worker_tag=$DNS_WORKER_TAG" >> $GITHUB_OUTPUT
-            echo "api_tag=$API_TAG" >> $GITHUB_OUTPUT
-            echo "web_tag=$WEB_TAG" >> $GITHUB_OUTPUT
-          else
-            CLEAN_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]')
-            SHORT_SHA=${GITHUB_SHA:0:7}
-            BRANCH_TAG="${CLEAN_BRANCH}-${SHORT_SHA}"
-            echo "image_tag=${BRANCH_TAG}" >> $GITHUB_OUTPUT
-            echo "listener_tag=${BRANCH_TAG}" >> $GITHUB_OUTPUT
-            echo "dns_worker_tag=${BRANCH_TAG}" >> $GITHUB_OUTPUT
-            echo "api_tag=${BRANCH_TAG}" >> $GITHUB_OUTPUT
-            echo "web_tag=${BRANCH_TAG}" >> $GITHUB_OUTPUT
-          fi
-
   check-changes:
     name: Check What Changed
-    needs: [generate-tag]
     runs-on: ubuntu-latest
     outputs:
       has_image_changes: ${{ steps.changes.outputs.images }}
@@ -211,8 +125,96 @@ jobs:
             fi
           } >> $GITHUB_STEP_SUMMARY
 
+
+  semantic-release:
+    name: Semantic Release
+    runs-on: ubuntu-latest
+    needs: [check-changes]
+    if: github.ref == 'refs/heads/main' && (needs.check-changes.outputs.has_image_changes == 'true' || needs.check-changes.outputs.has_infra_changes == 'true')
+    outputs:
+      new_release: ${{ steps.release_info.outputs.new_release }}
+      latest_tag: ${{ steps.release_info.outputs.latest_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - name: Run semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          git fetch --tags
+          npx semantic-release
+      - name: Get release info
+        id: release_info
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+          if [ "$LATEST_TAG" != "$PREVIOUS_TAG" ] && [ -n "$LATEST_TAG" ]; then
+            echo "new_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "new_release=false" >> $GITHUB_OUTPUT
+          fi
+
+  generate-tag:
+    name: Generate Image Tags
+    runs-on: ubuntu-latest
+    needs: [check-changes, semantic-release]
+    outputs:
+      image_tag: ${{ steps.tag.outputs.image_tag }}
+      listener_tag: ${{ steps.tag.outputs.listener_tag }}
+      dns_worker_tag: ${{ steps.tag.outputs.dns_worker_tag }}
+      api_tag: ${{ steps.tag.outputs.api_tag }}
+      web_tag: ${{ steps.tag.outputs.web_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: tag
+        run: |
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
+            SHORT_SHA=${GITHUB_SHA:0:7}
+            echo "image_tag=domain-updates-$SHORT_SHA" >> $GITHUB_OUTPUT
+            echo "listener_tag=domain-updates-$SHORT_SHA" >> $GITHUB_OUTPUT
+            echo "dns_worker_tag=domain-updates-$SHORT_SHA" >> $GITHUB_OUTPUT
+            echo "api_tag=domain-updates-$SHORT_SHA" >> $GITHUB_OUTPUT
+            echo "web_tag=domain-updates-$SHORT_SHA" >> $GITHUB_OUTPUT
+          elif [ "$BRANCH_NAME" = "main" ]; then
+            # Repository-wide tag for infrastructure
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "latest")
+            echo "image_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+            
+            # Service-specific tags
+            LISTENER_TAG=$(git tag -l "listener-v*" --sort=-version:refname | head -n1 | sed 's/listener-//' || echo "v1.0.0")
+            DNS_WORKER_TAG=$(git tag -l "dns-worker-v*" --sort=-version:refname | head -n1 | sed 's/dns-worker-//' || echo "v1.0.0")
+            API_TAG=$(git tag -l "api-v*" --sort=-version:refname | head -n1 | sed 's/api-//' || echo "v1.0.0")
+            WEB_TAG=$(git tag -l "web-v*" --sort=-version:refname | head -n1 | sed 's/web-//' || echo "v1.0.0")
+            
+            echo "listener_tag=$LISTENER_TAG" >> $GITHUB_OUTPUT
+            echo "dns_worker_tag=$DNS_WORKER_TAG" >> $GITHUB_OUTPUT
+            echo "api_tag=$API_TAG" >> $GITHUB_OUTPUT
+            echo "web_tag=$WEB_TAG" >> $GITHUB_OUTPUT
+          else
+            CLEAN_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]')
+            SHORT_SHA=${GITHUB_SHA:0:7}
+            BRANCH_TAG="${CLEAN_BRANCH}-${SHORT_SHA}"
+            echo "image_tag=${BRANCH_TAG}" >> $GITHUB_OUTPUT
+            echo "listener_tag=${BRANCH_TAG}" >> $GITHUB_OUTPUT
+            echo "dns_worker_tag=${BRANCH_TAG}" >> $GITHUB_OUTPUT
+            echo "api_tag=${BRANCH_TAG}" >> $GITHUB_OUTPUT
+            echo "web_tag=${BRANCH_TAG}" >> $GITHUB_OUTPUT
+          fi
+
+
   build-listener:
-    name: Build Listener
+    name: Build & Push Listener Image
     needs: [generate-tag, check-changes]
     if: needs.check-changes.outputs.has_image_changes == 'true'
     uses: ./.github/workflows/listener-build.yml
@@ -222,7 +224,7 @@ jobs:
     secrets: inherit
 
   build-dns-worker:
-    name: Build DNS Worker
+    name: Build & Push DNS Worker Image
     needs: [generate-tag, check-changes]
     if: needs.check-changes.outputs.has_image_changes == 'true'
     uses: ./.github/workflows/dns-worker-build.yml
