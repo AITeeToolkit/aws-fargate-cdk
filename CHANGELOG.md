@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.60.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.60.0...v1.60.1) (2025-09-25)
+
+
+### ♻️ Code Refactoring
+
+* reorder GitHub workflow jobs and update job dependencies for semantic versioning ([7063bba](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/7063bba13b073bacc292540498ee802191901f7d))
+
 ## [1.60.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.59.4...v1.60.0) (2025-09-25)
 
 
