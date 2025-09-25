@@ -81,47 +81,69 @@ def resolve_tag(context_key: str, env_var: str, app_context, service_files: Opti
             if branch == "main":
                 # On main branch, use service-specific tags
                 if service_name:
-                    # Check for existing service-specific tags
+                    # Check for existing service-specific tags - try multiple approaches
+                    service_tags = []
+                    
+                    # Method 1: git tag -l with pattern
                     service_tags_result = subprocess.run(['git', 'tag', '-l', f'{service_name}-v*', '--sort=-version:refname'], 
                                                        capture_output=True, text=True, cwd=os.getcwd())
-                
+                    
                     if service_tags_result.returncode == 0 and service_tags_result.stdout.strip():
                         service_tags = [tag for tag in service_tags_result.stdout.strip().split('\n') if tag.strip()]
-                        if service_tags:
-                            latest_service_tag = service_tags[0]
-                            service_version = latest_service_tag.replace(f'{service_name}-', '')
-                            
-                            # Check if this service is being skipped
-                            service_tag_input = os.environ.get(f"{service_name.upper().replace('-', '_')}_IMAGE_TAG")
-                            
-                            if service_files:
-                                # Check if service files changed since last service tag
-                                diff_result = subprocess.run(['git', 'diff', '--name-only', latest_service_tag, 'HEAD', '--'] + service_files,
+                    
+                    # Method 2: If no tags found, try without --sort (some git versions don't support it)
+                    if not service_tags:
+                        service_tags_result = subprocess.run(['git', 'tag', '-l', f'{service_name}-v*'], 
                                                            capture_output=True, text=True, cwd=os.getcwd())
-                            
-                                if diff_result.stdout.strip():
-                                    # Service files changed
-                                    if service_tag_input and service_tag_input != "skip":
-                                        # Service is being built, increment version
-                                        new_version = _increment_version(service_version)
-                                        new_tag = f"{service_name}-{new_version}"
-                                        print(f"🏷️  Service files changed since {latest_service_tag}, using new version for {context_key}: {new_version}")
-                                        return new_version
-                                    else:
-                                        # Service files changed but build skipped, use existing version
-                                        print(f"🏷️  Service files changed since {latest_service_tag}, but build skipped, using existing for {context_key}: {service_version}")
-                                        return service_version
+                        if service_tags_result.returncode == 0 and service_tags_result.stdout.strip():
+                            all_tags = [tag for tag in service_tags_result.stdout.strip().split('\n') if tag.strip()]
+                            # Sort manually by version
+                            service_tags = sorted(all_tags, key=lambda x: [int(n) for n in x.replace(f'{service_name}-v', '').split('.')], reverse=True)
+                    
+                    # Method 3: If still no tags, try git tag --list
+                    if not service_tags:
+                        service_tags_result = subprocess.run(['git', 'tag', '--list'], 
+                                                           capture_output=True, text=True, cwd=os.getcwd())
+                        if service_tags_result.returncode == 0 and service_tags_result.stdout.strip():
+                            all_tags = service_tags_result.stdout.strip().split('\n')
+                            matching_tags = [tag for tag in all_tags if tag.startswith(f'{service_name}-v') and tag.strip()]
+                            service_tags = sorted(matching_tags, key=lambda x: [int(n) for n in x.replace(f'{service_name}-v', '').split('.')], reverse=True)
+                
+                    if service_tags:
+                        latest_service_tag = service_tags[0]
+                        service_version = latest_service_tag.replace(f'{service_name}-', '')
+                        
+                        # Check if this service is being skipped
+                        service_tag_input = os.environ.get(f"{service_name.upper().replace('-', '_')}_IMAGE_TAG")
+                        
+                        if service_files:
+                            # Check if service files changed since last service tag
+                            diff_result = subprocess.run(['git', 'diff', '--name-only', latest_service_tag, 'HEAD', '--'] + service_files,
+                                                       capture_output=True, text=True, cwd=os.getcwd())
+                        
+                            if diff_result.stdout.strip():
+                                # Service files changed
+                                if service_tag_input and service_tag_input != "skip":
+                                    # Service is being built, increment version
+                                    new_version = _increment_version(service_version)
+                                    new_tag = f"{service_name}-{new_version}"
+                                    print(f"🏷️  Service files changed since {latest_service_tag}, using new version for {context_key}: {new_version}")
+                                    return new_version
                                 else:
-                                    # Service files unchanged, use existing version
-                                    print(f"🏷️  Service unchanged since {latest_service_tag}, using existing for {context_key}: {service_version}")
+                                    # Service files changed but build skipped, use existing version
+                                    print(f"🏷️  Service files changed since {latest_service_tag}, but build skipped, using existing for {context_key}: {service_version}")
                                     return service_version
                             else:
-                                # No service files specified (e.g., API/Web from external repo)
-                                if service_tag_input == "skip":
-                                    print(f"🏷️  Build skipped, using existing service tag for {context_key}: {service_version}")
-                                else:
-                                    print(f"🏷️  Using latest service tag for {context_key}: {service_version}")
+                                # Service files unchanged, use existing version
+                                print(f"🏷️  Service unchanged since {latest_service_tag}, using existing for {context_key}: {service_version}")
                                 return service_version
+                        else:
+                            # No service files specified (e.g., API/Web from external repo)
+                            if service_tag_input == "skip":
+                                print(f"🏷️  Build skipped, using existing service tag for {context_key}: {service_version}")
+                            else:
+                                print(f"🏷️  Using latest service tag for {context_key}: {service_version}")
+                            return service_version
                 
                     # No existing service tags, start with v1.0.0
                     initial_version = "v1.0.0"
