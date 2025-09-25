@@ -2,7 +2,7 @@ import os
 import json
 import aws_cdk as cdk
 from aws_cdk import App, Environment
-from scripts.tag_resolver import resolve_tag
+from infrastructure.scripts.tag_resolver import resolve_tag
 from stacks.network_stack import NetworkStack
 from stacks.shared_stack import SharedStack
 from stacks.route53_stack import Route53Stack
@@ -33,9 +33,9 @@ except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
 
 
 listener_tag = resolve_tag("listenerTag", "LISTENER_IMAGE_TAG", app,
-                          ["scripts/listener_app_sqs.py", "scripts/sqs_dns_publisher.py"], "listener")
+                          ["apps/listener/listener_app_sqs.py", "apps/listener/sqs_dns_publisher.py", "apps/listener/domain_helpers.py"], "listener")
 dns_worker_tag = resolve_tag("dnsWorkerTag", "DNS_WORKER_IMAGE_TAG", app,
-                            ["scripts/dns_worker_app.py", "scripts/sqs_dns_worker.py"], "dns-worker")
+                            ["apps/dns-worker/dns_worker_app.py", "apps/dns-worker/sqs_dns_worker.py"], "dns-worker")
 api_tag = resolve_tag("apiTag", "API_IMAGE_TAG", app, None, "api")
 web_tag = resolve_tag("webTag", "WEB_IMAGE_TAG", app, None, "web")
 

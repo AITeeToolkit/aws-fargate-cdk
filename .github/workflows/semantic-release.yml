@@ -87,7 +87,7 @@ jobs:
             echo "images=true" >> $GITHUB_OUTPUT
             echo "infra=true" >> $GITHUB_OUTPUT
           else
-            if echo "$CHANGED_FILES" | grep -E '^scripts/(listener_app_sqs\.py|sqs_dns_publisher\.py|dns_worker_app\.py|sqs_dns_worker\.py|Dockerfile|requirements\.txt)$' > /dev/null; then
+            if echo "$CHANGED_FILES" | grep -E '^apps/(listener/|dns-worker/|Dockerfile|requirements\.txt)' > /dev/null; then
               echo "✅ Detected changes in image-related files"
               IMAGE_FLAG=true
             else
@@ -168,7 +168,8 @@ jobs:
   generate-tag:
     name: Generate Image Tags
     runs-on: ubuntu-latest
-    needs: [check-changes]
+    needs: [check-changes, semantic-release]
+    if: always()  # Run even if semantic-release is skipped
     outputs:
       image_tag: ${{ steps.tag.outputs.image_tag }}
       listener_tag: ${{ steps.tag.outputs.listener_tag }}
@@ -179,6 +180,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+      
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - id: tag
         run: |
@@ -195,11 +202,35 @@ jobs:
             LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "latest")
             echo "image_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
             
-            # Service-specific tags (just read existing, don't increment here)
+            # Service-specific tags - increment if images are being built
             LISTENER_TAG=$(git tag -l "listener-v*" --sort=-version:refname | head -n1 | sed 's/listener-//' || echo "v1.0.0")
             DNS_WORKER_TAG=$(git tag -l "dns-worker-v*" --sort=-version:refname | head -n1 | sed 's/dns-worker-//' || echo "v1.0.0")
             API_TAG=$(git tag -l "api-v*" --sort=-version:refname | head -n1 | sed 's/api-//' || echo "v1.0.0")
             WEB_TAG=$(git tag -l "web-v*" --sort=-version:refname | head -n1 | sed 's/web-//' || echo "v1.0.0")
+            
+            # Increment service tags if images are being built
+            if [[ "${{ needs.check-changes.outputs.has_image_changes }}" == "true" ]]; then
+              # Increment patch version for services being built
+              increment_version() {
+                local version=$1
+                local clean_version=${version#v}  # Remove 'v' prefix
+                local major=$(echo $clean_version | cut -d. -f1)
+                local minor=$(echo $clean_version | cut -d. -f2)
+                local patch=$(echo $clean_version | cut -d. -f3)
+                echo "v$major.$minor.$((patch + 1))"
+              }
+              
+              LISTENER_TAG=$(increment_version "$LISTENER_TAG")
+              DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
+              
+              # Create and push new service tags
+              git tag "listener-$LISTENER_TAG"
+              git tag "dns-worker-$DNS_WORKER_TAG"
+              git push origin "listener-$LISTENER_TAG"
+              git push origin "dns-worker-$DNS_WORKER_TAG"
+              
+              echo "🏷️ Created new service tags: listener-$LISTENER_TAG, dns-worker-$DNS_WORKER_TAG"
+            fi
             
             echo "listener_tag=$LISTENER_TAG" >> $GITHUB_OUTPUT
             echo "dns_worker_tag=$DNS_WORKER_TAG" >> $GITHUB_OUTPUT

@@ -15,10 +15,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Listener service stage
 FROM base as listener
-COPY listener_app_sqs.py sqs_dns_publisher.py ./
+COPY listener/ ./
 CMD ["python", "listener_app_sqs.py"]
 
 # DNS worker service stage
 FROM base as dns-worker
-COPY dns_worker_app.py sqs_dns_worker.py ./
+COPY dns-worker/ ./
 CMD ["python", "dns_worker_app.py"]

@@ -1,5 +1,6 @@
-import os, requests, psycopg2, select, json, logging, boto3, time, base64
+import os, requests, psycopg2, select, json, logging, time, base64
 from sqs_dns_publisher import publish_domain_change
+from domain_helpers import ensure_hosted_zone_and_store, update_domain_with_tenant
 
 # Configure logging
 logging.basicConfig(
@@ -97,47 +98,6 @@ def fetch_domains():
     return result
 
 
-# Ensure hosted zones exist (same as original listener_app.py)
-def ensure_hosted_zones(domains):
-    """Check for hosted zones and create missing ones"""
-    route53_client = boto3.client("route53", region_name=region_name)
-    created_zones = []
-    
-    for domain in domains:
-        try:
-            # List hosted zones to check if domain zone exists
-            response = route53_client.list_hosted_zones_by_name(DNSName=domain)
-            hosted_zones = response.get("HostedZones", [])
-            
-            # Check if zone exists for this exact domain
-            existing_zone = next((zone for zone in hosted_zones if zone["Name"] == f"{domain}."), None)
-            
-            if existing_zone:
-                logging.info(f"🔍 Hosted zone already exists for {domain}: {existing_zone['Id']}")
-                continue
-            
-            # Create hosted zone if it doesn't exist
-            caller_reference = f"{domain}-{int(time.time())}"
-            response = route53_client.create_hosted_zone(
-                Name=domain,
-                CallerReference=caller_reference,
-                HostedZoneConfig={
-                    "Comment": f"Auto-created by listener for {domain}",
-                    "PrivateZone": False
-                }
-            )
-            
-            zone_id = response["HostedZone"]["Id"]
-            created_zones.append(domain)
-            logging.info(f"✅ Created hosted zone for {domain}: {zone_id}")
-            
-        except Exception as e:
-            logging.error(f"❌ Failed to create hosted zone for {domain}: {e}")
-    
-    if created_zones:
-        logging.info(f"🎯 Created {len(created_zones)} new hosted zones: {created_zones}")
-    
-    return created_zones
 
 
 def setup_listener():
@@ -151,15 +111,37 @@ def setup_listener():
 
 def handle_domain_change(domain_name: str, active: str):
     """
-    Handle domain status change by queuing to SQS for batch processing.
-    All GitHub triggers and infrastructure updates are handled by the DNS Worker.
+    Handle domain status change with proper sequence:
+    1. If domain activated ('Y'), ensure hosted zone exists
+    2. Update domains table with tenant information
+    3. Queue to SQS for batch processing
     
     Args:
         domain_name: Domain that changed
         active: 'Y' for activated, 'N' for deactivated
     """
     try:
-        # Queue the change for batch processing via SQS
+        if active == "Y":
+            logging.info(f"🔄 Processing domain activation for {domain_name}")
+            
+            # Step 1: Ensure hosted zone exists and get info
+            logging.info(f"🔍 Step 1: Ensuring hosted zone exists for {domain_name}")
+            hosted_zone_id, aws_hosted_zone_id = ensure_hosted_zone_and_store(conn, domain_name, region_name)
+            
+            if hosted_zone_id and aws_hosted_zone_id:
+                # Step 2: Update domains table with tenant information
+                logging.info(f"🔄 Step 2: Updating domains table with tenant info for {domain_name}")
+                tenant_id = update_domain_with_tenant(conn, domain_name, hosted_zone_id, aws_hosted_zone_id)
+                
+                if tenant_id:
+                    logging.info(f"✅ Domain {domain_name} successfully linked to tenant {tenant_id}")
+                else:
+                    logging.warning(f"⚠️ Domain {domain_name} activated but no tenant found in purchased_domains")
+            else:
+                logging.error(f"❌ Could not ensure hosted zone for {domain_name}")
+        
+        # Step 4: Queue the change for batch processing via SQS
+        logging.info(f"🔄 Step 3: Queuing {domain_name} for batch processing")
         sqs_success = publish_domain_change(domain_name, active)
         
         if sqs_success:
@@ -170,7 +152,7 @@ def handle_domain_change(domain_name: str, active: str):
             logging.error(f"❌ Failed to queue {domain_name} change for batch processing")
             
     except Exception as e:
-        logging.error(f"❌ Error queuing domain change for {domain_name}: {e}")
+        logging.error(f"❌ Error processing domain change for {domain_name}: {e}")
 
 
 # Setup listener

@@ -47,7 +47,7 @@ jobs:
           HEAD_SHA="${{ github.sha }}"
 
           # Check for changes in listener-specific files
-          if git diff --name-only $BASE_SHA $HEAD_SHA | grep -E '^scripts/(listener_app_sqs\.py|sqs_dns_publisher\.py|Dockerfile|requirements\.txt)$' > /dev/null; then
+          if git diff --name-only $BASE_SHA $HEAD_SHA | grep -E '^apps/(listener/|Dockerfile|requirements\.txt)$' > /dev/null; then
             echo "listener=true" >> $GITHUB_OUTPUT
           else
             echo "listener=false" >> $GITHUB_OUTPUT
@@ -75,7 +75,7 @@ jobs:
       - name: Build Listener Docker Image
         run: |
           echo "🔧 Building Listener image with tag: ${{ inputs.image_tag }}"
-          docker build --target listener -t $ECR_REGISTRY/listener:${{ inputs.image_tag }} ./scripts
+          docker build --target listener -t $ECR_REGISTRY/listener:${{ inputs.image_tag }} ./apps
 
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             docker tag $ECR_REGISTRY/listener:${{ inputs.image_tag }} $ECR_REGISTRY/listener:latest
