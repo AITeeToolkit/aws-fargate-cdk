@@ -46,6 +46,8 @@ jobs:
     outputs:
       has_image_changes: ${{ steps.changes.outputs.images }}
       has_infra_changes: ${{ steps.changes.outputs.infra }}
+      listener_changed: ${{ steps.changes.outputs.listener }}
+      dns_worker_changed: ${{ steps.changes.outputs.dns_worker }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -68,34 +70,53 @@ jobs:
             CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
           fi
           
-          echo "📂 Changed files:"
+          echo " Changed files:"
           echo "$CHANGED_FILES"
         
           IMAGE_FLAG=false
           INFRA_FLAG=false
-        
-          # Check for manual force infrastructure deploy
-          if [[ "${{ github.event.inputs.force_infra }}" == "true" ]]; then
-            echo "🔴 Manual force infra deploy requested"
-            INFRA_FLAG=true
-          fi
+          LISTENER_FLAG=false
+          DNS_WORKER_FLAG=false
         
           if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
-            echo "🟡 Domain updates branch: forcing all image & infra flags to true"
+            echo " Domain updates branch: forcing all flags to true"
             IMAGE_FLAG=true
             INFRA_FLAG=true
+            LISTENER_FLAG=true
+            DNS_WORKER_FLAG=true
             echo "images=true" >> $GITHUB_OUTPUT
             echo "infra=true" >> $GITHUB_OUTPUT
+            echo "listener=true" >> $GITHUB_OUTPUT
+            echo "dns_worker=true" >> $GITHUB_OUTPUT
           else
-            if echo "$CHANGED_FILES" | grep -E '^apps/(listener/|dns-worker/|Dockerfile|requirements\.txt)' > /dev/null; then
-              echo "✅ Detected changes in image-related files"
+            # Check for listener-specific changes
+            if echo "$CHANGED_FILES" | grep -E '^apps/listener/' > /dev/null; then
+              echo " Detected changes in listener files"
+              LISTENER_FLAG=true
               IMAGE_FLAG=true
-            else
-              echo "🚫 No image-related changes detected"
+            fi
+            
+            # Check for dns-worker-specific changes  
+            if echo "$CHANGED_FILES" | grep -E '^apps/dns-worker/' > /dev/null; then
+              echo " Detected changes in dns-worker files"
+              DNS_WORKER_FLAG=true
+              IMAGE_FLAG=true
+            fi
+            
+            # Check for shared container files (affects both)
+            if echo "$CHANGED_FILES" | grep -E '^apps/(Dockerfile|requirements\.txt)$' > /dev/null; then
+              echo " Detected changes in shared container files - building both services"
+              LISTENER_FLAG=true
+              DNS_WORKER_FLAG=true
+              IMAGE_FLAG=true
+            fi
+            
+            if [[ "$IMAGE_FLAG" == "false" ]]; then
+              echo " No image-related changes detected"
             fi
         
             if echo "$CHANGED_FILES" | grep -E '^(stacks/|cdk_constructs/|aspects/|app\.py|domains\.json|cdk\.json|requirements\.txt|\.github/workflows/)' > /dev/null; then
-              echo "✅ Detected changes in infrastructure-related files"
+              echo " Detected changes in infrastructure-related files"
               INFRA_FLAG=true
             else
               echo "🚫 No infra-related changes detected"
@@ -103,6 +124,8 @@ jobs:
         
             echo "images=$IMAGE_FLAG" >> $GITHUB_OUTPUT
             echo "infra=$INFRA_FLAG" >> $GITHUB_OUTPUT
+            echo "listener=$LISTENER_FLAG" >> $GITHUB_OUTPUT
+            echo "dns_worker=$DNS_WORKER_FLAG" >> $GITHUB_OUTPUT
           fi
         
           # 📝 Write to the GitHub Actions summary UI
@@ -208,28 +231,36 @@ jobs:
             API_TAG=$(git tag -l "api-v*" --sort=-version:refname | head -n1 | sed 's/api-//' || echo "v1.0.0")
             WEB_TAG=$(git tag -l "web-v*" --sort=-version:refname | head -n1 | sed 's/web-//' || echo "v1.0.0")
             
-            # Increment service tags if images are being built
-            if [[ "${{ needs.check-changes.outputs.has_image_changes }}" == "true" ]]; then
-              # Increment patch version for services being built
-              increment_version() {
-                local version=$1
-                local clean_version=${version#v}  # Remove 'v' prefix
-                local major=$(echo $clean_version | cut -d. -f1)
-                local minor=$(echo $clean_version | cut -d. -f2)
-                local patch=$(echo $clean_version | cut -d. -f3)
-                echo "v$major.$minor.$((patch + 1))"
-              }
-              
+            # Increment service tags only for services that changed
+            increment_version() {
+              local version=$1
+              local clean_version=${version#v}  # Remove 'v' prefix
+              local major=$(echo $clean_version | cut -d. -f1)
+              local minor=$(echo $clean_version | cut -d. -f2)
+              local patch=$(echo $clean_version | cut -d. -f3)
+              echo "v$major.$minor.$((patch + 1))"
+            }
+            
+            CREATED_TAGS=""
+            
+            if [[ "${{ needs.check-changes.outputs.listener_changed }}" == "true" ]]; then
               LISTENER_TAG=$(increment_version "$LISTENER_TAG")
-              DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
-              
-              # Create and push new service tags
               git tag "listener-$LISTENER_TAG"
-              git tag "dns-worker-$DNS_WORKER_TAG"
               git push origin "listener-$LISTENER_TAG"
+              CREATED_TAGS="$CREATED_TAGS listener-$LISTENER_TAG"
+              echo "🏷️ Incremented listener tag: $LISTENER_TAG"
+            fi
+            
+            if [[ "${{ needs.check-changes.outputs.dns_worker_changed }}" == "true" ]]; then
+              DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
+              git tag "dns-worker-$DNS_WORKER_TAG"
               git push origin "dns-worker-$DNS_WORKER_TAG"
-              
-              echo "🏷️ Created new service tags: listener-$LISTENER_TAG, dns-worker-$DNS_WORKER_TAG"
+              CREATED_TAGS="$CREATED_TAGS dns-worker-$DNS_WORKER_TAG"
+              echo "🏷️ Incremented dns-worker tag: $DNS_WORKER_TAG"
+            fi
+            
+            if [[ -n "$CREATED_TAGS" ]]; then
+              echo "🏷️ Created new service tags:$CREATED_TAGS"
             fi
             
             echo "listener_tag=$LISTENER_TAG" >> $GITHUB_OUTPUT
@@ -251,7 +282,7 @@ jobs:
   build-listener:
     name: Build & Push Listener Image
     needs: [generate-tag, check-changes]
-    if: needs.check-changes.outputs.has_image_changes == 'true'
+    if: needs.check-changes.outputs.listener_changed == 'true'
     uses: ./.github/workflows/listener-build.yml
     with:
       environment: dev
@@ -261,7 +292,7 @@ jobs:
   build-dns-worker:
     name: Build & Push DNS Worker Image
     needs: [generate-tag, check-changes]
-    if: needs.check-changes.outputs.has_image_changes == 'true'
+    if: needs.check-changes.outputs.dns_worker_changed == 'true'
     uses: ./.github/workflows/dns-worker-build.yml
     with:
       environment: dev
