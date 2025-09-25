@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.58.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.58.0...v1.58.1) (2025-09-25)
+
+
+### ♻️ Code Refactoring
+
+* implement batch domain processing with database integration in DNS worker ([8bc14f9](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/8bc14f95a92fe35665ea9d091c15a1f4126e6721))
+
 ## [1.58.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.57.0...v1.58.0) (2025-09-24)
 
 
