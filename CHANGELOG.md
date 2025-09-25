@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.60.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.60.0...v1.60.1) (2025-09-25)
+
+
+### 🐛 Bug Fixes
+
+* narrow image build trigger to only relevant script files ([ed68f26](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/ed68f26cd89c1408db0eecf4b31b631ddb45d90f))
+
 ## [1.60.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.59.4...v1.60.0) (2025-09-25)
 
 
