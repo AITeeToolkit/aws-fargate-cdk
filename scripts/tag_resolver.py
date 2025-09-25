@@ -7,7 +7,7 @@ import subprocess
 from typing import Optional, List
 
 
-def resolve_tag(context_key: str, env_var: str, app_context, service_name: str = None) -> str:
+def resolve_tag(context_key: str, env_var: str, app_context, service_files: Optional[List[str]] = None, service_name: str = None) -> str:
     """
     Simple tag resolution with clear priorities:
     1. CDK context (from deployment)

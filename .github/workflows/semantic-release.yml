@@ -87,7 +87,7 @@ jobs:
             echo "images=true" >> $GITHUB_OUTPUT
             echo "infra=true" >> $GITHUB_OUTPUT
           else
-            if echo "$CHANGED_FILES" | grep -E '^scripts/' > /dev/null; then
+            if echo "$CHANGED_FILES" | grep -E '^scripts/(listener_app_sqs\.py|sqs_dns_publisher\.py|dns_worker_app\.py|sqs_dns_worker\.py|Dockerfile|requirements\.txt)$' > /dev/null; then
               echo "✅ Detected changes in image-related files"
               IMAGE_FLAG=true
             else
