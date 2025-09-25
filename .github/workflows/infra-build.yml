@@ -174,6 +174,8 @@ jobs:
 
       - name: CDK Deploy
         if: steps.stack-status.outputs.busy_stacks == 'false' || success()
+        env:
+          CDK_DEPLOY: 'true'  # Flag to indicate deployment vs synthesis
         run: |
           echo "🚀 Deploying with image tags:"
           echo "  Listener:   $LISTENER_IMAGE_TAG"
