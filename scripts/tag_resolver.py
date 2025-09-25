@@ -78,47 +78,47 @@ def resolve_tag(context_key: str, env_var: str, app_context, service_files: Opti
             if branch == "main":
                 # On main branch, use service-specific tags
                 if service_name:
-                    # Get latest service-specific tag
-                    service_tag_pattern = f"{service_name}-v*"
-                    tag_result = subprocess.run(['git', 'tag', '-l', service_tag_pattern, '--sort=-version:refname'], 
-                                              capture_output=True, text=True, cwd=os.getcwd())
-                    
-                    if tag_result.returncode == 0 and tag_result.stdout.strip():
-                        # Found existing service tags
-                        latest_service_tag = tag_result.stdout.strip().split('\n')[0]
-                        service_version = latest_service_tag.replace(f"{service_name}-", "")
-                        
-                        if service_files:
-                            # Check if service files changed since last service tag
-                            diff_result = subprocess.run(['git', 'diff', '--name-only', latest_service_tag, 'HEAD', '--'] + service_files,
+                    # Check for existing service-specific tags
+                    service_tags_result = subprocess.run(['git', 'tag', '-l', f'{service_name}-v*', '--sort=-version:refname'], 
                                                        capture_output=True, text=True, cwd=os.getcwd())
+                
+                    if service_tags_result.returncode == 0 and service_tags_result.stdout.strip():
+                        service_tags = [tag for tag in service_tags_result.stdout.strip().split('\n') if tag.strip()]
+                        if service_tags:
+                            latest_service_tag = service_tags[0]
+                            service_version = latest_service_tag.replace(f'{service_name}-', '')
                             
-                            if diff_result.stdout.strip():
-                                # Service files changed - check if we're actually building this service
-                                service_tag_input = os.environ.get(f"{service_name.upper().replace('-', '_')}_IMAGE_TAG")
-                                if service_tag_input and service_tag_input != "skip":
-                                    # Service is being built, increment version
-                                    new_version = _increment_version(service_version)
-                                    new_tag = f"{service_name}-{new_version}"
-                                    print(f"🏷️  Service files changed since {latest_service_tag}, using new version for {context_key}: {new_version}")
-                                    return new_version
+                            if service_files:
+                                # Check if service files changed since last service tag
+                                diff_result = subprocess.run(['git', 'diff', '--name-only', latest_service_tag, 'HEAD', '--'] + service_files,
+                                                           capture_output=True, text=True, cwd=os.getcwd())
+                            
+                                if diff_result.stdout.strip():
+                                    # Service files changed - check if we're actually building this service
+                                    service_tag_input = os.environ.get(f"{service_name.upper().replace('-', '_')}_IMAGE_TAG")
+                                    if service_tag_input and service_tag_input != "skip":
+                                        # Service is being built, increment version
+                                        new_version = _increment_version(service_version)
+                                        new_tag = f"{service_name}-{new_version}"
+                                        print(f"🏷️  Service files changed since {latest_service_tag}, using new version for {context_key}: {new_version}")
+                                        return new_version
+                                    else:
+                                        # Service files changed but build skipped, use existing version
+                                        print(f"🏷️  Service files changed since {latest_service_tag}, but build skipped, using existing for {context_key}: {service_version}")
+                                        return service_version
                                 else:
-                                    # Service files changed but build skipped, use existing version
-                                    print(f"🏷️  Service files changed since {latest_service_tag}, but build skipped, using existing for {context_key}: {service_version}")
+                                    # Service files unchanged, use existing version
+                                    print(f"🏷️  Service unchanged since {latest_service_tag}, using existing for {context_key}: {service_version}")
                                     return service_version
                             else:
-                                # Service files unchanged, use existing version
-                                print(f"🏷️  Service unchanged since {latest_service_tag}, using existing for {context_key}: {service_version}")
+                                # No service files specified, use latest service tag
+                                print(f"🏷️  Using latest service tag for {context_key}: {service_version}")
                                 return service_version
-                        else:
-                            # No service files specified, use latest service tag
-                            print(f"🏷️  Using latest service tag for {context_key}: {service_version}")
-                            return service_version
-                    else:
-                        # No existing service tags, start with v1.0.0
-                        initial_version = "v1.0.0"
-                        print(f"🏷️  First build for {service_name}, using initial version for {context_key}: {initial_version}")
-                        return initial_version
+                
+                    # No existing service tags, start with v1.0.0
+                    initial_version = "v1.0.0"
+                    print(f"🏷️  First build for {service_name}, using initial version for {context_key}: {initial_version}")
+                    return initial_version
                 
                 # Fallback to repository-wide semantic release tag (for services without service_name)
                 tag_result = subprocess.run(['git', 'describe', '--tags', '--abbrev=0'], 
