@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.62.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.62.1...v1.62.2) (2025-09-25)
+
+
+### ♻️ Code Refactoring
+
+* reorganize apps directory structure and update build workflows for dns-worker and listener services ([5e3f4d7](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/5e3f4d72731575b387caf6ef932db2dd46f3b2f1))
+
 ## [1.62.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.62.0...v1.62.1) (2025-09-25)
 
 
