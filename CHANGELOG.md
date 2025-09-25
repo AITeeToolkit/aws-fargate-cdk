@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.60.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.59.0...v1.60.0) (2025-09-25)
+
+
+### 🚀 Features
+
+* use latest tag during CDK synthesis and v1.0.0 for initial deployments ([63ef464](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/63ef464a3a8afc839b8851fc51fd7ce32ee7ea34))
+
 ## [1.59.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.58.1...v1.59.0) (2025-09-25)
 
 
