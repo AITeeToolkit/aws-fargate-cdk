@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.60.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.59.4...v1.60.0) (2025-09-25)
+
+
+### 🚀 Features
+
+* implement simplified tag resolver with clear priority order ([2ab2df8](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/2ab2df888840c0736d8676aa9d0d4482b74a01c9))
+
+
+### ♻️ Code Refactoring
+
+* reorder GitHub workflow jobs and update job dependencies for semantic versioning ([7063bba](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/7063bba13b073bacc292540498ee802191901f7d))
+* simplify tag resolver with cleaner priority-based logic ([2265d7b](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/2265d7b3c3349e7b4902bce120aba5168442cc4b))
+
 ## [1.60.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.60.0...v1.60.1) (2025-09-25)
 
 
