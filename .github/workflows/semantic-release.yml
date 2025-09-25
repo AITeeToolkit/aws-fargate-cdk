@@ -316,8 +316,8 @@ jobs:
     with:
       environment: dev
       image_tag: ${{ github.event.client_payload.api_tag || github.event.client_payload.web_tag || needs.generate-tag.outputs.image_tag }}
-      listener_tag: ${{ needs.build-listener.result == 'success' && needs.generate-tag.outputs.listener_tag || 'skip' }}
-      dns_worker_tag: ${{ needs.build-dns-worker.result == 'success' && needs.generate-tag.outputs.dns_worker_tag || 'skip' }}
+      listener_tag: ${{ needs.generate-tag.outputs.listener_tag }}
+      dns_worker_tag: ${{ needs.generate-tag.outputs.dns_worker_tag }}
       api_tag: ${{ github.event.client_payload.api_tag || needs.generate-tag.outputs.api_tag }}
       web_tag: ${{ github.event.client_payload.web_tag || needs.generate-tag.outputs.web_tag }}
     secrets: inherit
