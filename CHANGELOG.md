@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.62.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.61.1...v1.62.0) (2025-09-25)
+
+
+### 🚀 Features
+
+* add debug logging for git tag resolution process ([074b23c](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/074b23c68ad60a32e3f77562bb39a76dfada8077))
+* add tag_resolver.py to image-related files and update fallback tag logic ([4f83c33](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/4f83c331dfc055edc0f3fc63a6a16f3d1527b9d5))
+
 ## [1.61.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.61.0...v1.61.1) (2025-09-25)
 
 
