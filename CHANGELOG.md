@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.63.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.62.2...v1.63.0) (2025-09-25)
+
+
+### 🚀 Features
+
+* track and build listener/dns-worker images independently based on file changes ([5301113](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/53011134bba5d8bc6c954d676de40aeb8d1255aa))
+
 ## [1.62.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.62.1...v1.62.2) (2025-09-25)
 
 
