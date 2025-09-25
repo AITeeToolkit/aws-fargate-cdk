@@ -9,6 +9,13 @@ All notable changes to this project will be documented in this file. See [Conven
 
 * implement simplified tag resolver with clear priority order ([2ab2df8](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/2ab2df888840c0736d8676aa9d0d4482b74a01c9))
 
+## [1.60.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.59.4...v1.60.0) (2025-09-25)
+
+
+### 🚀 Features
+
+* implement simplified tag resolver with clear priority order ([2ab2df8](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/2ab2df888840c0736d8676aa9d0d4482b74a01c9))
+
 ## [1.59.4](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.59.3...v1.59.4) (2025-09-25)
 
 
