@@ -11,7 +11,7 @@ logging.basicConfig(
 logging.info("🚀 Starting SQS-enabled listener service...")
 
 try:
-    # Get credentials from environment variables (provided by ECS secrets)
+    # Get credentials from environment variables
     logging.info("📡 Connecting to database...")
     conn = psycopg2.connect(
         host=os.environ["PGHOST"],
