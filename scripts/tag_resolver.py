@@ -116,7 +116,7 @@ def resolve_tag(context_key: str, env_var: str, app_context, service_files: Opti
                                     print(f"🏷️  Service unchanged since {latest_service_tag}, using existing for {context_key}: {service_version}")
                                     return service_version
                             else:
-                                # No service files specified, use latest service tag
+                                # No service files specified (e.g., API/Web from external repo)
                                 if service_tag_input == "skip":
                                     print(f"🏷️  Build skipped, using existing service tag for {context_key}: {service_version}")
                                 else:
