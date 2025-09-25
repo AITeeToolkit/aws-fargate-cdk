@@ -98,8 +98,6 @@ def fetch_domains():
     return result
 
 
-
-
 def setup_listener():
     """Setup database listener connection"""
     conn.set_session(autocommit=True)
