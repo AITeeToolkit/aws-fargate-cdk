@@ -2,7 +2,7 @@ import os
 import json
 import aws_cdk as cdk
 from aws_cdk import App, Environment
-from scripts.tag_resolver_simple import resolve_tag
+from scripts.tag_resolver import resolve_tag
 from stacks.network_stack import NetworkStack
 from stacks.shared_stack import SharedStack
 from stacks.route53_stack import Route53Stack
