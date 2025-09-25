@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.61.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.60.0...v1.61.0) (2025-09-25)
+
+
+### 🚀 Features
+
+* implement automated service tag increments and improve CI workflow reliability ([f4df959](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/f4df9595a055bd915ba1db66c862aa846a19f6a5))
+
+
+### 🐛 Bug Fixes
+
+* narrow image build trigger to only relevant script files ([ed68f26](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/ed68f26cd89c1408db0eecf4b31b631ddb45d90f))
+
 ## [1.60.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.60.0...v1.60.1) (2025-09-25)
 
 
