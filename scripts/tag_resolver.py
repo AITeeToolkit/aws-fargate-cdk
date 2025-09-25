@@ -115,17 +115,14 @@ def resolve_tag(context_key: str, env_var: str, app_context, service_files: Opti
                             print(f"🏷️  Using latest service tag for {context_key}: {service_version}")
                             return service_version
                     else:
-                        # No existing service tags - check if this is synthesis vs deployment
+                        # No existing service tags, start with v1.0.0
+                        initial_version = "v1.0.0"
+                        # Only show this message during actual deployment, not synthesis
                         if os.environ.get('CDK_DEPLOY') == 'true':
-                            # During deployment, use v1.0.0 as fallback
-                            initial_version = "v1.0.0"
                             print(f"🏷️  First build for {service_name}, using initial version for {context_key}: {initial_version}")
-                            return initial_version
                         else:
-                            # During synthesis, show placeholder to avoid confusion
-                            placeholder = "latest"
-                            print(f"🔄 Synthesis mode: {context_key} will be resolved during deployment (showing '{placeholder}')")
-                            return placeholder
+                            print(f"🔄 Synthesis: {context_key} will use {initial_version} during deployment")
+                        return initial_version
                 
                 # Fallback to repository-wide semantic release tag (for services without service_name)
                 tag_result = subprocess.run(['git', 'describe', '--tags', '--abbrev=0'], 
