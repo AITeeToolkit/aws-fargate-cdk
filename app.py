@@ -128,6 +128,7 @@ dns_worker_service = DNSWorkerServiceStack(
     environment=env_name,
     ecs_task_security_group=shared_stack.ecs_task_sg,
     service_name="dns-worker-service",
+    db_secret=database_stack.secret,
     sqs_managed_policy=sqs_stack.sqs_managed_policy
 )
 

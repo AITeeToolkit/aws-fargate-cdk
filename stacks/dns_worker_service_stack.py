@@ -22,6 +22,7 @@ class DNSWorkerServiceStack(Stack):
         environment: str,
         ecs_task_security_group: ec2.ISecurityGroup,
         service_name: str,
+        db_secret,
         sqs_managed_policy: iam.IManagedPolicy = None,
         **kwargs
     ) -> None:
@@ -41,6 +42,11 @@ class DNSWorkerServiceStack(Stack):
                     self, "GHTokenParam", f"/storefront-{environment}/github/PAT"
                 )
             ),
+            "PGHOST": ecs.Secret.from_secrets_manager(db_secret, "host"),
+            "PGUSER": ecs.Secret.from_secrets_manager(db_secret, "username"),
+            "PGPASSWORD": ecs.Secret.from_secrets_manager(db_secret, "password"),
+            "PGDATABASE": ecs.Secret.from_secrets_manager(db_secret, "dbname"),
+            "PGPORT": ecs.Secret.from_secrets_manager(db_secret, "port"),
         }
 
         # Create the Fargate service using the construct
