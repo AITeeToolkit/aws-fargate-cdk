@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.59.4](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.59.3...v1.59.4) (2025-09-25)
+
+
+### 🐛 Bug Fixes
+
+* add fallback methods for git tag resolution when --sort is unsupported ([48e2d32](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/48e2d327ba2dcea9afc133b4f54a1f2dec48290e))
+
 ## [1.59.3](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.59.2...v1.59.3) (2025-09-25)
 
 
