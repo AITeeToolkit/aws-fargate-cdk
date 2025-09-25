@@ -31,30 +31,48 @@ def resolve_tag(context_key: str, env_var: str, app_context, service_files: Opti
     # Priority 3: Find latest service tag
     if service_name:
         try:
-            # Get all tags for this service
-            result = subprocess.run(['git', 'tag', '--list'], capture_output=True, text=True)
-            if result.returncode == 0:
-                all_tags = result.stdout.strip().split('\n')
-                service_tags = [tag for tag in all_tags if tag.startswith(f'{service_name}-v')]
+            # Try multiple approaches to find service tags
+            service_tags = []
+            
+            # Method 1: Direct pattern search
+            result = subprocess.run(['git', 'tag', '-l', f'{service_name}-v*'], capture_output=True, text=True)
+            if result.returncode == 0 and result.stdout.strip():
+                service_tags = [tag.strip() for tag in result.stdout.strip().split('\n') if tag.strip()]
+            
+            # Method 2: If no results, try listing all and filtering
+            if not service_tags:
+                result = subprocess.run(['git', 'tag', '--list'], capture_output=True, text=True)
+                if result.returncode == 0 and result.stdout.strip():
+                    all_tags = [tag.strip() for tag in result.stdout.strip().split('\n') if tag.strip()]
+                    service_tags = [tag for tag in all_tags if tag.startswith(f'{service_name}-v')]
+            
+            if service_tags:
+                # Sort by version (reverse to get latest first)
+                latest_tag = sorted(service_tags, reverse=True)[0]
+                version = latest_tag.replace(f'{service_name}-', '')
                 
-                if service_tags:
-                    # Sort by version (simple string sort works for semantic versions)
-                    latest_tag = sorted(service_tags, reverse=True)[0]
-                    version = latest_tag.replace(f'{service_name}-', '')
-                    
-                    # Show appropriate message based on skip status
-                    if env_tag == "skip":
-                        print(f"🏷️  Build skipped, using existing service tag for {context_key}: {version}")
-                    else:
-                        print(f"🏷️  Using latest service tag for {context_key}: {version}")
-                    return version
+                # Show appropriate message based on skip status
+                if env_tag == "skip":
+                    print(f"🏷️  Build skipped, using existing service tag for {context_key}: {version}")
+                else:
+                    print(f"🏷️  Using latest service tag for {context_key}: {version}")
+                return version
+                
         except Exception as e:
-            print(f"⚠️  Error finding service tags: {e}")
+            print(f"⚠️  Error finding service tags for {service_name}: {e}")
     
-    # Priority 4: Fallback
-    fallback = "v1.0.0"
+    # Priority 4: Fallback to latest repository tag
+    try:
+        result = subprocess.run(['git', 'describe', '--tags', '--abbrev=0'], capture_output=True, text=True)
+        if result.returncode == 0 and result.stdout.strip():
+            fallback = result.stdout.strip()
+        else:
+            fallback = "latest"
+    except Exception:
+        fallback = "latest"
+    
     if env_tag == "skip":
-        print(f"🏷️  Build skipped, no existing tags found for {context_key}: {fallback}")
+        print(f"🏷️  Build skipped, no service tags found, using repository tag for {context_key}: {fallback}")
     else:
-        print(f"🏷️  No existing tags, using initial version for {context_key}: {fallback}")
+        print(f"🏷️  No service tags found, using repository tag for {context_key}: {fallback}")
     return fallback
