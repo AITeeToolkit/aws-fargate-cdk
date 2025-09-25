@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.64.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.64.0...v1.64.1) (2025-09-25)
+
+
+### 🐛 Bug Fixes
+
+* remove conditional skipping of listener and dns worker tags in deployment workflow ([53cd7f7](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/53cd7f778dfbfd2f690f1a5ac5990516a0ee2c97))
+
 ## [1.64.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.63.0...v1.64.0) (2025-09-25)
 
 
