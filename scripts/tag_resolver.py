@@ -55,17 +55,20 @@ def resolve_tag(context_key: str, env_var: str, app_context, service_files: Opti
     Returns:
         str: Resolved image tag
     """
-    # Priority 1: CDK context (from pipeline)
+    # Priority 1: CDK context (highest priority)
     context_tag = app_context.node.try_get_context(context_key)
     if context_tag and context_tag != "skip":
         print(f"🏷️  Using context tag for {context_key}: {context_tag}")
         return context_tag
-    
-    # Priority 2: Environment variable (from pipeline)
+
+    # Priority 2: Environment variable
     env_tag = os.environ.get(env_var)
     if env_tag and env_tag != "skip":
-        print(f"🏷️  Using env tag for {env_var}: {env_tag}")
+        print(f"🏷️  Using environment tag for {context_key}: {env_tag}")
         return env_tag
+    
+    # If we have "skip" values, we still need to resolve the actual tag for display
+    # Continue to git-based resolution even when skip is set
     
     # Priority 3: Smart default based on git branch
     try:
@@ -88,14 +91,16 @@ def resolve_tag(context_key: str, env_var: str, app_context, service_files: Opti
                             latest_service_tag = service_tags[0]
                             service_version = latest_service_tag.replace(f'{service_name}-', '')
                             
+                            # Check if this service is being skipped
+                            service_tag_input = os.environ.get(f"{service_name.upper().replace('-', '_')}_IMAGE_TAG")
+                            
                             if service_files:
                                 # Check if service files changed since last service tag
                                 diff_result = subprocess.run(['git', 'diff', '--name-only', latest_service_tag, 'HEAD', '--'] + service_files,
                                                            capture_output=True, text=True, cwd=os.getcwd())
                             
                                 if diff_result.stdout.strip():
-                                    # Service files changed - check if we're actually building this service
-                                    service_tag_input = os.environ.get(f"{service_name.upper().replace('-', '_')}_IMAGE_TAG")
+                                    # Service files changed
                                     if service_tag_input and service_tag_input != "skip":
                                         # Service is being built, increment version
                                         new_version = _increment_version(service_version)
@@ -112,7 +117,10 @@ def resolve_tag(context_key: str, env_var: str, app_context, service_files: Opti
                                     return service_version
                             else:
                                 # No service files specified, use latest service tag
-                                print(f"🏷️  Using latest service tag for {context_key}: {service_version}")
+                                if service_tag_input == "skip":
+                                    print(f"🏷️  Build skipped, using existing service tag for {context_key}: {service_version}")
+                                else:
+                                    print(f"🏷️  Using latest service tag for {context_key}: {service_version}")
                                 return service_version
                 
                     # No existing service tags, start with v1.0.0
