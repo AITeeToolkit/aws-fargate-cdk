@@ -68,7 +68,8 @@ class APIServiceStack(Stack):
             "SQS_PRIORITY_QUEUE_URL": priority_queue_url,
             "SQS_EMAIL_QUEUE_URL": email_queue_url,
             "SQS_IMAGE_PROCESSING_QUEUE_URL": image_processing_queue_url,
-            "SQS_ORDER_PROCESSING_QUEUE_URL": order_processing_queue_url
+            "SQS_ORDER_PROCESSING_QUEUE_URL": order_processing_queue_url,
+            "OPENSEARCH_ENDPOINT": opensearch_endpoint
         }
 
         # Secrets configuration (from CloudFormation template)

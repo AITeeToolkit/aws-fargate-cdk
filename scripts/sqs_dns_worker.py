@@ -13,6 +13,7 @@ import time
 import boto3
 import requests
 import base64
+import psycopg2
 from botocore.exceptions import ClientError, NoCredentialsError
 from typing import Dict, Any, List, Set
 from collections import defaultdict
@@ -71,6 +72,7 @@ class SQSDNSWorker:
         
         self.sqs_client = None
         self.route53_client = None
+        self.db_connection = None
         self.running = False
         
         # Batch processing state
@@ -89,7 +91,7 @@ class SQSDNSWorker:
     
     def connect(self) -> bool:
         """
-        Connect to AWS services.
+        Connect to AWS services and database.
         
         Returns:
             bool: True if connection successful, False otherwise
@@ -108,6 +110,21 @@ class SQSDNSWorker:
             self.route53_client = boto3.client('route53', **session_kwargs)
             
             logger.info(f"Connected to AWS services in region {self.region_name}")
+            
+            # Connect to database
+            try:
+                self.db_connection = psycopg2.connect(
+                    host=os.environ["PGHOST"],
+                    user=os.environ["PGUSER"],
+                    password=os.environ["PGPASSWORD"],
+                    dbname=os.environ["PGDATABASE"],
+                    port=os.environ.get("PGPORT", "5432")
+                )
+                logger.info("✅ Database connection established")
+            except Exception as e:
+                logger.error(f"❌ Failed to connect to database: {e}")
+                return False
+            
             return True
             
         except NoCredentialsError:
@@ -223,15 +240,20 @@ class SQSDNSWorker:
     def fetch_active_domains_from_db(self) -> List[str]:
         """
         Fetch active domains from database.
-        This would need to be implemented based on your database connection.
-        For now, we'll use the pending domains as a proxy.
         
         Returns:
             list: List of active domain names
         """
-        # TODO: Implement actual database connection
-        # For now, return the pending domains
-        return list(self.pending_domains)
+        try:
+            cur = self.db_connection.cursor()
+            cur.execute("SELECT DISTINCT full_url FROM purchased_domains WHERE active_domain = 'Y';")
+            result = [row[0] for row in cur.fetchall()]
+            cur.close()
+            logger.info(f"🌐 Fetched {len(result)} active domains from database")
+            return result
+        except Exception as e:
+            logger.error(f"❌ Failed to fetch active domains from database: {e}")
+            return []
     
     def ensure_hosted_zones(self, domains: List[str]) -> List[str]:
         """
@@ -341,6 +363,7 @@ class SQSDNSWorker:
     def process_batch(self) -> bool:
         """
         Process the current batch of pending domains.
+        Fetches ALL active domains from database and processes them together.
         
         Returns:
             bool: True if batch processed successfully
@@ -348,30 +371,41 @@ class SQSDNSWorker:
         if not self.pending_domains:
             return True
         
-        domains = list(self.pending_domains)
-        logger.info(f"🔄 Processing batch of {len(domains)} domains: {domains}")
+        pending_count = len(self.pending_domains)
+        logger.info(f"🔄 Processing batch triggered by {pending_count} domain changes")
         
         try:
-            # Step 1: Ensure hosted zones exist
-            created_zones = self.ensure_hosted_zones(domains)
+            # Step 1: Fetch ALL active domains from database (not just pending ones)
+            all_active_domains = self.fetch_active_domains_from_db()
+            
+            if not all_active_domains:
+                logger.warning("⚠️ No active domains found in database")
+                self.pending_domains.clear()
+                self.last_batch_time = time.time()
+                return True
+            
+            logger.info(f"🌐 Processing {len(all_active_domains)} total active domains")
+            
+            # Step 2: Ensure hosted zones exist for ALL active domains
+            created_zones = self.ensure_hosted_zones(all_active_domains)
             if created_zones:
                 logger.info(f"⏳ Waiting 15s for {len(created_zones)} hosted zone(s) to propagate...")
                 time.sleep(15)
             
-            # Step 2: Trigger GitHub workflow
-            success = self.trigger_github_workflow(domains)
+            # Step 3: Trigger GitHub workflow with ALL active domains
+            success = self.trigger_github_workflow(all_active_domains)
             
             if success:
                 self.stats['batches_processed'] += 1
-                self.stats['domains_processed'] += len(domains)
-                logger.info(f"✅ Successfully processed batch of {len(domains)} domains")
+                self.stats['domains_processed'] += len(all_active_domains)
+                logger.info(f"✅ Successfully processed batch: {len(all_active_domains)} total domains")
                 
-                # Clear pending domains
+                # Clear pending domains (batch complete)
                 self.pending_domains.clear()
                 self.last_batch_time = time.time()
                 return True
             else:
-                logger.error(f"❌ Failed to process batch of {len(domains)} domains")
+                logger.error(f"❌ Failed to process batch of {len(all_active_domains)} domains")
                 return False
                 
         except Exception as e:
@@ -440,9 +474,17 @@ class SQSDNSWorker:
             self.print_stats()
     
     def stop(self):
-        """Stop the worker."""
+        """Stop the worker and cleanup connections."""
         self.running = False
         logger.info("Stop signal sent to SQS DNS worker")
+        
+        # Close database connection
+        if self.db_connection:
+            try:
+                self.db_connection.close()
+                logger.info("Database connection closed")
+            except Exception as e:
+                logger.error(f"Error closing database connection: {e}")
     
     def print_stats(self):
         """Print worker statistics."""
