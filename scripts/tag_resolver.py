@@ -13,7 +13,7 @@ def resolve_tag(context_key: str, env_var: str, app_context, service_files: Opti
     1. CDK context (from deployment)
     2. Environment variable (from deployment) 
     3. Latest service tag (from git)
-    4. Fallback to v1.0.0
+    4. Fallback to latest repository tag
     """
     
     # Priority 1: CDK context (deployment)
