@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.59.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.59.0...v1.59.1) (2025-09-25)
+
+
+### ♻️ Code Refactoring
+
+* simplify service tag lookup logic with cleaner tag filtering ([e519e18](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/e519e1889d92c9e9e65b3486261c5250050b8135))
+
 ## [1.59.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.58.1...v1.59.0) (2025-09-25)
 
 
