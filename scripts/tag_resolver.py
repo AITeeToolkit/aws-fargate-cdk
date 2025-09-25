@@ -31,33 +31,20 @@ def resolve_tag(context_key: str, env_var: str, app_context, service_files: Opti
     # Priority 3: Find latest service tag
     if service_name:
         try:
-            # Get current working directory for debugging
-            cwd = os.getcwd()
-            print(f"🔍 Debug: Working directory: {cwd}")
-            print(f"🔍 Debug: Looking for service: {service_name}")
-            
             # Try multiple approaches to find service tags
             service_tags = []
             
-            # Method 1: Direct pattern search with explicit working directory
-            result = subprocess.run(['git', 'tag', '-l', f'{service_name}-v*'], 
-                                  capture_output=True, text=True, cwd=cwd)
-            print(f"🔍 Debug: git tag -l {service_name}-v* returned: {result.returncode}, '{result.stdout.strip()}'")
-            
+            # Method 1: Direct pattern search
+            result = subprocess.run(['git', 'tag', '-l', f'{service_name}-v*'], capture_output=True, text=True)
             if result.returncode == 0 and result.stdout.strip():
                 service_tags = [tag.strip() for tag in result.stdout.strip().split('\n') if tag.strip()]
             
             # Method 2: If no results, try listing all and filtering
             if not service_tags:
-                print(f"🔍 Debug: Method 1 failed, trying method 2")
-                result = subprocess.run(['git', 'tag', '--list'], 
-                                      capture_output=True, text=True, cwd=cwd)
-                print(f"🔍 Debug: git tag --list returned: {result.returncode}, found {len(result.stdout.strip().split()) if result.stdout.strip() else 0} tags")
-                
+                result = subprocess.run(['git', 'tag', '--list'], capture_output=True, text=True)
                 if result.returncode == 0 and result.stdout.strip():
                     all_tags = [tag.strip() for tag in result.stdout.strip().split('\n') if tag.strip()]
                     service_tags = [tag for tag in all_tags if tag.startswith(f'{service_name}-v')]
-                    print(f"🔍 Debug: Filtered to service tags: {service_tags}")
             
             if service_tags:
                 # Sort by version (reverse to get latest first)
@@ -70,13 +57,9 @@ def resolve_tag(context_key: str, env_var: str, app_context, service_files: Opti
                 else:
                     print(f"🏷️  Using latest service tag for {context_key}: {version}")
                 return version
-            else:
-                print(f"🔍 Debug: No service tags found for {service_name}")
                 
         except Exception as e:
             print(f"⚠️  Error finding service tags for {service_name}: {e}")
-            import traceback
-            traceback.print_exc()
     
     # Priority 4: Fallback to latest repository tag
     try:
