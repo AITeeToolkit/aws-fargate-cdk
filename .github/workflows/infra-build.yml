@@ -1,9 +1,5 @@
 name: Infrastructure Build & Deploy
 
-concurrency:
-  group: infrastructure-deployment
-  cancel-in-progress: false  # Don't cancel, queue instead
-
 on:
   workflow_call:
     inputs:
