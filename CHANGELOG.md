@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.59.3](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.59.2...v1.59.3) (2025-09-25)
+
+
+### ♻️ Code Refactoring
+
+* remove tag_resolver.py from CI build triggers and update comments ([b467990](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/b467990aac5cd3385399e2a8000a9efdc09623f9))
+
 ## [1.59.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.59.1...v1.59.2) (2025-09-25)
 
 
