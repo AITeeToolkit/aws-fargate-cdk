@@ -259,6 +259,25 @@ jobs:
               echo "🏷️ Incremented dns-worker tag: $DNS_WORKER_TAG"
             fi
             
+            # Check for API/WEB changes via repository dispatch
+            if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+              if [[ "${{ github.event.client_payload.api_tag }}" != "" ]]; then
+                API_TAG=$(increment_version "$API_TAG")
+                git tag "api-$API_TAG"
+                git push origin "api-$API_TAG"
+                CREATED_TAGS="$CREATED_TAGS api-$API_TAG"
+                echo "🏷️ Incremented api tag: $API_TAG"
+              fi
+              
+              if [[ "${{ github.event.client_payload.web_tag }}" != "" ]]; then
+                WEB_TAG=$(increment_version "$WEB_TAG")
+                git tag "web-$WEB_TAG"
+                git push origin "web-$WEB_TAG"
+                CREATED_TAGS="$CREATED_TAGS web-$WEB_TAG"
+                echo "🏷️ Incremented web tag: $WEB_TAG"
+              fi
+            fi
+            
             if [[ -n "$CREATED_TAGS" ]]; then
               echo "🏷️ Created new service tags:$CREATED_TAGS"
             fi
