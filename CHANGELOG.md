@@ -7,6 +7,14 @@ All notable changes to this project will be documented in this file. See [Conven
 
 ### 🐛 Bug Fixes
 
+* remove environment suffix from stack names and improve tag handling in workflows ([a546c30](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/a546c3001e86216267a32f92eaeccc7e3a728db6))
+* use existing API/WEB tags from repository dispatch payload instead of incrementing ([b7d0e4f](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/b7d0e4f6c2341a57140a1efe4a3e4a0babd00bd1))
+
+## [1.66.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.66.0...v1.66.1) (2025-09-26)
+
+
+### 🐛 Bug Fixes
+
 * use existing API/WEB tags from repository dispatch payload instead of incrementing ([b7d0e4f](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/b7d0e4f6c2341a57140a1efe4a3e4a0babd00bd1))
 
 ## [1.66.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.65.0...v1.66.0) (2025-09-26)
