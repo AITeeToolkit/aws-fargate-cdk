@@ -32,24 +32,10 @@ except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
     domains = []  # or some default value
 
 
-listener_tag = resolve_tag(
-    "listenerTag", "LISTENER_IMAGE_TAG", app,
-    ["apps/listener/listener_app_sqs.py", "apps/listener/sqs_dns_publisher.py", "apps/listener/domain_helpers.py"],
-    "listener"
-)
-dns_worker_tag = resolve_tag(
-    "dnsWorkerTag", "DNS_WORKER_IMAGE_TAG", app,
-    ["apps/dns-worker/dns_worker_app.py", "apps/dns-worker/sqs_dns_worker.py"],
-    "dns-worker"
-)
-api_tag = resolve_tag(
-    "apiTag", "API_IMAGE_TAG", app,
-    None, "api", external_repo="https://github.com/AITeeToolkit/storefront-cdk.git"
-)
-web_tag = resolve_tag(
-    "webTag", "WEB_IMAGE_TAG", app,
-    None, "web", external_repo="https://github.com/AITeeToolkit/storefront-cdk.git"
-)
+listener_tag = resolve_tag("listenerTag", "LISTENER_IMAGE_TAG", app, "listener")
+dns_worker_tag = resolve_tag("dnsWorkerTag", "DNS_WORKER_IMAGE_TAG", app, "dns-worker")
+api_tag = resolve_tag("apiTag", "API_IMAGE_TAG", app, "api")
+web_tag = resolve_tag("webTag", "WEB_IMAGE_TAG", app, "web")
 
 # IAM Stack for CI/CD permissions - deploy this first to bootstrap permissions
 # iam_stack = IAMStack(app, "StorefrontIAMStack", env=env)
