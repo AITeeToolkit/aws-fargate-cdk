@@ -55,7 +55,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-cdk-${{ hashFiles('package.json') }}  # Assuming cdk.json or similar; adjust if no package.json
+          key: ${{ runner.os }}-cdk-${{ hashFiles('package.json') }}
 
       - name: Install CDK
         run: npm install -g aws-cdk
@@ -142,7 +142,7 @@ jobs:
           echo "⏳ Infrastructure is busy, waiting for completion..."
           echo "Busy stacks: ${{ steps.stack-status.outputs.busy_list }}"
           
-          TIMEOUT=1200
+          TIMEOUT=600  # Reduced from 1200 to 600 seconds (10 minutes)
           ELAPSED=0
           INTERVAL=60
           
@@ -184,6 +184,10 @@ jobs:
           echo "  DNS Worker: $DNS_WORKER_IMAGE_TAG"
           echo "  API:        $API_IMAGE_TAG"
           echo "  Web:      $WEB_IMAGE_TAG"
+          
+          # Note: Ensure CDK stacks reference 'domains.json' for DNS configuration (e.g., Route53 records).
+          # If domains.json changes (e.g., via listener_app.py on domain-updates branch),
+          # verify that DNSWorkerServiceStack or other stacks use it to update DNS settings.
           
           CONTEXT="--context env=$ENVIRONMENT"
           CONTEXT="$CONTEXT --context listenerTag=$LISTENER_IMAGE_TAG"

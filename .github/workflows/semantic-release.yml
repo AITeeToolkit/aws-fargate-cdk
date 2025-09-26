@@ -33,7 +33,7 @@ on:
         required: false
         type: string
   repository_dispatch:
-    types: [deploy-infrastructure]  # Corrected to match dispatch type; removed unused 'api-web-updated'
+    types: [deploy-infrastructure]
 
 env:
   AWS_REGION: us-east-1
@@ -48,6 +48,7 @@ jobs:
       has_infra_changes: ${{ steps.changes.outputs.has_infra_changes }}
       listener_changed: ${{ steps.changes.outputs.listener_changed }}
       dns_worker_changed: ${{ steps.changes.outputs.dns_worker_changed }}
+      only_domains_json_changed: ${{ steps.changes.outputs.only_domains_json_changed }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -78,6 +79,18 @@ jobs:
               - added|modified: 'apps/dns-worker/**'
               - added|modified: 'apps/Dockerfile'
               - added|modified: 'apps/requirements.txt'
+            only_domains_json_changed:
+              - added|modified: 'domains.json'
+
+      - name: Check if only domains.json changed
+        if: steps.changes.outputs.only_domains_json_changed == 'true'
+        run: |
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          if [[ "$CHANGED_FILES" == "domains.json" ]]; then
+            echo "only_domains_json_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "only_domains_json_changed=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Generate Summary
         run: |
@@ -97,6 +110,7 @@ jobs:
             echo ""
             echo "• Image Changes: \`${{ steps.changes.outputs.has_image_changes }}\`"
             echo "• Infra Changes: \`${{ steps.changes.outputs.has_infra_changes }}\`"
+            echo "• Only domains.json Changed: \`${{ steps.changes.outputs.only_domains_json_changed }}\`"
             if [[ "${{ github.event.inputs.force_infra }}" == "true" ]]; then
               echo "• 🔴 **Force Infra Deploy: ENABLED**"
             fi
@@ -125,7 +139,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}  # Assume package.json exists; adjust if needed
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
 
       - run: npm ci
 
@@ -195,22 +209,41 @@ jobs:
             echo "🏷️ Using payload - API: $API_TAG, WEB: $WEB_TAG"
             echo "should_deploy=true" >> $GITHUB_OUTPUT
           else
-            if [[ "${{ needs.check-changes.outputs.listener_changed }}" == "true" ]]; then
-              LISTENER_TAG=$(increment_version "$LISTENER_TAG")
-              git tag "listener-$LISTENER_TAG" && git push origin "listener-$LISTENER_TAG"
-              echo "🏷️ Incremented listener: $LISTENER_TAG"
-            fi
-            
-            if [[ "${{ needs.check-changes.outputs.dns_worker_changed }}" == "true" ]]; then
-              DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
-              git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"
-              echo "🏷️ Incremented dns-worker: $DNS_WORKER_TAG"
-            fi
-            
-            if [[ "${{ needs.check-changes.outputs.has_infra_changes }}" == "true" || "${{ needs.check-changes.outputs.has_image_changes }}" == "true" ]]; then
+            if [[ "${{ github.ref }}" == "refs/heads/domain-updates" ]]; then
+              if [[ "${{ needs.check-changes.outputs.only_domains_json_changed }}" == "true" ]]; then
+                echo "🏷️ Only domains.json changed on domain-updates: skipping listener build, incrementing dns-worker"
+                DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
+                git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"
+                echo "dns_worker_changed=true" >> $GITHUB_ENV
+                echo "listener_changed=false" >> $GITHUB_ENV
+              else
+                echo "🏷️ domain-updates branch: incrementing listener and dns-worker"
+                LISTENER_TAG=$(increment_version "$LISTENER_TAG")
+                DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
+                git tag "listener-$LISTENER_TAG" && git push origin "listener-$LISTENER_TAG"
+                git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"
+                echo "dns_worker_changed=true" >> $GITHUB_ENV
+                echo "listener_changed=true" >> $GITHUB_ENV
+              fi
               echo "should_deploy=true" >> $GITHUB_OUTPUT
             else
-              echo "should_deploy=false" >> $GITHUB_OUTPUT
+              if [[ "${{ needs.check-changes.outputs.listener_changed }}" == "true" ]]; then
+                LISTENER_TAG=$(increment_version "$LISTENER_TAG")
+                git tag "listener-$LISTENER_TAG" && git push origin "listener-$LISTENER_TAG"
+                echo "🏷️ Incremented listener: $LISTENER_TAG"
+              fi
+              
+              if [[ "${{ needs.check-changes.outputs.dns_worker_changed }}" == "true" ]]; then
+                DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
+                git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"
+                echo "🏷️ Incremented dns-worker: $DNS_WORKER_TAG"
+              fi
+              
+              if [[ "${{ needs.check-changes.outputs.has_infra_changes }}" == "true" || "${{ needs.check-changes.outputs.has_image_changes }}" == "true" ]]; then
+                echo "should_deploy=true" >> $GITHUB_OUTPUT
+              else
+                echo "should_deploy=false" >> $GITHUB_OUTPUT
+              fi
             fi
           fi
           
@@ -224,7 +257,7 @@ jobs:
   build-listener:
     name: Build & Push Listener Image
     needs: [generate-tag, check-changes, semantic-release]
-    if: always() && needs.check-changes.outputs.listener_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
+    if: always() && env.listener_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
     uses: ./.github/workflows/listener-build.yml
     with:
       environment: dev
@@ -234,7 +267,7 @@ jobs:
   build-dns-worker:
     name: Build & Push DNS Worker Image
     needs: [generate-tag, check-changes, semantic-release]
-    if: always() && needs.check-changes.outputs.dns_worker_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
+    if: always() && env.dns_worker_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
     uses: ./.github/workflows/dns-worker-build.yml
     with:
       environment: dev
@@ -329,3 +362,11 @@ jobs:
           echo "- [This Workflow Run](https://github.com/AITeeToolkit/aws-fargate-cdk/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
           echo "- [All Infrastructure Deployments](https://github.com/AITeeToolkit/aws-fargate-cdk/actions)" >> $GITHUB_STEP_SUMMARY
           echo "- [Infrastructure & Listener Changelog](https://github.com/AITeeToolkit/aws-fargate-cdk/blob/main/CHANGELOG.md)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Clean up domain-updates branch
+        if: github.ref == 'refs/heads/domain-updates' && needs.deploy-infrastructure.result == 'success'
+        run: |
+          echo "🧹 Deleting domain-updates branch after successful deployment"
+          git push origin --delete domain-updates
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
