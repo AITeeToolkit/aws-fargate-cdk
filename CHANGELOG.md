@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.74.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.74.0...v1.74.1) (2025-09-26)
+
+
+### 🐛 Bug Fixes
+
+* simplify comment about installing dependencies in Dockerfile ([8ac887f](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/8ac887ff08433553093d44b0ccebe48aa1fd9d23))
+
 ## [1.74.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.73.0...v1.74.0) (2025-09-26)
 
 
