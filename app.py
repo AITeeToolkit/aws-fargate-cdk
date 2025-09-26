@@ -43,10 +43,10 @@ web_tag = resolve_tag("webTag", "WEB_IMAGE_TAG", app, None, "web")
 # iam_stack = IAMStack(app, "StorefrontIAMStack", env=env)
 
 # Network and ECS Cluster
-network_stack = NetworkStack(app, f"NetworkStack-{env_name}", env=env)
+network_stack = NetworkStack(app, "NetworkStack", env=env)
 # network_stack.add_dependency(iam_stack)
 
-shared_stack = SharedStack(app, f"SharedStack-{env_name}", env=env, vpc=network_stack.vpc)
+shared_stack = SharedStack(app, "SharedStack", env=env, vpc=network_stack.vpc)
 
 multi_alb_stack = MultiAlbStack(
     app, f"MultiAlbStack-{env_name}",
