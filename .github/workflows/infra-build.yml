@@ -71,8 +71,8 @@ jobs:
           # List of critical stacks to check
           ENV_NAME="${{ inputs.environment || 'dev' }}"
           STACKS=(
-            "NetworkStack-$ENV_NAME"
-            "SharedStack-$ENV_NAME"
+            "NetworkStack"
+            "SharedStack"
             "MultiAlbStack-$ENV_NAME"
             "APIServiceStack-$ENV_NAME"
             "WebServiceStack-$ENV_NAME"
@@ -128,6 +128,7 @@ jobs:
             echo "WEB_IMAGE_TAG=${{ github.event.client_payload.web_tag || 'skip' }}" >> $GITHUB_ENV
             echo "ENVIRONMENT=${{ github.event.client_payload.environment || 'dev' }}" >> $GITHUB_ENV
           else
+            # For workflow_call, use inputs (which may contain repository dispatch payload)
             echo "LISTENER_IMAGE_TAG=${{ inputs.listener_tag || 'skip' }}" >> $GITHUB_ENV
             echo "DNS_WORKER_IMAGE_TAG=${{ inputs.dns_worker_tag || 'skip' }}" >> $GITHUB_ENV
             echo "API_IMAGE_TAG=${{ inputs.api_tag || 'skip' }}" >> $GITHUB_ENV
@@ -153,7 +154,7 @@ jobs:
             
             # Re-check stack status
             ALL_READY=true
-            STACKS=("NetworkStack-$ENVIRONMENT" "SharedStack-$ENVIRONMENT" "MultiAlbStack-$ENVIRONMENT" "APIServiceStack-$ENVIRONMENT" "WebServiceStack-$ENVIRONMENT" "ListenerServiceStack-$ENVIRONMENT" "DNSWorkerServiceStack-$ENVIRONMENT")
+            STACKS=("NetworkStack" "SharedStack" "MultiAlbStack-$ENVIRONMENT" "APIServiceStack-$ENVIRONMENT" "WebServiceStack-$ENVIRONMENT" "ListenerServiceStack-$ENVIRONMENT" "DNSWorkerServiceStack-$ENVIRONMENT")
             
             for stack in "${STACKS[@]}"; do
               STATUS=$(aws cloudformation describe-stacks --stack-name "$stack" --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")

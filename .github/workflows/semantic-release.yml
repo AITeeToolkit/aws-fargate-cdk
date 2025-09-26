@@ -282,10 +282,17 @@ jobs:
               echo "🏷️ Created new service tags:$CREATED_TAGS"
             fi
             
+            echo "🔍 Final tag values before output:"
+            echo "  LISTENER_TAG=$LISTENER_TAG"
+            echo "  DNS_WORKER_TAG=$DNS_WORKER_TAG"
+            echo "  API_TAG=$API_TAG"
+            echo "  WEB_TAG=$WEB_TAG"
+            
             echo "listener_tag=$LISTENER_TAG" >> $GITHUB_OUTPUT
             echo "dns_worker_tag=$DNS_WORKER_TAG" >> $GITHUB_OUTPUT
             echo "api_tag=$API_TAG" >> $GITHUB_OUTPUT
             echo "web_tag=$WEB_TAG" >> $GITHUB_OUTPUT
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
           else
             CLEAN_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]')
             SHORT_SHA=${GITHUB_SHA:0:7}
@@ -334,11 +341,11 @@ jobs:
     uses: ./.github/workflows/infra-build.yml
     with:
       environment: dev
-      image_tag: ${{ github.event.client_payload.api_tag || github.event.client_payload.web_tag || needs.generate-tag.outputs.image_tag }}
+      image_tag: ${{ needs.generate-tag.outputs.image_tag }}
       listener_tag: ${{ needs.generate-tag.outputs.listener_tag }}
       dns_worker_tag: ${{ needs.generate-tag.outputs.dns_worker_tag }}
-      api_tag: ${{ github.event.client_payload.api_tag || needs.generate-tag.outputs.api_tag }}
-      web_tag: ${{ github.event.client_payload.web_tag || needs.generate-tag.outputs.web_tag }}
+      api_tag: ${{ needs.generate-tag.outputs.api_tag }}
+      web_tag: ${{ needs.generate-tag.outputs.web_tag }}
     secrets: inherit
 
   dev-summary:
