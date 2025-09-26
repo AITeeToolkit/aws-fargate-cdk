@@ -227,6 +227,10 @@ jobs:
           }
           
           # REPOSITORY DISPATCH: Use payload tags directly
+          echo "🔍 Event name: ${{ github.event_name }}"
+          echo "🔍 Payload API tag: ${{ github.event.client_payload.api_tag }}"
+          echo "🔍 Payload WEB tag: ${{ github.event.client_payload.web_tag }}"
+          
           if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
             echo "🔍 Repository dispatch detected"
             API_TAG="${{ github.event.client_payload.api_tag }}"
