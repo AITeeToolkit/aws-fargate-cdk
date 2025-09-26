@@ -32,23 +32,31 @@ def resolve_tag(context_key: str, env_var: str, app_context,
         try:
             service_tags = []
             if external_repo:
-                # fetch remote tags
+                # 🔗 Fetch remote tags (API/WEB live in external repo)
                 result = subprocess.run(
                     ["git", "ls-remote", "--tags", external_repo],
                     capture_output=True, text=True
                 )
                 if result.returncode == 0 and result.stdout.strip():
                     tags = [line.split("/")[-1] for line in result.stdout.splitlines()]
-                    service_tags = [tag for tag in tags if tag.startswith(f"{service_name}-v")]
+                    if service_name in ["api", "web"]:
+                        # API/WEB use global semantic-release tags (no prefixes)
+                        service_tags = [tag for tag in tags if tag.startswith("v")]
+                    else:
+                        # Future-proof if you add more prefixed services to external repo
+                        service_tags = [tag for tag in tags if tag.startswith(f"{service_name}-v")]
             else:
-                # local tags
+                # Local repo (listener / dns-worker)
                 result = subprocess.run(["git", "tag", "-l", f"{service_name}-v*"], capture_output=True, text=True)
                 if result.returncode == 0 and result.stdout.strip():
                     service_tags = [tag.strip() for tag in result.stdout.splitlines()]
 
             if service_tags:
                 latest_tag = sorted(service_tags, reverse=True)[0]
-                version = latest_tag.replace(f"{service_name}-", "")
+                if service_name in ["api", "web"]:
+                    version = latest_tag  # keep "vX.Y.Z"
+                else:
+                    version = latest_tag.replace(f"{service_name}-", "")
                 print(f"🏷️  Using latest service tag for {context_key}: {version}")
                 return version
         except Exception as e:
