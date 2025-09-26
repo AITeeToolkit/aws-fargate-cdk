@@ -271,8 +271,8 @@ jobs:
 
   build-listener:
     name: Build & Push Listener Image
-    needs: [generate-tag, check-changes]
-    if: needs.check-changes.outputs.listener_changed == 'true'
+    needs: [generate-tag, check-changes, semantic-release]
+    if: always() && needs.check-changes.outputs.listener_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
     uses: ./.github/workflows/listener-build.yml
     with:
       environment: dev
@@ -281,8 +281,8 @@ jobs:
 
   build-dns-worker:
     name: Build & Push DNS Worker Image
-    needs: [generate-tag, check-changes]
-    if: needs.check-changes.outputs.dns_worker_changed == 'true'
+    needs: [generate-tag, check-changes, semantic-release]
+    if: always() && needs.check-changes.outputs.dns_worker_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
     uses: ./.github/workflows/dns-worker-build.yml
     with:
       environment: dev
@@ -291,7 +291,7 @@ jobs:
 
   deploy-infrastructure:
     name: Deploy Infrastructure
-    needs: [generate-tag, check-changes, build-listener, build-dns-worker]
+    needs: [generate-tag, check-changes, build-listener, build-dns-worker, semantic-release]
     if: |
       always() && (
         needs.check-changes.outputs.has_infra_changes == 'true' ||
@@ -301,6 +301,8 @@ jobs:
         (needs.build-listener.result == 'success' || needs.build-listener.result == 'skipped') &&
         (needs.build-dns-worker.result == 'success' || needs.build-dns-worker.result == 'skipped') ||
         needs.check-changes.outputs.has_image_changes == 'false'
+      ) && (
+        needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped'
       )
     uses: ./.github/workflows/infra-build.yml
     with:
