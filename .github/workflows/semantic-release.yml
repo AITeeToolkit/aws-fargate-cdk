@@ -39,6 +39,7 @@ env:
   AWS_REGION: us-east-1
   GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
+
 jobs:
   check-changes:
     name: Check What Changed
@@ -48,7 +49,7 @@ jobs:
       has_infra_changes: ${{ steps.changes.outputs.has_infra_changes }}
       listener_changed: ${{ steps.changes.outputs.listener_changed }}
       dns_worker_changed: ${{ steps.changes.outputs.dns_worker_changed }}
-      only_domains_json_changed: ${{ steps.changes.outputs.only_domains_json_changed }}
+      only_domains_json_changed: ${{ steps.check-only-domains.outputs.only_domains_json_changed }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -83,11 +84,24 @@ jobs:
               - added|modified: 'domains.json'
 
       - name: Check if only domains.json changed
-        if: steps.changes.outputs.only_domains_json_changed == 'true'
+        id: check-only-domains
         run: |
-          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
-          if [[ "$CHANGED_FILES" == "domains.json" ]]; then
-            echo "only_domains_json_changed=true" >> $GITHUB_OUTPUT
+          # Use paths-filter output to determine if only domains.json was changed
+          if [[ "${{ steps.changes.outputs.only_domains_json_changed }}" == "true" && \
+                "${{ steps.changes.outputs.has_image_changes }}" == "false" && \
+                "${{ steps.changes.outputs.listener_changed }}" == "false" && \
+                "${{ steps.changes.outputs.dns_worker_changed }}" == "false" ]]; then
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+            # Allow domains.json and non-infra files like CHANGELOG.md
+            ONLY_DOMAINS=true
+            for file in $CHANGED_FILES; do
+              if [[ "$file" != "domains.json" && "$file" != "CHANGELOG.md" && \
+                    ! "$file" =~ ^\.github/workflows/ && ! "$file" =~ ^docs/ ]]; then
+                ONLY_DOMAINS=false
+                break
+              fi
+            done
+            echo "only_domains_json_changed=$ONLY_DOMAINS" >> $GITHUB_OUTPUT
           else
             echo "only_domains_json_changed=false" >> $GITHUB_OUTPUT
           fi
@@ -110,7 +124,7 @@ jobs:
             echo ""
             echo "• Image Changes: \`${{ steps.changes.outputs.has_image_changes }}\`"
             echo "• Infra Changes: \`${{ steps.changes.outputs.has_infra_changes }}\`"
-            echo "• Only domains.json Changed: \`${{ steps.changes.outputs.only_domains_json_changed }}\`"
+            echo "• Only domains.json Changed: \`${{ steps.check-only-domains.outputs.only_domains_json_changed }}\`"
             if [[ "${{ github.event.inputs.force_infra }}" == "true" ]]; then
               echo "• 🔴 **Force Infra Deploy: ENABLED**"
             fi
@@ -378,5 +392,27 @@ jobs:
         run: |
           echo "🧹 Deleting domain-updates branch after successful deployment"
           git push origin --delete domain-updates
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - name: Clean up old tags
+        if: needs.deploy-infrastructure.result == 'success'
+        run: |
+          echo "🧹 Cleaning up old tags, keeping only the latest for listener and dns-worker"
+          # Get the latest tags
+          LATEST_LISTENER_TAG=$(git tag -l "listener-v*" --sort=-version:refname | head -n1)
+          LATEST_DNS_WORKER_TAG=$(git tag -l "dns-worker-v*" --sort=-version:refname | head -n1)
+          
+          # Get all tags except the latest
+          OLD_LISTENER_TAGS=$(git tag -l "listener-v*" | grep -v "$LATEST_LISTENER_TAG")
+          OLD_DNS_WORKER_TAGS=$(git tag -l "dns-worker-v*" | grep -v "$LATEST_DNS_WORKER_TAG")
+          
+          # Delete old tags
+          for tag in $OLD_LISTENER_TAGS $OLD_DNS_WORKER_TAGS; do
+            if [ -n "$tag" ]; then
+              echo "Deleting old tag: $tag"
+              git push origin --delete "$tag"
+            fi
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
