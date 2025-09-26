@@ -189,120 +189,76 @@ jobs:
           fi
 
   generate-tag:
-    name: Generate Image Tags
     runs-on: ubuntu-latest
-    needs: [check-changes, semantic-release]
-    if: always()  # Run even if semantic-release is skipped
+    timeout-minutes: 5
+    needs: [check-changes]
+    if: always()
     outputs:
       image_tag: ${{ steps.tag.outputs.image_tag }}
       listener_tag: ${{ steps.tag.outputs.listener_tag }}
       dns_worker_tag: ${{ steps.tag.outputs.dns_worker_tag }}
       api_tag: ${{ steps.tag.outputs.api_tag }}
       web_tag: ${{ steps.tag.outputs.web_tag }}
+      should_deploy: ${{ steps.tag.outputs.should_deploy }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GH_TOKEN }}
-      
-      - name: Configure Git
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - id: tag
         run: |
-          BRANCH_NAME=${GITHUB_REF#refs/heads/}
-          if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
-            SHORT_SHA=${GITHUB_SHA:0:7}
-            echo "image_tag=domain-updates-$SHORT_SHA" >> $GITHUB_OUTPUT
-            echo "listener_tag=domain-updates-$SHORT_SHA" >> $GITHUB_OUTPUT
-            echo "dns_worker_tag=domain-updates-$SHORT_SHA" >> $GITHUB_OUTPUT
-            echo "api_tag=domain-updates-$SHORT_SHA" >> $GITHUB_OUTPUT
-            echo "web_tag=domain-updates-$SHORT_SHA" >> $GITHUB_OUTPUT
-          elif [ "$BRANCH_NAME" = "main" ]; then
-            # Repository-wide tag for infrastructure
-            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "latest")
-            echo "image_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-            
-            # Service-specific tags - increment if images are being built
-            LISTENER_TAG=$(git tag -l "listener-v*" --sort=-version:refname | head -n1 | sed 's/listener-//' || echo "v1.0.0")
-            DNS_WORKER_TAG=$(git tag -l "dns-worker-v*" --sort=-version:refname | head -n1 | sed 's/dns-worker-//' || echo "v1.0.0")
-            API_TAG=$(git tag -l "api-v*" --sort=-version:refname | head -n1 | sed 's/api-//' || echo "v1.0.0")
-            WEB_TAG=$(git tag -l "web-v*" --sort=-version:refname | head -n1 | sed 's/web-//' || echo "v1.0.0")
-            
-            # Increment service tags only for services that changed
-            increment_version() {
-              local version=$1
-              local clean_version=${version#v}  # Remove 'v' prefix
-              local major=$(echo $clean_version | cut -d. -f1)
-              local minor=$(echo $clean_version | cut -d. -f2)
-              local patch=$(echo $clean_version | cut -d. -f3)
-              echo "v$major.$minor.$((patch + 1))"
-            }
-            
-            CREATED_TAGS=""
-            
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Get current service tags
+          LISTENER_TAG=$(git tag -l "listener-v*" --sort=-version:refname | head -n1 | sed 's/listener-//' || echo "v1.0.0")
+          DNS_WORKER_TAG=$(git tag -l "dns-worker-v*" --sort=-version:refname | head -n1 | sed 's/dns-worker-//' || echo "v1.0.0")
+          API_TAG=$(git tag -l "api-v*" --sort=-version:refname | head -n1 | sed 's/api-//' || echo "v1.0.0")
+          WEB_TAG=$(git tag -l "web-v*" --sort=-version:refname | head -n1 | sed 's/web-//' || echo "v1.0.0")
+          
+          increment_version() {
+            local version=$1
+            local clean_version=$(echo $version | sed 's/^v//')
+            local major=$(echo $clean_version | cut -d. -f1)
+            local minor=$(echo $clean_version | cut -d. -f2)
+            local patch=$(echo $clean_version | cut -d. -f3)
+            echo "v$major.$minor.$((patch + 1))"
+          }
+          
+          # REPOSITORY DISPATCH: Use payload tags directly
+          if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+            echo "🔍 Repository dispatch detected"
+            API_TAG="${{ github.event.client_payload.api_tag }}"
+            WEB_TAG="${{ github.event.client_payload.web_tag }}"
+            echo "🏷️ Using payload - API: $API_TAG, WEB: $WEB_TAG"
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
+          else
+            # REGULAR WORKFLOW: Handle local service changes
             if [[ "${{ needs.check-changes.outputs.listener_changed }}" == "true" ]]; then
               LISTENER_TAG=$(increment_version "$LISTENER_TAG")
-              git tag "listener-$LISTENER_TAG"
-              git push origin "listener-$LISTENER_TAG"
-              CREATED_TAGS="$CREATED_TAGS listener-$LISTENER_TAG"
-              echo "🏷️ Incremented listener tag: $LISTENER_TAG"
+              git tag "listener-$LISTENER_TAG" && git push origin "listener-$LISTENER_TAG"
+              echo "🏷️ Incremented listener: $LISTENER_TAG"
             fi
             
             if [[ "${{ needs.check-changes.outputs.dns_worker_changed }}" == "true" ]]; then
               DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
-              git tag "dns-worker-$DNS_WORKER_TAG"
-              git push origin "dns-worker-$DNS_WORKER_TAG"
-              CREATED_TAGS="$CREATED_TAGS dns-worker-$DNS_WORKER_TAG"
-              echo "🏷️ Incremented dns-worker tag: $DNS_WORKER_TAG"
+              git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"
+              echo "🏷️ Incremented dns-worker: $DNS_WORKER_TAG"
             fi
             
-            # For repository dispatch, use tags from payload (already incremented in storefront-cdk)
-            if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
-              echo "🔍 Repository dispatch detected with payload:"
-              echo "  api_tag: ${{ github.event.client_payload.api_tag }}"
-              echo "  web_tag: ${{ github.event.client_payload.web_tag }}"
-              
-              # Use API tag from payload (already incremented)
-              if [[ "${{ github.event.client_payload.api_tag }}" != "" && "${{ github.event.client_payload.api_tag }}" != "null" ]]; then
-                API_TAG="${{ github.event.client_payload.api_tag }}"
-                echo "🏷️ Using API tag from payload: $API_TAG"
-              fi
-              
-              # Use WEB tag from payload (already incremented)
-              if [[ "${{ github.event.client_payload.web_tag }}" != "" && "${{ github.event.client_payload.web_tag }}" != "null" ]]; then
-                WEB_TAG="${{ github.event.client_payload.web_tag }}"
-                echo "🏷️ Using WEB tag from payload: $WEB_TAG"
-              fi
+            if [[ "${{ needs.check-changes.outputs.has_infra_changes }}" == "true" || "${{ needs.check-changes.outputs.has_image_changes }}" == "true" ]]; then
+              echo "should_deploy=true" >> $GITHUB_OUTPUT
+            else
+              echo "should_deploy=false" >> $GITHUB_OUTPUT
             fi
-            
-            if [[ -n "$CREATED_TAGS" ]]; then
-              echo "🏷️ Created new service tags:$CREATED_TAGS"
-            fi
-            
-            echo "🔍 Final tag values before output:"
-            echo "  LISTENER_TAG=$LISTENER_TAG"
-            echo "  DNS_WORKER_TAG=$DNS_WORKER_TAG"
-            echo "  API_TAG=$API_TAG"
-            echo "  WEB_TAG=$WEB_TAG"
-            
-            echo "listener_tag=$LISTENER_TAG" >> $GITHUB_OUTPUT
-            echo "dns_worker_tag=$DNS_WORKER_TAG" >> $GITHUB_OUTPUT
-            echo "api_tag=$API_TAG" >> $GITHUB_OUTPUT
-            echo "web_tag=$WEB_TAG" >> $GITHUB_OUTPUT
-            echo "should_deploy=true" >> $GITHUB_OUTPUT
-          else
-            CLEAN_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]')
-            SHORT_SHA=${GITHUB_SHA:0:7}
-            BRANCH_TAG="${CLEAN_BRANCH}-${SHORT_SHA}"
-            echo "image_tag=${BRANCH_TAG}" >> $GITHUB_OUTPUT
-            echo "listener_tag=${BRANCH_TAG}" >> $GITHUB_OUTPUT
-            echo "dns_worker_tag=${BRANCH_TAG}" >> $GITHUB_OUTPUT
-            echo "api_tag=${BRANCH_TAG}" >> $GITHUB_OUTPUT
-            echo "web_tag=${BRANCH_TAG}" >> $GITHUB_OUTPUT
           fi
+          
+          echo "image_tag=v1.0.0" >> $GITHUB_OUTPUT
+          echo "listener_tag=$LISTENER_TAG" >> $GITHUB_OUTPUT
+          echo "dns_worker_tag=$DNS_WORKER_TAG" >> $GITHUB_OUTPUT
+          echo "api_tag=$API_TAG" >> $GITHUB_OUTPUT
+          echo "web_tag=$WEB_TAG" >> $GITHUB_OUTPUT
 
 
   build-listener:
