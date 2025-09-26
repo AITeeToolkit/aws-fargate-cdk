@@ -27,8 +27,6 @@ on:
         description: "Web image tag"
         required: false
         type: string
-  repository_dispatch:
-    types: [deploy-infrastructure]
     secrets:
       GH_TOKEN:
         required: true
@@ -44,12 +42,10 @@ env:
 
 jobs:
   deploy:
-    name: Deploy Infrastructure
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -60,75 +56,62 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Install CDK
-        run: npm install -g aws-cdk
+      - name: Install CDK & Python dependencies
+        run: |
+          npm install -g aws-cdk
+          pip install -r requirements.txt
+
+      - name: CDK Bootstrap
+        run: cdk bootstrap aws://${{ secrets.AWS_ACCOUNT_ID }}/${{ env.AWS_REGION }}
 
       - name: Check Stack Status
         id: stack-status
         run: |
-          echo "🔍 Checking CloudFormation stack status..."
-          
-          # List of critical stacks to check
           ENV_NAME="${{ inputs.environment || 'dev' }}"
-          STACKS=(
-            "NetworkStack"
-            "SharedStack"
-            "MultiAlbStack-$ENV_NAME"
-            "APIServiceStack-$ENV_NAME"
-            "WebServiceStack-$ENV_NAME"
-            "ListenerServiceStack-$ENV_NAME"
-            "DNSWorkerServiceStack-$ENV_NAME"
-          )
-          
-          BUSY_STACKS=()
-          
+          STACKS=("NetworkStack" "SharedStack" "MultiAlbStack-$ENV_NAME" "APIServiceStack-$ENV_NAME" "WebServiceStack-$ENV_NAME" "ListenerServiceStack-$ENV_NAME" "DNSWorkerServiceStack-$ENV_NAME")
+
+          BUSY=()
           for stack in "${STACKS[@]}"; do
-            echo "Checking $stack..."
-            STATUS=$(aws cloudformation describe-stacks \
-              --stack-name "$stack" \
-              --query 'Stacks[0].StackStatus' \
-              --output text 2>/dev/null || echo "NOT_FOUND")
-            
-            case "$STATUS" in
-              *"IN_PROGRESS")
-                echo "⚠️  $stack is busy: $STATUS"
-                BUSY_STACKS+=("$stack:$STATUS")
-                ;;
-              "NOT_FOUND")
-                echo "ℹ️  $stack not found (will be created)"
-                ;;
-              *)
-                echo "✅ $stack is ready: $STATUS"
-                ;;
-            esac
+            STATUS=$(aws cloudformation describe-stacks --stack-name "$stack" --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")
+            echo "🔍 $stack → $STATUS"
+            if [[ "$STATUS" == *"IN_PROGRESS" ]]; then BUSY+=("$stack:$STATUS"); fi
           done
-          
-          if [ ${#BUSY_STACKS[@]} -gt 0 ]; then
+
+          if [ ${#BUSY[@]} -gt 0 ]; then
             echo "busy_stacks=true" >> $GITHUB_OUTPUT
-            echo "busy_list=${BUSY_STACKS[*]}" >> $GITHUB_OUTPUT
-            echo "❌ Found busy stacks: ${BUSY_STACKS[*]}"
+            echo "busy_list=${BUSY[*]}" >> $GITHUB_OUTPUT
           else
             echo "busy_stacks=false" >> $GITHUB_OUTPUT
-            echo "✅ All stacks are ready for deployment"
           fi
 
-      - name: Install Python dependencies
-        run: pip install -r requirements.txt
+      - name: Wait for Busy Stacks
+        if: steps.stack-status.outputs.busy_stacks == 'true'
+        run: |
+          echo "⏳ Waiting for busy stacks: ${{ steps.stack-status.outputs.busy_list }}"
+          ENV_NAME="${{ inputs.environment || 'dev' }}"
+          STACKS=("NetworkStack" "SharedStack" "MultiAlbStack-$ENV_NAME" "APIServiceStack-$ENV_NAME" "WebServiceStack-$ENV_NAME" "ListenerServiceStack-$ENV_NAME" "DNSWorkerServiceStack-$ENV_NAME")
 
-      - name: CDK Bootstrap
-        run: cdk bootstrap aws://${{ secrets.AWS_ACCOUNT_ID }}/us-east-1
+          TIMEOUT=1200 ELAPSED=0 INTERVAL=60
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            READY=true
+            for stack in "${STACKS[@]}"; do
+              STATUS=$(aws cloudformation describe-stacks --stack-name "$stack" --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")
+              [[ "$STATUS" == *"IN_PROGRESS" ]] && READY=false && break
+            done
+            [ "$READY" = true ] && echo "✅ All stacks ready" && break
+            sleep $INTERVAL; ELAPSED=$((ELAPSED + INTERVAL))
+          done
+          [ $ELAPSED -ge $TIMEOUT ] && echo "❌ Timeout waiting for stacks" && exit 1
 
       - name: Set Image Tags
         run: |
-          # Handle both workflow_call inputs and repository_dispatch client_payload
           if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            echo "LISTENER_IMAGE_TAG=skip" >> $GITHUB_ENV
-            echo "DNS_WORKER_IMAGE_TAG=skip" >> $GITHUB_ENV
+            echo "LISTENER_IMAGE_TAG=${{ github.event.client_payload.listener_tag || 'skip' }}" >> $GITHUB_ENV
+            echo "DNS_WORKER_IMAGE_TAG=${{ github.event.client_payload.dns_worker_tag || 'skip' }}" >> $GITHUB_ENV
             echo "API_IMAGE_TAG=${{ github.event.client_payload.api_tag || 'skip' }}" >> $GITHUB_ENV
             echo "WEB_IMAGE_TAG=${{ github.event.client_payload.web_tag || 'skip' }}" >> $GITHUB_ENV
             echo "ENVIRONMENT=${{ github.event.client_payload.environment || 'dev' }}" >> $GITHUB_ENV
           else
-            # For workflow_call, use inputs (which may contain repository dispatch payload)
             echo "LISTENER_IMAGE_TAG=${{ inputs.listener_tag || 'skip' }}" >> $GITHUB_ENV
             echo "DNS_WORKER_IMAGE_TAG=${{ inputs.dns_worker_tag || 'skip' }}" >> $GITHUB_ENV
             echo "API_IMAGE_TAG=${{ inputs.api_tag || 'skip' }}" >> $GITHUB_ENV
@@ -136,90 +119,23 @@ jobs:
             echo "ENVIRONMENT=${{ inputs.environment || 'dev' }}" >> $GITHUB_ENV
           fi
 
-      - name: Wait for Busy Stacks
-        if: steps.stack-status.outputs.busy_stacks == 'true'
-        run: |
-          echo "⏳ Infrastructure is busy, waiting for completion..."
-          echo "Busy stacks: ${{ steps.stack-status.outputs.busy_list }}"
-          
-          # Wait up to 20 minutes for stacks to become available
-          TIMEOUT=1200  # 20 minutes
-          ELAPSED=0
-          INTERVAL=60   # Check every minute
-          
-          while [ $ELAPSED -lt $TIMEOUT ]; do
-            echo "⏱️  Waiting... ($ELAPSED/$TIMEOUT seconds)"
-            sleep $INTERVAL
-            ELAPSED=$((ELAPSED + INTERVAL))
-            
-            # Re-check stack status
-            ALL_READY=true
-            STACKS=("NetworkStack" "SharedStack" "MultiAlbStack-$ENVIRONMENT" "APIServiceStack-$ENVIRONMENT" "WebServiceStack-$ENVIRONMENT" "ListenerServiceStack-$ENVIRONMENT" "DNSWorkerServiceStack-$ENVIRONMENT")
-            
-            for stack in "${STACKS[@]}"; do
-              STATUS=$(aws cloudformation describe-stacks --stack-name "$stack" --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")
-              if [[ "$STATUS" == *"IN_PROGRESS" ]]; then
-                echo "⚠️  $stack still busy: $STATUS"
-                ALL_READY=false
-                break
-              fi
-            done
-            
-            if [ "$ALL_READY" = true ]; then
-              echo "✅ All stacks are now ready!"
-              break
-            fi
-          done
-          
-          if [ $ELAPSED -ge $TIMEOUT ]; then
-            echo "❌ Timeout waiting for stacks to become ready"
-            exit 1
-          fi
-
       - name: Deploy Infrastructure
-        if: steps.stack-status.outputs.busy_stacks == 'false' || success()
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "🚀 Deploying with image tags:"
-          echo "  Listener:   $LISTENER_IMAGE_TAG"
-          echo "  DNS Worker: $DNS_WORKER_IMAGE_TAG"
-          echo "  API:        $API_IMAGE_TAG"
-          echo "  Web:      $WEB_IMAGE_TAG"
-          
-          CONTEXT="--context env=$ENVIRONMENT"
-          CONTEXT="$CONTEXT --context listenerTag=$LISTENER_IMAGE_TAG"
-          CONTEXT="$CONTEXT --context dnsWorkerTag=$DNS_WORKER_IMAGE_TAG"
-          CONTEXT="$CONTEXT --context apiTag=$API_IMAGE_TAG"
-          CONTEXT="$CONTEXT --context webTag=$WEB_IMAGE_TAG"
-
+          echo "🚀 Deploying with tags:"
+          echo "Listener=$LISTENER_IMAGE_TAG, DNS=$DNS_WORKER_IMAGE_TAG, API=$API_IMAGE_TAG, Web=$WEB_IMAGE_TAG"
+          CONTEXT="--context env=$ENVIRONMENT --context listenerTag=$LISTENER_IMAGE_TAG --context dnsWorkerTag=$DNS_WORKER_IMAGE_TAG --context apiTag=$API_IMAGE_TAG --context webTag=$WEB_IMAGE_TAG"
           cdk deploy --all --require-approval never $CONTEXT
 
       - name: Deployment Summary
         if: always()
         run: |
           echo "# 🚀 Infrastructure Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Tag |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-----|" >> $GITHUB_STEP_SUMMARY
+          echo "| Listener | \`$LISTENER_IMAGE_TAG\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| DNS Worker | \`$DNS_WORKER_IMAGE_TAG\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| API | \`$API_IMAGE_TAG\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Web | \`$WEB_IMAGE_TAG\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
-          echo "## 🔒 Collision Prevention" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.stack-status.outputs.busy_stacks }}" = "true" ]; then
-            echo "- ⏳ **Waited for busy stacks**: ${{ steps.stack-status.outputs.busy_list }}" >> $GITHUB_STEP_SUMMARY
-            echo "- 🚦 **Concurrency control**: Active (queued deployment)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- ✅ **No conflicts detected**: All stacks were ready" >> $GITHUB_STEP_SUMMARY
-            echo "- 🚦 **Concurrency control**: Active (prevented parallel runs)" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          echo "## 📋 Deployment Details" >> $GITHUB_STEP_SUMMARY
-          echo "| Service | Tag | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|---------|-----|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Listener** | \`$LISTENER_IMAGE_TAG\` | ${{ job.status == 'success' && '✅ Deployed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **DNS Worker** | \`$DNS_WORKER_IMAGE_TAG\` | ${{ job.status == 'success' && '✅ Deployed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **API** | \`$API_IMAGE_TAG\` | ${{ job.status == 'success' && '✅ Deployed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Web** | \`$WEB_IMAGE_TAG\` | ${{ job.status == 'success' && '✅ Deployed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          echo "## 🔗 Quick Links" >> $GITHUB_STEP_SUMMARY
-          echo "- [CloudFormation Stacks](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks)" >> $GITHUB_STEP_SUMMARY
-          echo "- [ECS Services](https://console.aws.amazon.com/ecs/home?region=us-east-1#/clusters/storefront-cluster/services)" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Check [CloudFormation Stacks](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks)" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Check [ECS Services](https://console.aws.amazon.com/ecs/home?region=us-east-1#/clusters/storefront-cluster/services)" >> $GITHUB_STEP_SUMMARY

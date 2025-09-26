@@ -20,14 +20,15 @@ on:
         required: true
       AWS_CODEBUILD_SECRET_ACCESS_KEY:
         required: true
+      AWS_ACCOUNT_ID:
+        required: true
 
 env:
   AWS_REGION: us-east-1
-  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/storefront/${{ inputs.environment || 'dev' }}
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/storefront/${{ inputs.environment || 'dev' }}
 
 jobs:
   detect-changes:
-    name: Detect Listener Changes
     runs-on: ubuntu-latest
     outputs:
       listener_changed: ${{ steps.diff.outputs.listener }}
@@ -43,21 +44,19 @@ jobs:
             exit 0
           fi
 
-          BASE_SHA="${{ github.event.before || github.sha }}~1"
-          HEAD_SHA="${{ github.sha }}"
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          echo "Changed files:"; echo "$CHANGED_FILES"
 
-          # Check for changes in listener-specific files
-          if git diff --name-only $BASE_SHA $HEAD_SHA | grep -E '^apps/(listener/|Dockerfile|requirements\.txt)$' > /dev/null; then
+          if echo "$CHANGED_FILES" | grep -E '^apps/(listener/|Dockerfile|requirements\.txt)$' > /dev/null; then
             echo "listener=true" >> $GITHUB_OUTPUT
           else
             echo "listener=false" >> $GITHUB_OUTPUT
           fi
 
   build-listener:
-    name: Build & Push Listener Image
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [detect-changes]
+    needs: detect-changes
     if: needs.detect-changes.outputs.listener_changed == 'true'
     steps:
       - uses: actions/checkout@v4
@@ -72,7 +71,7 @@ jobs:
       - name: Login to ECR
         run: aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
 
-      - name: Build Listener Docker Image
+      - name: Build & Push Listener Docker Image
         run: |
           echo "🔧 Building Listener image with tag: ${{ inputs.image_tag }}"
           docker build --target listener -t $ECR_REGISTRY/listener:${{ inputs.image_tag }} ./apps
@@ -81,8 +80,7 @@ jobs:
             docker tag $ECR_REGISTRY/listener:${{ inputs.image_tag }} $ECR_REGISTRY/listener:latest
           fi
 
-      - name: Push Listener Image
-        run: |
+          echo "🚀 Pushing image(s)..."
           docker push $ECR_REGISTRY/listener:${{ inputs.image_tag }}
 
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
