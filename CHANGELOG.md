@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.74.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.73.0...v1.74.0) (2025-09-26)
+
+
+### 🚀 Features
+
+* add email DNS configuration and domain deactivation support ([e6ba140](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/e6ba14054a8a4c72618dd9bfccd5fc9dac87d479))
+
 ## [1.73.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.72.2...v1.73.0) (2025-09-26)
 
 
