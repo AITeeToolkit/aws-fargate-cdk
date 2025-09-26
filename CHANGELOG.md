@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.76.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.75.0...v1.76.0) (2025-09-26)
+
+
+### 🚀 Features
+
+* add special handling for domains.json changes on domain-updates branch ([5c4dc74](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/5c4dc74b4e80bb2059b6ea588957bce20326f8e8))
+
+
+### 🐛 Bug Fixes
+
+* update listener and dns-worker change flags from env to job outputs ([0246b34](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/0246b347e47272219efbdfcf8b8ff42af2c1c4ab))
+* use job outputs instead of env vars for listener and dns-worker change detection ([b337c2e](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/b337c2e43b73f732d1a8a974c0b02d3c58862778))
+
 ## [1.75.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.74.1...v1.75.0) (2025-09-26)
 
 
