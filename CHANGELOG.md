@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.67.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.66.2...v1.67.0) (2025-09-26)
+
+
+### 🚀 Features
+
+* add debug logging for repository dispatch event and payload tags ([2a4f35e](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/2a4f35e09c8473d88485e4d015d16b94469d79dd))
+
 ## [1.66.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.66.1...v1.66.2) (2025-09-26)
 
 
