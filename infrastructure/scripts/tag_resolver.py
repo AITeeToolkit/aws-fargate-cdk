@@ -31,49 +31,8 @@ def resolve_tag(context_key: str, env_var: str, app_context, service_files: Opti
     # Priority 3: Find latest service tag
     if service_name:
         try:
-            # For API/WEB services, fetch from storefront-cdk repository
-            if service_name in ['api', 'web']:
-                print(f"🔍 Fetching {service_name} tags from storefront-cdk...")
-                # Try with GitHub token if available
-                github_token = os.environ.get('GITHUB_TOKEN')
-                if github_token:
-                    repo_url = f'https://{github_token}@github.com/AITeeToolkit/storefront-cdk.git'
-                else:
-                    repo_url = 'https://github.com/AITeeToolkit/storefront-cdk.git'
-                
-                result = subprocess.run([
-                    'git', 'ls-remote', '--tags', repo_url
-                ], capture_output=True, text=True)
-                
-                if result.returncode == 0 and result.stdout.strip():
-                    # Parse git ls-remote output: "hash\trefs/tags/api-v1.6.1"
-                    lines = result.stdout.strip().split('\n')
-                    versions = []
-                    for line in lines:
-                        if f'\trefs/tags/{service_name}-v' in line:
-                            # Extract version: "hash\trefs/tags/api-v1.6.1" -> "v1.6.1"
-                            tag_part = line.split('\t')[1]  # "refs/tags/api-v1.6.1"
-                            version = tag_part.split(f'{service_name}-')[1]  # "v1.6.1"
-                            versions.append(version)
-                    
-                    if versions:
-                        # Sort versions and get latest
-                        def version_sort_key(v):
-                            try:
-                                parts = [int(x) for x in v.replace('v', '').split('.')]
-                                return tuple(parts)
-                            except:
-                                return (0, 0, 0)
-                        
-                        latest_version = sorted(versions, key=version_sort_key, reverse=True)[0]
-                        print(f"🏷️ Using latest {service_name} tag: {latest_version}")
-                        return latest_version
-                    else:
-                        print(f"⚠️ No {service_name} service tags found in storefront-cdk")
-                else:
-                    print(f"⚠️ Failed to fetch tags from storefront-cdk: {result.stderr}")
-            else:
-                # For listener/dns-worker, use local repository tags
+            # For listener/dns-worker, use local repository tags
+            if service_name in ['listener', 'dns-worker']:
                 result = subprocess.run(['git', 'tag', '-l', f'{service_name}-v*'], capture_output=True, text=True)
                 if result.returncode == 0 and result.stdout.strip():
                     tags = [tag.strip() for tag in result.stdout.strip().split('\n') if tag.strip()]
@@ -82,6 +41,10 @@ def resolve_tag(context_key: str, env_var: str, app_context, service_files: Opti
                         version = latest_tag.replace(f'{service_name}-', '')
                         print(f"🏷️ Using latest {service_name} tag: {version}")
                         return version
+            else:
+                # For API/WEB services, we can't reliably fetch from private repo
+                # The workflow should pass these via CDK context, so this shouldn't be reached
+                print(f"⚠️ API/WEB tags should be provided via CDK context, not fetched here")
                         
         except Exception as e:
             print(f"⚠️ Error finding service tags for {service_name}: {e}")
