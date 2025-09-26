@@ -1,11 +1,10 @@
 from aws_cdk import (
     Stack,
     aws_route53 as route53,
-    aws_route53_targets as targets,
     aws_lambda as _lambda,
     aws_iam as iam,
     custom_resources as cr,
-    aws_elasticloadbalancingv2 as elb,
+    aws_elasticloadbalancingv2 as elbv2,
     Duration
 )
 from constructs import Construct
@@ -18,7 +17,7 @@ class DomainDnsStack(Stack):
         construct_id: str,
         *,
         domain_name: str,
-        alb: elb.IApplicationLoadBalancer,
+        alb: elbv2.IApplicationLoadBalancer,
         mail_server: str,
         dkim_selector: str,
         dkim_public_key: str,
@@ -30,13 +29,13 @@ class DomainDnsStack(Stack):
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # 🔎 Lookup the existing hosted zone (using CDK equivalent of ensure_hosted_zone_and_store)
+        # Lookup the existing hosted zone
         zone = route53.HostedZone.from_lookup(
             self, "HostedZone",
             domain_name=domain_name
         )
 
-        # 🛠️ Lambda function for idempotent Route53 record creation
+        # Lambda function for idempotent Route53 record creation
         route53_record_lambda = _lambda.Function(
             self, "Route53RecordLambda",
             runtime=_lambda.Runtime.PYTHON_3_9,
@@ -169,6 +168,22 @@ def handler(event, context):
             }
             if alias_target:
                 props["AliasTarget"] = alias_target
+            
+            # Create custom resource policy that includes Lambda invoke permission
+            custom_resource_policy = cr.AwsCustomResourcePolicy.from_statements([
+                iam.PolicyStatement(
+                    actions=["lambda:InvokeFunction"],
+                    resources=[route53_record_lambda.function_arn]
+                ),
+                iam.PolicyStatement(
+                    actions=[
+                        "route53:ListResourceRecordSets",
+                        "route53:ChangeResourceRecordSets"
+                    ],
+                    resources=[f"arn:aws:route53:::hostedzone/{zone.hosted_zone_id}"]
+                )
+            ])
+            
             cr.AwsCustomResource(
                 self, id,
                 on_create=cr.AwsSdkCall(
@@ -207,12 +222,11 @@ def handler(event, context):
                     },
                     physical_resource_id=cr.PhysicalResourceId.of(f"{record_name}-{record_type}")
                 ),
-                policy=cr.AwsCustomResourcePolicy.from_sdk_calls(
-                    resources=cr.AwsCustomResourcePolicy.ANY_RESOURCE
-                )
+                policy=custom_resource_policy,
+                install_latest_aws_sdk=False  # Use Lambda runtime's built-in SDK
             )
 
-        # 🌐 Root domain ALIAS record to ALB
+        # Root domain ALIAS record to ALB
         alias_target = {
             "HostedZoneId": alb.load_balancer_canonical_hosted_zone_id,
             "DNSName": alb.load_balancer_dns_name,
@@ -226,7 +240,7 @@ def handler(event, context):
             alias_target=alias_target
         )
 
-        # 🌐 Dev subdomain ALIAS record to ALB
+        # Dev subdomain ALIAS record to ALB
         create_route53_record(
             "DevAliasRecord",
             f"dev.{domain_name}",
@@ -235,7 +249,7 @@ def handler(event, context):
             alias_target=alias_target
         )
 
-        # 📜 SPF record
+        # SPF record
         spf_value = " ".join(["v=spf1"] + (spf_servers or []) + ["~all"])
         create_route53_record(
             "SPF",
@@ -244,7 +258,7 @@ def handler(event, context):
             [spf_value]
         )
 
-        # 🔑 DKIM record
+        # DKIM record
         create_route53_record(
             "DKIM",
             f"{dkim_selector}._domainkey.{domain_name}",
@@ -252,7 +266,7 @@ def handler(event, context):
             [f"v=DKIM1; k=rsa; p={dkim_public_key.strip()}"]
         )
 
-        # 📬 DMARC record
+        # DMARC record
         dmarc_value = f"v=DMARC1; p={dmarc_policy}"
         if dmarc_rua:
             dmarc_value += f"; rua=mailto:{dmarc_rua}"
@@ -265,7 +279,7 @@ def handler(event, context):
             [dmarc_value]
         )
 
-        # ✉️ MX record
+        # MX record
         create_route53_record(
             "MX",
             domain_name,
@@ -273,5 +287,5 @@ def handler(event, context):
             [f"10 {mail_server}"]
         )
 
-        # 👇 Expose zone if needed downstream
+        # Expose zone if needed downstream
         self.hosted_zone = zone

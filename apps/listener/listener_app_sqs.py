@@ -111,8 +111,9 @@ def handle_domain_change(domain_name: str, active: str):
     """
     Handle domain status change with proper sequence:
     1. If domain activated ('Y'), ensure hosted zone exists
-    2. Update domains table with tenant information
-    3. Queue to SQS for batch processing
+    2. If domain deactivated ('N'), delete hosted zone and records
+    3. Update domains table with tenant information
+    4. Queue to SQS for batch processing
     
     Args:
         domain_name: Domain that changed
