@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.78.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.78.0...v1.78.1) (2025-09-26)
+
+
+### 🐛 Bug Fixes
+
+* conditionally increment listener and dns-worker tags based on actual file changes ([cdc1685](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/cdc1685e0af5be9b837cdec2c5a34034b122ddf7))
+
 ## [1.78.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.77.0...v1.78.0) (2025-09-26)
 
 
