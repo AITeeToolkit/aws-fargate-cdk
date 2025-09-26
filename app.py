@@ -3,9 +3,9 @@ import json
 import aws_cdk as cdk
 from aws_cdk import App, Environment
 from infrastructure.scripts.tag_resolver import resolve_tag
+from stacks.domain_dns_stack import DomainDnsStack
 from stacks.network_stack import NetworkStack
 from stacks.shared_stack import SharedStack
-from stacks.route53_stack import Route53Stack
 from stacks.ecr_stack import ECRStack
 from stacks.database_stack import DatabaseStack
 from stacks.web_service_stack import WebServiceStack
@@ -54,13 +54,20 @@ multi_alb_stack = MultiAlbStack(
     alb_security_group=shared_stack.alb_security_group
 )
 
+# Add mail DNS records automatically
 # Suppose MultiAlbStack exposes a dict: { "040992.xyz": alb1, "example.com": alb2, ... }
 for domain, alb in multi_alb_stack.domain_to_alb.items():
-    Route53Stack(
-        app, f"Route53Stack-{domain.replace('.', '-')}",
+    DomainDnsStack(
+        app, f"DomainDnsStack-{domain.replace('.', '-')}",
         env=env,
         domain_name=domain,
-        alb=alb
+        alb=alb,
+        mail_server="mail.teeworkflow.com",
+        dkim_selector="default",
+        dkim_public_key="MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDdmsMArxUA48AxvmG2gm26Qr1lbhtt6r59AMhBMK/TgZLNHug0L8uM6nm12SSxY0kxZyp5cLPbtgN832ReoJ0sW6zZfedfPf1Ak1Z6H9Cxd3wB3zI3Gy8c6PsV9Wt0lYEWHALw2ANjf5Ru0otK3slBUz7yb7AgvUEHb1Bt6+aazQIDAQAB",
+        spf_servers=["a:mail.teeworkflow.com"],
+        dmarc_rua=f"reports@{domain}",
+        dmarc_policy="quarantine"
     )
 
 # App container registries

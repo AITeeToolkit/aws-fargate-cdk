@@ -1,6 +1,6 @@
 import os, requests, psycopg2, select, json, logging, time, base64
 from sqs_dns_publisher import publish_domain_change
-from domain_helpers import ensure_hosted_zone_and_store, update_domain_with_tenant
+from domain_helpers import ensure_hosted_zone_and_store, update_domain_with_tenant, delete_hosted_zone_and_records
 
 # Configure logging
 logging.basicConfig(
@@ -137,6 +137,14 @@ def handle_domain_change(domain_name: str, active: str):
                     logging.warning(f"⚠️ Domain {domain_name} activated but no tenant found in purchased_domains")
             else:
                 logging.error(f"❌ Could not ensure hosted zone for {domain_name}")
+
+        elif active == "N":
+            logging.info(f"🔄 Processing domain deactivation for {domain_name}")
+            success = delete_hosted_zone_and_records(conn, domain_name, region_name)
+            if success:
+                logging.info(f"✅ Domain {domain_name} deactivated and DNS removed")
+            else:
+                logging.warning(f"⚠️ Domain {domain_name} deactivation failed or nothing to remove")
         
         # Step 4: Queue the change for batch processing via SQS
         logging.info(f"🔄 Step 3: Queuing {domain_name} for batch processing")
