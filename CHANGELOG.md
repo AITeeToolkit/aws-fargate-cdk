@@ -8,6 +8,20 @@ All notable changes to this project will be documented in this file. See [Conven
 ### 🐛 Bug Fixes
 
 * simplify comment about installing dependencies in Dockerfile ([8ac887f](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/8ac887ff08433553093d44b0ccebe48aa1fd9d23))
+* update output variable names in semantic release workflow ([bb97863](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/bb97863f58072739f1cdf475173d3a18edeef336))
+
+
+### ♻️ Code Refactoring
+
+* enhance change detection logic and deployment workflow with improved error handling ([155e5d7](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/155e5d71bea2d1eb8d40aba2ade0a516d758d4ba))
+* simplify workflow with improved change detection and tag generation logic ([562b388](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/562b3886a8a9e073c3a1e592ee6d457d3567e25b))
+
+## [1.74.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.74.0...v1.74.1) (2025-09-26)
+
+
+### 🐛 Bug Fixes
+
+* simplify comment about installing dependencies in Dockerfile ([8ac887f](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/8ac887ff08433553093d44b0ccebe48aa1fd9d23))
 
 
 ### ♻️ Code Refactoring
