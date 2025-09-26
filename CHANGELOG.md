@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.70.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.69.2...v1.70.0) (2025-09-26)
+
+
+### 🚀 Features
+
+* add GitHub token authentication for git operations in tag resolver ([70e0fa3](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/70e0fa353eca0faaf10181f770534640f37dcff3))
+
 ## [1.69.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.69.1...v1.69.2) (2025-09-26)
 
 
