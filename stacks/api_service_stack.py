@@ -55,7 +55,7 @@ class APIServiceStack(Stack):
             self, f"/storefront-{environment}/sqs/order-processing-queue-url"
         )
 
-        # Environment variables for API service
+        # Environment variables for API 
         api_environment = {
             "NODE_ENV": "production",
             "PORT": "3001",
