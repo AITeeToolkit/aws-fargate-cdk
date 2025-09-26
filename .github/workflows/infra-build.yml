@@ -142,7 +142,7 @@ jobs:
           echo "⏳ Infrastructure is busy, waiting for completion..."
           echo "Busy stacks: ${{ steps.stack-status.outputs.busy_list }}"
           
-          TIMEOUT=600  # Reduced from 1200 to 600 seconds (10 minutes)
+          TIMEOUT=600
           ELAPSED=0
           INTERVAL=60
           
