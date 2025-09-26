@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.71.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.71.1...v1.71.2) (2025-09-26)
+
+
+### ♻️ Code Refactoring
+
+* enhance tag resolution with service file tracking and improved error handling ([2d1d418](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/2d1d4185a3801981a19c294c9da6ade05b5757c3))
+
 ## [1.71.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.71.0...v1.71.1) (2025-09-26)
 
 
