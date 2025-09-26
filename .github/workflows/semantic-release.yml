@@ -262,7 +262,9 @@ jobs:
             fi
           fi
           
-          echo "image_tag=v1.0.0" >> $GITHUB_OUTPUT
+          # Use latest repository tag as overall deployment version
+          REPO_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+          echo "image_tag=$REPO_TAG" >> $GITHUB_OUTPUT
           echo "listener_tag=$LISTENER_TAG" >> $GITHUB_OUTPUT
           echo "dns_worker_tag=$DNS_WORKER_TAG" >> $GITHUB_OUTPUT
           echo "api_tag=$API_TAG" >> $GITHUB_OUTPUT
