@@ -46,7 +46,6 @@ jobs:
           BASE_SHA="${{ github.event.before || github.sha }}~1"
           HEAD_SHA="${{ github.sha }}"
 
-          # Check for changes in dns-worker-specific files
           if git diff --name-only $BASE_SHA $HEAD_SHA | grep -E '^apps/(dns-worker/|Dockerfile|requirements\.txt)$' > /dev/null; then
             echo "dns_worker=true" >> $GITHUB_OUTPUT
           else
@@ -63,28 +62,23 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_CODEBUILD_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to ECR
-        run: aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+        uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build DNS Worker Docker Image
-        run: |
-          echo "🔧 Building DNS Worker image with tag: ${{ inputs.image_tag }}"
-          docker build --target dns-worker -t $ECR_REGISTRY/dns-worker:${{ inputs.image_tag }} ./apps
-
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            docker tag $ECR_REGISTRY/dns-worker:${{ inputs.image_tag }} $ECR_REGISTRY/dns-worker:latest
-          fi
-
-      - name: Push DNS Worker Image
-        run: |
-          docker push $ECR_REGISTRY/dns-worker:${{ inputs.image_tag }}
-
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            docker push $ECR_REGISTRY/dns-worker:latest
-          fi
+      - name: Build and Push DNS Worker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps
+          target: dns-worker
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/dns-worker:${{ inputs.image_tag }}
+            ${{ github.ref == 'refs/heads/main' && format('{0}/dns-worker:latest', env.ECR_REGISTRY) || '' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
