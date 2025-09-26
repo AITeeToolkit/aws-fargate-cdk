@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.72.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.71.2...v1.72.0) (2025-09-26)
+
+
+### 🚀 Features
+
+* add Python script header and import required modules for tag resolver ([c9a6806](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/c9a6806b996dde91fe583f7b9f295eb2de15e719))
+
 ## [1.71.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.71.1...v1.71.2) (2025-09-26)
 
 
