@@ -71,11 +71,13 @@ jobs:
           # List of critical stacks to check
           ENV_NAME="${{ inputs.environment || 'dev' }}"
           STACKS=(
+            "NetworkStack-$ENV_NAME"
+            "SharedStack-$ENV_NAME"
+            "MultiAlbStack-$ENV_NAME"
             "APIServiceStack-$ENV_NAME"
             "WebServiceStack-$ENV_NAME"
             "ListenerServiceStack-$ENV_NAME"
             "DNSWorkerServiceStack-$ENV_NAME"
-            "SharedStack-$ENV_NAME"
           )
           
           BUSY_STACKS=()
@@ -151,7 +153,7 @@ jobs:
             
             # Re-check stack status
             ALL_READY=true
-            STACKS=("APIServiceStack-$ENVIRONMENT" "WebServiceStack-$ENVIRONMENT" "ListenerServiceStack-$ENVIRONMENT" "DNSWorkerServiceStack-$ENVIRONMENT" "SharedStack-$ENVIRONMENT")
+            STACKS=("NetworkStack-$ENVIRONMENT" "SharedStack-$ENVIRONMENT" "MultiAlbStack-$ENVIRONMENT" "APIServiceStack-$ENVIRONMENT" "WebServiceStack-$ENVIRONMENT" "ListenerServiceStack-$ENVIRONMENT" "DNSWorkerServiceStack-$ENVIRONMENT")
             
             for stack in "${STACKS[@]}"; do
               STATUS=$(aws cloudformation describe-stacks --stack-name "$stack" --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_FOUND")
