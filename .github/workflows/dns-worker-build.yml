@@ -30,34 +30,27 @@ jobs:
     name: Detect DNS Worker Changes
     runs-on: ubuntu-latest
     outputs:
-      dns_worker_changed: ${{ steps.diff.outputs.dns_worker }}
+      dns_worker_changed: ${{ steps.diff.outputs.dns_worker_changed }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - id: diff
-        run: |
-          if [[ "${{ inputs.force_build }}" == "true" ]]; then
-            echo "dns_worker=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          BASE_SHA="${{ github.event.before || github.sha }}~1"
-          HEAD_SHA="${{ github.sha }}"
-
-          if git diff --name-only $BASE_SHA $HEAD_SHA | grep -E '^apps/(dns-worker/|Dockerfile|requirements\.txt)$' > /dev/null; then
-            echo "dns_worker=true" >> $GITHUB_OUTPUT
-          else
-            echo "dns_worker=false" >> $GITHUB_OUTPUT
-          fi
+      - uses: dorny/paths-filter@v3
+        id: diff
+        with:
+          filters: |
+            dns_worker_changed:
+              - 'added|modified: apps/dns-worker/**'
+              - 'added|modified: apps/Dockerfile'
+              - 'added|modified: apps/requirements.txt'
 
   build-dns-worker:
     name: Build & Push DNS Worker Image
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [detect-changes]
-    if: needs.detect-changes.outputs.dns_worker_changed == 'true'
+    if: ${{ inputs.force_build || needs.detect-changes.outputs.dns_worker_changed == 'true' }}
     steps:
       - uses: actions/checkout@v4
 
