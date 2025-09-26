@@ -74,32 +74,40 @@ jobs:
           echo "listener_changed=$LISTENER_FLAG" >> $GITHUB_OUTPUT
           echo "dns_worker_changed=$DNS_WORKER_FLAG" >> $GITHUB_OUTPUT
 
-  semantic-release:
-    runs-on: ubuntu-latest
-    needs: check-changes
-    if: github.ref == 'refs/heads/main' && (needs.check-changes.outputs.has_image_changes == 'true' || needs.check-changes.outputs.has_infra_changes == 'true')
-    outputs:
-      new_release: ${{ steps.release_info.outputs.new_release }}
-      latest_tag: ${{ steps.release_info.outputs.latest_tag }}
-      version: ${{ steps.release_info.outputs.version }}
-    steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 0, token: ${{ secrets.GH_TOKEN }} }
-      - uses: actions/setup-node@v4
-        with: { node-version: 18 }
-      - run: npm ci
-      - name: Run semantic-release
-        env: { GITHUB_TOKEN: ${{ secrets.GH_TOKEN }} }
-        run: git fetch --tags --force && npx semantic-release
-      - id: release_info
-        run: |
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
-          echo "latest_tag=$LATEST_TAG"   >> $GITHUB_OUTPUT
-          echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
-          [[ "$LATEST_TAG" != "$PREVIOUS_TAG" && -n "$LATEST_TAG" ]] \
-            && echo "new_release=true" >> $GITHUB_OUTPUT \
-            || echo "new_release=false" >> $GITHUB_OUTPUT
+semantic-release:
+  runs-on: ubuntu-latest
+  needs: check-changes
+  if: github.ref == 'refs/heads/main' && (needs.check-changes.outputs.has_image_changes == 'true' || needs.check-changes.outputs.has_infra_changes == 'true')
+  outputs:
+    new_release: ${{ steps.release_info.outputs.new_release }}
+    latest_tag: ${{ steps.release_info.outputs.latest_tag }}
+    version: ${{ steps.release_info.outputs.version }}
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GH_TOKEN }}
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 18
+    - run: npm ci
+    - name: Run semantic-release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      run: |
+        git fetch --tags --force
+        npx semantic-release
+    - id: release_info
+      run: |
+        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+        echo "latest_tag=$LATEST_TAG"   >> $GITHUB_OUTPUT
+        echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+        if [ "$LATEST_TAG" != "$PREVIOUS_TAG" ] && [ -n "$LATEST_TAG" ]; then
+          echo "new_release=true" >> $GITHUB_OUTPUT
+        else
+          echo "new_release=false" >> $GITHUB_OUTPUT
+        fi
 
   generate-tag:
     runs-on: ubuntu-latest
