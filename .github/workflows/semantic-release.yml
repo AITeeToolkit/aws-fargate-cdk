@@ -175,6 +175,8 @@ jobs:
       api_tag: ${{ steps.tag.outputs.api_tag }}
       web_tag: ${{ steps.tag.outputs.web_tag }}
       should_deploy: ${{ steps.tag.outputs.should_deploy }}
+      listener_changed: ${{ steps.tag.outputs.listener_changed }}
+      dns_worker_changed: ${{ steps.tag.outputs.dns_worker_changed }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -208,22 +210,24 @@ jobs:
             WEB_TAG="${{ github.event.client_payload.web_tag }}"
             echo "🏷️ Using payload - API: $API_TAG, WEB: $WEB_TAG"
             echo "should_deploy=true" >> $GITHUB_OUTPUT
+            echo "listener_changed=false" >> $GITHUB_OUTPUT
+            echo "dns_worker_changed=false" >> $GITHUB_OUTPUT
           else
             if [[ "${{ github.ref }}" == "refs/heads/domain-updates" ]]; then
               if [[ "${{ needs.check-changes.outputs.only_domains_json_changed }}" == "true" ]]; then
                 echo "🏷️ Only domains.json changed on domain-updates: skipping listener build, incrementing dns-worker"
                 DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
                 git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"
-                echo "dns_worker_changed=true" >> $GITHUB_ENV
-                echo "listener_changed=false" >> $GITHUB_ENV
+                echo "dns_worker_changed=true" >> $GITHUB_OUTPUT
+                echo "listener_changed=false" >> $GITHUB_OUTPUT
               else
                 echo "🏷️ domain-updates branch: incrementing listener and dns-worker"
                 LISTENER_TAG=$(increment_version "$LISTENER_TAG")
                 DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
                 git tag "listener-$LISTENER_TAG" && git push origin "listener-$LISTENER_TAG"
                 git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"
-                echo "dns_worker_changed=true" >> $GITHUB_ENV
-                echo "listener_changed=true" >> $GITHUB_ENV
+                echo "dns_worker_changed=true" >> $GITHUB_OUTPUT
+                echo "listener_changed=true" >> $GITHUB_OUTPUT
               fi
               echo "should_deploy=true" >> $GITHUB_OUTPUT
             else
@@ -231,12 +235,18 @@ jobs:
                 LISTENER_TAG=$(increment_version "$LISTENER_TAG")
                 git tag "listener-$LISTENER_TAG" && git push origin "listener-$LISTENER_TAG"
                 echo "🏷️ Incremented listener: $LISTENER_TAG"
+                echo "listener_changed=true" >> $GITHUB_OUTPUT
+              else
+                echo "listener_changed=false" >> $GITHUB_OUTPUT
               fi
               
               if [[ "${{ needs.check-changes.outputs.dns_worker_changed }}" == "true" ]]; then
                 DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
                 git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"
                 echo "🏷️ Incremented dns-worker: $DNS_WORKER_TAG"
+                echo "dns_worker_changed=true" >> $GITHUB_OUTPUT
+              else
+                echo "dns_worker_changed=false" >> $GITHUB_OUTPUT
               fi
               
               if [[ "${{ needs.check-changes.outputs.has_infra_changes }}" == "true" || "${{ needs.check-changes.outputs.has_image_changes }}" == "true" ]]; then
@@ -257,7 +267,7 @@ jobs:
   build-listener:
     name: Build & Push Listener Image
     needs: [generate-tag, check-changes, semantic-release]
-    if: always() && env.listener_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
+    if: always() && needs.generate-tag.outputs.listener_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
     uses: ./.github/workflows/listener-build.yml
     with:
       environment: dev
@@ -267,7 +277,7 @@ jobs:
   build-dns-worker:
     name: Build & Push DNS Worker Image
     needs: [generate-tag, check-changes, semantic-release]
-    if: always() && env.dns_worker_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
+    if: always() && needs.generate-tag.outputs.dns_worker_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
     uses: ./.github/workflows/dns-worker-build.yml
     with:
       environment: dev
