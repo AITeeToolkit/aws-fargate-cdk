@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.75.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.74.1...v1.75.0) (2025-09-26)
+
+
+### 🚀 Features
+
+* add new domains to allowlist configuration ([53db4c2](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/53db4c2680d449cf1d2276bf5fd3d9e20a4eb7ea))
+
 ## [1.74.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.74.0...v1.74.1) (2025-09-26)
 
 
