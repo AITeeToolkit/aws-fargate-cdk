@@ -10,7 +10,7 @@ def resolve_tag(context_key: str, env_var: str, app_context,
     Resolve a tag with clear priorities:
     1. CDK context
     2. Environment variable
-    3. Service-specific tags (listener/dns-worker use prefixed tags, api/web use repo tags)
+    3. Service-specific tags (listener-v*, dns-worker-v*, api-v*, web-v*)
     4. Fallback to 'latest'
     """
     # Priority 1: Context
@@ -25,30 +25,23 @@ def resolve_tag(context_key: str, env_var: str, app_context,
         print(f"🏷️  Using environment tag for {context_key}: {env_tag}")
         return env_tag
 
-    # Priority 3: Service-specific
+    # Priority 3: Service-specific tags
     try:
-        if service_name in ["listener", "dns-worker"]:
-            # Look for prefixed tags locally
+        if service_name in ["listener", "dns-worker", "api", "web"]:
+            prefix = f"{service_name}-v*"
             result = subprocess.run(
-                ["git", "tag", "-l", f"{service_name}-v*"],
+                ["git", "tag", "-l", prefix],
                 capture_output=True, text=True
             )
             if result.returncode == 0 and result.stdout.strip():
                 tags = [t.strip() for t in result.stdout.splitlines()]
-                latest_tag = sorted(tags, reverse=True)[0]
+                latest_tag = sorted(
+                    tags,
+                    key=lambda s: [int(p) for p in s.split("-v")[-1].split(".")],
+                    reverse=True
+                )[0]
                 version = latest_tag.replace(f"{service_name}-", "")
                 print(f"🏷️  Using latest {service_name} tag for {context_key}: {version}")
-                return version
-
-        if service_name in ["api", "web"]:
-            # Use repo-wide semantic-release tag
-            result = subprocess.run(
-                ["git", "describe", "--tags", "--abbrev=0"],
-                capture_output=True, text=True
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                version = result.stdout.strip()
-                print(f"🏷️  Using repository tag for {context_key}: {version}")
                 return version
 
     except Exception as e:
