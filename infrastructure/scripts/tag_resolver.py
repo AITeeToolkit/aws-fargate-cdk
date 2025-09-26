@@ -44,10 +44,11 @@ def resolve_tag(context_key: str, env_var: str, app_context, service_files: Opti
                 if result.returncode == 0 and result.stdout.strip():
                     lines = result.stdout.strip().split('\n')
                     for line in lines:
-                        if f'{service_name}-v' in line:
-                            # Extract tag name from "refs/tags/api-v1.6.1"
-                            tag = line.split('/')[-1]
+                        if f'{service_name}-v' in line and 'refs/tags/' in line:
+                            # Extract tag name from "hash refs/tags/api-v1.6.1"
+                            tag = line.split('refs/tags/')[-1]
                             service_tags.append(tag)
+                    print(f"🔍 Found {len(service_tags)} {service_name} tags: {service_tags[:3]}...")
             else:
                 # For listener/dns-worker, use local repository tags
                 result = subprocess.run(['git', 'tag', '-l', f'{service_name}-v*'], capture_output=True, text=True)
@@ -62,9 +63,19 @@ def resolve_tag(context_key: str, env_var: str, app_context, service_files: Opti
                         service_tags = [tag for tag in all_tags if tag.startswith(f'{service_name}-v')]
             
             if service_tags:
-                # Sort by version (reverse to get latest first)
-                latest_tag = sorted(service_tags, reverse=True)[0]
+                # Sort by version properly (semantic versioning)
+                def version_key(tag):
+                    # Extract version from "api-v1.6.1" -> "1.6.1"
+                    version = tag.replace(f'{service_name}-v', '')
+                    try:
+                        parts = [int(x) for x in version.split('.')]
+                        return tuple(parts)
+                    except:
+                        return (0, 0, 0)
+                
+                latest_tag = sorted(service_tags, key=version_key, reverse=True)[0]
                 version = latest_tag.replace(f'{service_name}-', '')
+                print(f"🔍 Latest {service_name} tag: {latest_tag} -> {version}")
                 
                 # Show appropriate message based on skip status
                 if env_tag == "skip":

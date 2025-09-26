@@ -191,8 +191,8 @@ jobs:
   generate-tag:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [check-changes]
-    if: always()
+    needs: [check-changes, semantic-release]
+    if: always() && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
     outputs:
       image_tag: ${{ steps.tag.outputs.image_tag }}
       listener_tag: ${{ steps.tag.outputs.listener_tag }}
