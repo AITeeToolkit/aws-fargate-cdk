@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.71.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.70.0...v1.71.0) (2025-09-26)
+
+
+### 🚀 Features
+
+* enhance tag resolution with multi-method search and improved error handling ([0468bf9](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/0468bf9c57ee4bf229c86cf668af896270d30de7))
+
+
+### 🐛 Bug Fixes
+
+* update API service environment variable comment for clarity ([c3c1a6d](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/c3c1a6d3bad4718ae9d8a915cf39ecf70d8c2dce))
+
+
+### ♻️ Code Refactoring
+
+* simplify tag resolution by removing storefront-cdk remote tag fetching ([5a5b731](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/5a5b73150008c42cc023f01f918924ef795dc187))
+
 ## [1.70.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.69.2...v1.70.0) (2025-09-26)
 
 
