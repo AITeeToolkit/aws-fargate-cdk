@@ -18,6 +18,24 @@ All notable changes to this project will be documented in this file. See [Conven
 ### ♻️ Code Refactoring
 
 * implement idempotent Route53 record management with custom Lambda resource ([1764b39](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/1764b399523cfe2b750b02048f17abd9bdfe3555))
+* simplify CI workflows and add git tagging for successful builds ([8559e03](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/8559e031651a930f7ceb32a04e93d5955d566c55))
+
+## [1.74.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.73.0...v1.74.0) (2025-09-26)
+
+
+### 🚀 Features
+
+* add email DNS configuration and domain deactivation support ([e6ba140](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/e6ba14054a8a4c72618dd9bfccd5fc9dac87d479))
+
+
+### 🐛 Bug Fixes
+
+* update domains list and clarify listener setup comment ([0e93719](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/0e937192e32331f29475b683afbe7f444acd4e99))
+
+
+### ♻️ Code Refactoring
+
+* implement idempotent Route53 record management with custom Lambda resource ([1764b39](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/1764b399523cfe2b750b02048f17abd9bdfe3555))
 
 ## [1.74.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.73.0...v1.74.0) (2025-09-26)
 
