@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.72.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.72.0...v1.72.1) (2025-09-26)
+
+
+### 🐛 Bug Fixes
+
+* handle unprefixed version tags for API/WEB services in external repo ([eb06140](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/eb06140abe12a06b8ec741b23937fc755d0efb8d))
+* update API environment variable comment for clarity ([e17f525](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/e17f525afdbcf7dcf92192128487a436ecd3552d))
+
 ## [1.72.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.71.2...v1.72.0) (2025-09-26)
 
 
