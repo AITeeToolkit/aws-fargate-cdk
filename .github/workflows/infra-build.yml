@@ -176,8 +176,10 @@ jobs:
             exit 1
           fi
 
-      - name: CDK Deploy
+      - name: Deploy Infrastructure
         if: steps.stack-status.outputs.busy_stacks == 'false' || success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "🚀 Deploying with image tags:"
           echo "  Listener:   $LISTENER_IMAGE_TAG"

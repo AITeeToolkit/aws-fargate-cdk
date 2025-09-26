@@ -34,9 +34,15 @@ def resolve_tag(context_key: str, env_var: str, app_context, service_files: Opti
             # For API/WEB services, fetch from storefront-cdk repository
             if service_name in ['api', 'web']:
                 print(f"🔍 Fetching {service_name} tags from storefront-cdk...")
+                # Try with GitHub token if available
+                github_token = os.environ.get('GITHUB_TOKEN')
+                if github_token:
+                    repo_url = f'https://{github_token}@github.com/AITeeToolkit/storefront-cdk.git'
+                else:
+                    repo_url = 'https://github.com/AITeeToolkit/storefront-cdk.git'
+                
                 result = subprocess.run([
-                    'git', 'ls-remote', '--tags', 
-                    'https://github.com/AITeeToolkit/storefront-cdk.git'
+                    'git', 'ls-remote', '--tags', repo_url
                 ], capture_output=True, text=True)
                 
                 if result.returncode == 0 and result.stdout.strip():
