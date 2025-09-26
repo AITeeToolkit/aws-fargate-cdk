@@ -9,56 +9,19 @@ on:
       image_tag:
         required: true
         type: string
-      force_build:
-        required: false
-        default: false
-        type: boolean
     secrets:
-      GH_TOKEN:
-        required: true
       AWS_CODEBUILD_ACCESS_KEY_ID:
         required: true
       AWS_CODEBUILD_SECRET_ACCESS_KEY:
         required: true
-
-env:
-  AWS_REGION: us-east-1
-  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/storefront/${{ inputs.environment || 'dev' }}
+      AWS_ACCOUNT_ID:
+        required: true
 
 jobs:
-  detect-changes:
-    name: Detect Listener Changes
-    runs-on: ubuntu-latest
-    outputs:
-      listener_changed: ${{ steps.diff.outputs.listener }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - id: diff
-        run: |
-          if [[ "${{ inputs.force_build }}" == "true" ]]; then
-            echo "listener=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          BASE_SHA="${{ github.event.before || github.sha }}~1"
-          HEAD_SHA="${{ github.sha }}"
-
-          # Check for changes in listener-specific files
-          if git diff --name-only $BASE_SHA $HEAD_SHA | grep -E '^apps/(listener/|Dockerfile|requirements\.txt)$' > /dev/null; then
-            echo "listener=true" >> $GITHUB_OUTPUT
-          else
-            echo "listener=false" >> $GITHUB_OUTPUT
-          fi
-
   build-listener:
     name: Build & Push Listener Image
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [detect-changes]
-    if: needs.detect-changes.outputs.listener_changed == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -67,16 +30,18 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_CODEBUILD_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: us-east-1
 
       - name: Login to ECR
-        run: aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+        run: |
+          ECR_REGISTRY=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/storefront/${{ inputs.environment }}
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_REGISTRY
+          echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
 
       - name: Build Listener Docker Image
         run: |
           echo "🔧 Building Listener image with tag: ${{ inputs.image_tag }}"
           docker build --target listener -t $ECR_REGISTRY/listener:${{ inputs.image_tag }} ./apps
-
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             docker tag $ECR_REGISTRY/listener:${{ inputs.image_tag }} $ECR_REGISTRY/listener:latest
           fi
@@ -84,7 +49,14 @@ jobs:
       - name: Push Listener Image
         run: |
           docker push $ECR_REGISTRY/listener:${{ inputs.image_tag }}
-
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             docker push $ECR_REGISTRY/listener:latest
           fi
+
+      - name: Tag Git after successful build
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "listener-${{ inputs.image_tag }}"
+          git push origin "listener-${{ inputs.image_tag }}"
