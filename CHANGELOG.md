@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.78.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.77.0...v1.78.0) (2025-09-26)
+
+
+### 🚀 Features
+
+* add custom IAM policy for Route53 record creation lambda ([e73471c](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/e73471c1b1a7d6c7d7d33210c5081f274fa1f7a6))
+
 ## [1.77.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.76.0...v1.77.0) (2025-09-26)
 
 
