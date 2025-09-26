@@ -233,9 +233,9 @@ jobs:
             WEB_TAG="${{ github.event.client_payload.web_tag }}"
             echo "should_deploy=true" >> $GITHUB_OUTPUT
           else
-            [[ "${{ needs.check-changes.outputs.listener_changed }}" == "true" ]] && { LISTENER_TAG=$(increment_version "$LISTENER_TAG"); git tag "listener-$LISTENER_TAG" && git push origin "listener-$LISTENER_TAG"; }
-            [[ "${{ needs.check-changes.outputs.dns_worker_changed }}" == "true" ]] && { DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG"); git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"; }
-            [[ "${{ needs.check-changes.outputs.has_infra_changes }}" == "true" || "${{ needs.check-changes.outputs.has_image_changes }}" == "true" ]] && echo "should_deploy=true" || echo "should_deploy=false" >> $GITHUB_OUTPUT
+            [[ "${{ needs.check-changes.outputs.listener }}" == "true" ]] && { LISTENER_TAG=$(increment_version "$LISTENER_TAG"); git tag "listener-$LISTENER_TAG" && git push origin "listener-$LISTENER_TAG"; }
+            [[ "${{ needs.check-changes.outputs.dns_worker }}" == "true" ]] && { DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG"); git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"; }
+            [[ "${{ needs.check-changes.outputs.has_image_changes }}" == "true" || "${{ needs.check-changes.outputs.has_infra_changes }}" == "true" ]] && echo "should_deploy=true" || echo "should_deploy=false" >> $GITHUB_OUTPUT
           fi
           REPO_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
           echo "image_tag=$REPO_TAG" >> $GITHUB_OUTPUT
@@ -248,7 +248,7 @@ jobs:
   build-listener:
     name: Build & Push Listener Image
     needs: [generate-tag, check-changes]
-    if: needs.check-changes.outputs.listener_changed == 'true'
+    if: needs.check-changes.outputs.listener == 'true'
     uses: ./.github/workflows/listener-build.yml
     with:
       environment: dev
@@ -258,7 +258,7 @@ jobs:
   build-dns-worker:
     name: Build & Push DNS Worker Image
     needs: [generate-tag, check-changes]
-    if: needs.check-changes.outputs.dns_worker_changed == 'true'
+    if: needs.check-changes.outputs.dns_worker == 'true'
     uses: ./.github/workflows/dns-worker-build.yml
     with:
       environment: dev
