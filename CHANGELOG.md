@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.78.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.78.1...v1.78.2) (2025-09-26)
+
+
+### ♻️ Code Refactoring
+
+* replace git diff with dorny/paths-filter action for change detection in CI workflows ([4348eb9](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/4348eb9fba8732e0c188962bd54da5329deaff2f))
+
 ## [1.78.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.78.0...v1.78.1) (2025-09-26)
 
 
