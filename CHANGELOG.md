@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.68.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.67.0...v1.68.0) (2025-09-26)
+
+
+### 🚀 Features
+
+* fetch API/WEB tags from storefront-cdk repo instead of local git history ([f61cb32](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/f61cb32ff40da534c6eeb18b188493ce66c58df9))
+
 ## [1.67.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.66.2...v1.67.0) (2025-09-26)
 
 
