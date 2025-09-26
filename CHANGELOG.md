@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.77.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.76.0...v1.77.0) (2025-09-26)
+
+
+### 🚀 Features
+
+* improve domains.json change detection and add tag cleanup after deployment ([86fb54c](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/86fb54c1012a3cddf4155a030f6a9497dbc5a850))
+
+
+### ♻️ Code Refactoring
+
+* implement idempotent Route53 record management using Lambda custom resource ([5da574f](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/5da574fdb7e659fe04c21b3ce1cf54e6b7f2ab47))
+
 ## [1.76.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.75.0...v1.76.0) (2025-09-26)
 
 
