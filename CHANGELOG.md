@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.74.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.74.0...v1.74.1) (2025-09-26)
+
+
+### 🐛 Bug Fixes
+
+* hardcode AWS region in ECR registry URL instead of using env variable ([fc8f099](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/fc8f0992d8d463f63e1fbcbeccd6024c30973a50))
+
+
+### ♻️ Code Refactoring
+
+* migrate Docker builds to build-push-action and improve workflow organization ([02d2705](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/02d270504f6818285b4e0ecc4681339ec4c85b45))
+* streamline infrastructure deployment workflow with improved stack status checks ([3859ebf](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/3859ebf8d8904b2a637c776ca8ae14159bc9c92f))
+
 ## [1.74.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.73.0...v1.74.0) (2025-09-26)
 
 
