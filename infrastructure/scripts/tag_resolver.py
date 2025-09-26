@@ -31,61 +31,54 @@ def resolve_tag(context_key: str, env_var: str, app_context, service_files: Opti
     # Priority 3: Find latest service tag
     if service_name:
         try:
-            service_tags = []
-            
             # For API/WEB services, fetch from storefront-cdk repository
             if service_name in ['api', 'web']:
-                print(f"🔍 Fetching {service_name} tags from storefront-cdk repository...")
+                print(f"🔍 Fetching {service_name} tags from storefront-cdk...")
                 result = subprocess.run([
                     'git', 'ls-remote', '--tags', 
                     'https://github.com/AITeeToolkit/storefront-cdk.git'
                 ], capture_output=True, text=True)
                 
                 if result.returncode == 0 and result.stdout.strip():
+                    # Parse git ls-remote output: "hash\trefs/tags/api-v1.6.1"
                     lines = result.stdout.strip().split('\n')
+                    versions = []
                     for line in lines:
-                        if f'{service_name}-v' in line and 'refs/tags/' in line:
-                            # Extract tag name from "hash refs/tags/api-v1.6.1"
-                            tag = line.split('refs/tags/')[-1]
-                            service_tags.append(tag)
-                    print(f"🔍 Found {len(service_tags)} {service_name} tags: {service_tags[:3]}...")
+                        if f'\trefs/tags/{service_name}-v' in line:
+                            # Extract version: "hash\trefs/tags/api-v1.6.1" -> "v1.6.1"
+                            tag_part = line.split('\t')[1]  # "refs/tags/api-v1.6.1"
+                            version = tag_part.split(f'{service_name}-')[1]  # "v1.6.1"
+                            versions.append(version)
+                    
+                    if versions:
+                        # Sort versions and get latest
+                        def version_sort_key(v):
+                            try:
+                                parts = [int(x) for x in v.replace('v', '').split('.')]
+                                return tuple(parts)
+                            except:
+                                return (0, 0, 0)
+                        
+                        latest_version = sorted(versions, key=version_sort_key, reverse=True)[0]
+                        print(f"🏷️ Using latest {service_name} tag: {latest_version}")
+                        return latest_version
+                    else:
+                        print(f"⚠️ No {service_name} service tags found in storefront-cdk")
+                else:
+                    print(f"⚠️ Failed to fetch tags from storefront-cdk: {result.stderr}")
             else:
                 # For listener/dns-worker, use local repository tags
                 result = subprocess.run(['git', 'tag', '-l', f'{service_name}-v*'], capture_output=True, text=True)
                 if result.returncode == 0 and result.stdout.strip():
-                    service_tags = [tag.strip() for tag in result.stdout.strip().split('\n') if tag.strip()]
-                
-                # Fallback: list all and filter
-                if not service_tags:
-                    result = subprocess.run(['git', 'tag', '--list'], capture_output=True, text=True)
-                    if result.returncode == 0 and result.stdout.strip():
-                        all_tags = [tag.strip() for tag in result.stdout.strip().split('\n') if tag.strip()]
-                        service_tags = [tag for tag in all_tags if tag.startswith(f'{service_name}-v')]
-            
-            if service_tags:
-                # Sort by version properly (semantic versioning)
-                def version_key(tag):
-                    # Extract version from "api-v1.6.1" -> "1.6.1"
-                    version = tag.replace(f'{service_name}-v', '')
-                    try:
-                        parts = [int(x) for x in version.split('.')]
-                        return tuple(parts)
-                    except:
-                        return (0, 0, 0)
-                
-                latest_tag = sorted(service_tags, key=version_key, reverse=True)[0]
-                version = latest_tag.replace(f'{service_name}-', '')
-                print(f"🔍 Latest {service_name} tag: {latest_tag} -> {version}")
-                
-                # Show appropriate message based on skip status
-                if env_tag == "skip":
-                    print(f"🏷️  Build skipped, using existing service tag for {context_key}: {version}")
-                else:
-                    print(f"🏷️  Using latest service tag for {context_key}: {version}")
-                return version
-                
+                    tags = [tag.strip() for tag in result.stdout.strip().split('\n') if tag.strip()]
+                    if tags:
+                        latest_tag = sorted(tags, reverse=True)[0]
+                        version = latest_tag.replace(f'{service_name}-', '')
+                        print(f"🏷️ Using latest {service_name} tag: {version}")
+                        return version
+                        
         except Exception as e:
-            print(f"⚠️  Error finding service tags for {service_name}: {e}")
+            print(f"⚠️ Error finding service tags for {service_name}: {e}")
     
     # Priority 4: Fallback to latest repository tag
     try:
