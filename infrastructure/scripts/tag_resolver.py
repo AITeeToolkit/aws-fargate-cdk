@@ -31,23 +31,35 @@ def resolve_tag(context_key: str, env_var: str, app_context, service_files: Opti
     # Priority 3: Find latest service tag
     if service_name:
         try:
-            # For listener/dns-worker, use local repository tags
-            if service_name in ['listener', 'dns-worker']:
-                result = subprocess.run(['git', 'tag', '-l', f'{service_name}-v*'], capture_output=True, text=True)
+            # Try multiple approaches to find service tags
+            service_tags = []
+            
+            # Method 1: Direct pattern search
+            result = subprocess.run(['git', 'tag', '-l', f'{service_name}-v*'], capture_output=True, text=True)
+            if result.returncode == 0 and result.stdout.strip():
+                service_tags = [tag.strip() for tag in result.stdout.strip().split('\n') if tag.strip()]
+            
+            # Method 2: If no results, try listing all and filtering
+            if not service_tags:
+                result = subprocess.run(['git', 'tag', '--list'], capture_output=True, text=True)
                 if result.returncode == 0 and result.stdout.strip():
-                    tags = [tag.strip() for tag in result.stdout.strip().split('\n') if tag.strip()]
-                    if tags:
-                        latest_tag = sorted(tags, reverse=True)[0]
-                        version = latest_tag.replace(f'{service_name}-', '')
-                        print(f"🏷️ Using latest {service_name} tag: {version}")
-                        return version
-            else:
-                # For API/WEB services, we can't reliably fetch from private repo
-                # The workflow should pass these via CDK context, so this shouldn't be reached
-                print(f"⚠️ API/WEB tags should be provided via CDK context, not fetched here")
-                        
+                    all_tags = [tag.strip() for tag in result.stdout.strip().split('\n') if tag.strip()]
+                    service_tags = [tag for tag in all_tags if tag.startswith(f'{service_name}-v')]
+            
+            if service_tags:
+                # Sort by version (reverse to get latest first)
+                latest_tag = sorted(service_tags, reverse=True)[0]
+                version = latest_tag.replace(f'{service_name}-', '')
+                
+                # Show appropriate message based on skip status
+                if env_tag == "skip":
+                    print(f"🏷️  Build skipped, using existing service tag for {context_key}: {version}")
+                else:
+                    print(f"🏷️  Using latest service tag for {context_key}: {version}")
+                return version
+                
         except Exception as e:
-            print(f"⚠️ Error finding service tags for {service_name}: {e}")
+            print(f"⚠️  Error finding service tags for {service_name}: {e}")
     
     # Priority 4: Fallback to latest repository tag
     try:
