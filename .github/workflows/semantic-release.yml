@@ -211,11 +211,15 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Get current service tags
+          # Get current service tags (local for listener/dns-worker, remote for api/web)
           LISTENER_TAG=$(git tag -l "listener-v*" --sort=-version:refname | head -n1 | sed 's/listener-//' || echo "v1.0.0")
           DNS_WORKER_TAG=$(git tag -l "dns-worker-v*" --sort=-version:refname | head -n1 | sed 's/dns-worker-//' || echo "v1.0.0")
-          API_TAG=$(git tag -l "api-v*" --sort=-version:refname | head -n1 | sed 's/api-//' || echo "v1.0.0")
-          WEB_TAG=$(git tag -l "web-v*" --sort=-version:refname | head -n1 | sed 's/web-//' || echo "v1.0.0")
+          
+          # Fetch latest API/WEB tags from storefront-cdk repository
+          echo "🔍 Fetching latest API/WEB tags from storefront-cdk..."
+          API_TAG=$(git ls-remote --tags https://github.com/AITeeToolkit/storefront-cdk.git | grep 'api-v' | sed 's/.*api-//' | sort -V | tail -n1 || echo "v1.0.0")
+          WEB_TAG=$(git ls-remote --tags https://github.com/AITeeToolkit/storefront-cdk.git | grep 'web-v' | sed 's/.*web-//' | sort -V | tail -n1 || echo "v1.0.0")
+          echo "🏷️ Fetched from storefront-cdk - API: $API_TAG, WEB: $WEB_TAG"
           
           increment_version() {
             local version=$1
