@@ -162,7 +162,7 @@ def handle_domain_change(domain_name: str, active: str):
         logging.error(f"❌ Error processing domain change for {domain_name}: {e}")
 
 
-# Setup listener
+# Setup listener function
 setup_listener()
 
 # Main event loop

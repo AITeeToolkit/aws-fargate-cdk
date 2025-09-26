@@ -228,20 +228,28 @@ jobs:
             echo "dns_worker_changed=false" >> $GITHUB_OUTPUT
           else
             if [[ "${{ github.ref }}" == "refs/heads/domain-updates" ]]; then
-              if [[ "${{ needs.check-changes.outputs.only_domains_json_changed }}" == "true" ]]; then
+              if [[ "${{ needs.check-changes.outputs.only_domains_json_changed }}" == "true" && "${{ needs.check-changes.outputs.listener_changed }}" == "false" ]]; then
                 echo "🏷️ Only domains.json changed on domain-updates: using existing listener tag, incrementing dns-worker"
                 DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
                 git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"
                 echo "dns_worker_changed=true" >> $GITHUB_OUTPUT
                 echo "listener_changed=false" >> $GITHUB_OUTPUT
               else
-                echo "🏷️ domain-updates branch: incrementing listener and dns-worker"
-                LISTENER_TAG=$(increment_version "$LISTENER_TAG")
-                DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
-                git tag "listener-$LISTENER_TAG" && git push origin "listener-$LISTENER_TAG"
-                git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"
-                echo "dns_worker_changed=true" >> $GITHUB_OUTPUT
-                echo "listener_changed=true" >> $GITHUB_OUTPUT
+                echo "🏷️ domain-updates branch: incrementing listener and/or dns-worker based on changes"
+                if [[ "${{ needs.check-changes.outputs.listener_changed }}" == "true" ]]; then
+                  LISTENER_TAG=$(increment_version "$LISTENER_TAG")
+                  git tag "listener-$LISTENER_TAG" && git push origin "listener-$LISTENER_TAG"
+                  echo "listener_changed=true" >> $GITHUB_OUTPUT
+                else
+                  echo "listener_changed=false" >> $GITHUB_OUTPUT
+                fi
+                if [[ "${{ needs.check-changes.outputs.dns_worker_changed }}" == "true" ]]; then
+                  DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
+                  git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"
+                  echo "dns_worker_changed=true" >> $GITHUB_OUTPUT
+                else
+                  echo "dns_worker_changed=false" >> $GITHUB_OUTPUT
+                fi
               fi
               echo "should_deploy=true" >> $GITHUB_OUTPUT
             else
