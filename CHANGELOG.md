@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.69.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.69.0...v1.69.1) (2025-09-26)
+
+
+### 🐛 Bug Fixes
+
+* improve tag resolution and require semantic-release success for tag generation ([4d1a6e4](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/4d1a6e42d390fc4ad8981d987360d7c30e9a9e95))
+
 ## [1.69.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.68.0...v1.69.0) (2025-09-26)
 
 
