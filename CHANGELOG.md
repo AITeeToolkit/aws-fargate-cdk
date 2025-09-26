@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.66.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.65.0...v1.66.0) (2025-09-26)
+
+
+### 🚀 Features
+
+* add NetworkStack and MultiAlbStack to critical stack monitoring in CI/CD pipeline ([500e44b](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/500e44b61d8b81cf97ca7b67dec9b40ccac52d4b))
+
 ## [1.65.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.64.1...v1.65.0) (2025-09-25)
 
 
