@@ -239,7 +239,7 @@ def delete_hosted_zone_and_records(conn, domain_name, region_name="us-east-1"):
         # Update DB to set inactive
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE domains SET active_status = 'N', deactivation_date = CURRENT_DATE WHERE full_url = %s",
+                "UPDATE domains SET active_status = 'N', inactivation_date = CURRENT_DATE WHERE full_url = %s",
                 (domain_name,)
             )
             conn.commit()
