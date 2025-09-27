@@ -1,7 +1,7 @@
 name: CI/CD Pipeline
 
 concurrency:
-  group: infrastructure-deploy-${{ github.event.client_payload.environment || 'dev' }}
+  group: ci-cd-pipeline-${{ github.event.client_payload.environment || 'dev' }}
   cancel-in-progress: false  # Don't cancel, queue instead
 
 on:
