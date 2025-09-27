@@ -16,6 +16,29 @@ All notable changes to this project will be documented in this file. See [Conven
 ### 🐛 Bug Fixes
 
 * rename deactivation_date to inactivation_date and add DeleteHostedZone IAM permission ([3356464](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/33564646e9f6b69bd13e8030364f9cde00d2f9f4))
+* update tag resolver to fetch API/WEB tags from storefront-cdk repository ([2e3314e](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/2e3314e458d8ec7109956af57786698d4afe565e))
+* use latest tags instead of 'unchanged' for domain-updates branch ([1755172](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/175517232277fb8806661049739513ffa177715d))
+
+
+### ♻️ Code Refactoring
+
+* move domain_helpers.py into dns-worker app directory ([4232b2c](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/4232b2cbc7cfa0ae3aefcac4ef1b86babbabf643))
+* switch to parameter names instead of direct values for OpenSearch and SQS endpoints ([10fa27a](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/10fa27ab917aef2867d2483444a0fdefe354adc4))
+
+## [1.76.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.75.2...v1.76.0) (2025-09-27)
+
+
+### 🚀 Features
+
+* add atomic domain activation/deactivation with hosted zone management ([5925173](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/592517375f3dd504332446931e7f5ea899f6fd76))
+* add domain_helpers import from listener directory to dns-worker Dockerfile ([ef58820](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/ef58820008bf85ea78c735795d4f7a87ef6ae5c7))
+* add hosted zone configuration for 042322.xyz domain ([d3f4a01](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/d3f4a0137b4e543d4b3afbbb9caf4e8316fa1ce7))
+* update deployment summary to show individual service tags and add Route53 permissions ([002e5ba](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/002e5ba7930898c624885317633983ad23107fdc))
+
+
+### 🐛 Bug Fixes
+
+* rename deactivation_date to inactivation_date and add DeleteHostedZone IAM permission ([3356464](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/33564646e9f6b69bd13e8030364f9cde00d2f9f4))
 * use latest tags instead of 'unchanged' for domain-updates branch ([1755172](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/175517232277fb8806661049739513ffa177715d))
 
 
