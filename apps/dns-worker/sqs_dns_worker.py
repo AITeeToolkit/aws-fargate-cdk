@@ -430,10 +430,12 @@ class SQSDNSWorker:
                     logger.info(f"✅ Deleted {len(changes)} records from zone {zone_id} ({domain})")
 
                 # Delete the hosted zone itself
-                self.route53_client.delete_hosted_zone(Id=zone_id)
-                deleted_zones.append(domain)
-                self.stats['hosted_zones_deleted'] += 1
-                logger.info(f"✅ Deleted hosted zone {zone_id} for {domain}")
+                # TODO: Temporarily disabled - keeping hosted zones but deleting records
+                # self.route53_client.delete_hosted_zone(Id=zone_id)
+                # deleted_zones.append(domain)
+                # self.stats['hosted_zones_deleted'] += 1
+                # logger.info(f"✅ Deleted hosted zone {zone_id} for {domain}")
+                logger.info(f"⚠️ Skipped hosted zone deletion for {domain} (zone_id: {zone_id}) - only deleted records")
                 
             except Exception as e:
                 logger.error(f"❌ Failed to delete hosted zone for {domain}: {e}")
