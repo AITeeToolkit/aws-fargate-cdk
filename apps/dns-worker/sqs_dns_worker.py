@@ -509,12 +509,13 @@ class SQSDNSWorker:
         try:
             headers = {"Authorization": f"token {self.github_token}"}
             
-            # Get current cdk.context.json content
+            # Get current cdk.context.json content from domain-updates branch
             url = f"https://api.github.com/repos/{self.repo}/contents/cdk.context.json"
-            r = requests.get(url, headers=headers)
+            params = {"ref": "domain-updates"}
+            r = requests.get(url, headers=headers, params=params)
             
             if r.status_code == 404:
-                logger.info("📝 No cdk.context.json found, nothing to clear")
+                logger.info("📝 No cdk.context.json found on domain-updates branch, nothing to clear")
                 return True
             
             r.raise_for_status()
@@ -540,11 +541,26 @@ class SQSDNSWorker:
                 "branch": "domain-updates"
             }
             
-            r = requests.put(url, headers=headers, json=payload)
-            r.raise_for_status()
+            # Retry logic for 409 conflicts
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    r = requests.put(url, headers=headers, json=payload)
+                    r.raise_for_status()
+                    logger.info("✅ Cleared CDK context cache for fresh hosted zone lookups")
+                    return True
+                    
+                except requests.exceptions.HTTPError as e:
+                    if e.response.status_code == 409 and attempt < max_retries - 1:
+                        logger.warning(f"⚠️ CDK context conflict (attempt {attempt + 1}/{max_retries}), retrying...")
+                        # Get fresh SHA and retry
+                        r_fresh = requests.get(url, headers=headers, params=params)
+                        if r_fresh.status_code == 200:
+                            payload["sha"] = r_fresh.json()["sha"]
+                            continue
+                    raise
             
-            logger.info("✅ Cleared CDK context cache for fresh hosted zone lookups")
-            return True
+            return False
             
         except Exception as e:
             logger.error(f"❌ Failed to clear CDK context: {e}")

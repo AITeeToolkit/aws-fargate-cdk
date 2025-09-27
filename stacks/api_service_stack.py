@@ -33,27 +33,15 @@ class APIServiceStack(Stack):
         # Create DATABASE_URL from database instance properties
         database_url = f"postgresql://{db_secret.secret_value_from_json('username').unsafe_unwrap()}:{db_secret.secret_value_from_json('password').unsafe_unwrap()}@{db_secret.secret_value_from_json('host').unsafe_unwrap()}:{db_secret.secret_value_from_json('port').unsafe_unwrap()}/{db_secret.secret_value_from_json('dbname').unsafe_unwrap()}?sslmode=no-verify"
 
-        # Get OpenSearch endpoint from SSM Parameter
-        opensearch_endpoint = ssm.StringParameter.value_for_string_parameter(
-            self, f"/storefront-{environment}/opensearch/endpoint"
-        )
+        # OpenSearch parameter name (let API service read it directly)
+        opensearch_parameter_name = f"/storefront-{environment}/opensearch/endpoint"
 
-        # Get SQS queue URLs from SSM Parameters
-        main_queue_url = ssm.StringParameter.value_for_string_parameter(
-            self, f"/storefront-{environment}/sqs/main-queue-url"
-        )
-        priority_queue_url = ssm.StringParameter.value_for_string_parameter(
-            self, f"/storefront-{environment}/sqs/priority-queue-url"
-        )
-        email_queue_url = ssm.StringParameter.value_for_string_parameter(
-            self, f"/storefront-{environment}/sqs/email-queue-url"
-        )
-        image_processing_queue_url = ssm.StringParameter.value_for_string_parameter(
-            self, f"/storefront-{environment}/sqs/image-processing-queue-url"
-        )
-        order_processing_queue_url = ssm.StringParameter.value_for_string_parameter(
-            self, f"/storefront-{environment}/sqs/order-processing-queue-url"
-        )
+        # SQS parameter names (let API service read them directly)
+        main_queue_parameter = f"/storefront-{environment}/sqs/main-queue-url"
+        priority_queue_parameter = f"/storefront-{environment}/sqs/priority-queue-url"
+        email_queue_parameter = f"/storefront-{environment}/sqs/email-queue-url"
+        image_processing_queue_parameter = f"/storefront-{environment}/sqs/image-processing-queue-url"
+        order_processing_queue_parameter = f"/storefront-{environment}/sqs/order-processing-queue-url"
 
         # Environment variables for API service
         api_environment = {
@@ -63,13 +51,12 @@ class APIServiceStack(Stack):
             "DATABASE_URL": database_url,
             "HEALTH_CHECK_PATH": "/v1/api/health",
             "AWS_REGION": "us-east-1",
-            "OPENSEARCH_ENDPOINT": opensearch_endpoint,
-            "SQS_MAIN_QUEUE_URL": main_queue_url,
-            "SQS_PRIORITY_QUEUE_URL": priority_queue_url,
-            "SQS_EMAIL_QUEUE_URL": email_queue_url,
-            "SQS_IMAGE_PROCESSING_QUEUE_URL": image_processing_queue_url,
-            "SQS_ORDER_PROCESSING_QUEUE_URL": order_processing_queue_url,
-            "OPENSEARCH_ENDPOINT": opensearch_endpoint
+            "OPENSEARCH_PARAMETER_NAME": opensearch_parameter_name,
+            "SQS_MAIN_QUEUE_PARAMETER": main_queue_parameter,
+            "SQS_PRIORITY_QUEUE_PARAMETER": priority_queue_parameter,
+            "SQS_EMAIL_QUEUE_PARAMETER": email_queue_parameter,
+            "SQS_IMAGE_PROCESSING_QUEUE_PARAMETER": image_processing_queue_parameter,
+            "SQS_ORDER_PROCESSING_QUEUE_PARAMETER": order_processing_queue_parameter
         }
 
         # Secrets configuration (from CloudFormation template)

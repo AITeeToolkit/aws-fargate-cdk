@@ -30,11 +30,6 @@ class WebServiceStack(Stack):
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # Get OpenSearch endpoint from SSM Parameter
-        opensearch_endpoint = ssm.StringParameter.value_for_string_parameter(
-            self, f"/storefront-{environment}/opensearch/endpoint"
-        )
-
         # Environment variables for web service
         web_environment = {
             "NODE_ENV": "production",
@@ -48,8 +43,7 @@ class WebServiceStack(Stack):
             "HEALTH_CHECK_PATH": "/health",
             "SKIP_TENANT_RESOLUTION_FOR_HEALTH": "true",
             "HEALTH_CHECK_BYPASS_TENANT": "true",
-            "AWS_REGION": "us-east-1",
-            "OPENSEARCH_ENDPOINT": opensearch_endpoint
+            "AWS_REGION": "us-east-1"
         }
 
         # Secrets (extend this if you want to pass db_secret, etc.)

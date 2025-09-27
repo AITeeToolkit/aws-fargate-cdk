@@ -1,5 +1,10 @@
 name: Infrastructure Build & Deploy
 
+# Prevent multiple infrastructure deployments from running simultaneously
+concurrency:
+  group: infrastructure-deploy-${{ github.event.client_payload.environment || inputs.environment || 'dev' }}
+  cancel-in-progress: false
+
 on:
   workflow_call:
     inputs:
