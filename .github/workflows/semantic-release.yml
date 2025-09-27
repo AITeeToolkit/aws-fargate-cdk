@@ -347,7 +347,7 @@ jobs:
     name: Deploy Infrastructure
     needs: [generate-tag, check-changes, build-listener, build-dns-worker, semantic-release]
     if: |
-      always() && github.ref == 'refs/heads/main' && (
+      always() && (github.ref == 'refs/heads/main' || github.ref_name == 'domain-updates') && (
         needs.check-changes.outputs.has_infra_changes == 'true' ||
         needs.check-changes.outputs.has_image_changes == 'true' ||
         github.event_name == 'repository_dispatch'
@@ -368,9 +368,50 @@ jobs:
       web_tag: ${{ needs.generate-tag.outputs.web_tag }}
     secrets: inherit
 
+  auto-merge-domains:
+    name: Auto-merge Domain Updates
+    needs: [deploy-infrastructure]
+    if: github.ref_name == 'domain-updates' && needs.deploy-infrastructure.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GH_TOKEN }}
+          fetch-depth: 0
+
+      - name: Merge domain-updates to main and cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          echo "🔄 Merging domain-updates branch to main..."
+          
+          # Fetch the latest domain-updates branch
+          git fetch origin domain-updates
+          
+          # Merge only the domains.json file from domain-updates
+          git checkout origin/domain-updates -- domains.json
+          
+          # Check if there are any changes to commit
+          if git diff --staged --quiet; then
+            echo "ℹ️ No changes to domains.json, skipping merge"
+          else
+            git add domains.json
+            git commit -m "chore: sync domains.json from domain-updates branch [skip ci]"
+            git push origin main
+            echo "✅ Successfully merged domains.json to main"
+          fi
+          
+          # Delete the domain-updates branch to clean up
+          echo "🗑️ Cleaning up domain-updates branch..."
+          git push origin --delete domain-updates
+          echo "✅ Deleted domain-updates branch"
+
   dev-summary:
     name: Deployment Summary
-    needs: [generate-tag, deploy-infrastructure]
+    needs: [generate-tag, deploy-infrastructure, auto-merge-domains]
     if: always()
     runs-on: ubuntu-latest
     steps:

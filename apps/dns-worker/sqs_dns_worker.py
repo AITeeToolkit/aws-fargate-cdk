@@ -462,28 +462,33 @@ class SQSDNSWorker:
             main_sha = r.json()["object"]["sha"]
             logger.info(f"Latest main SHA: {main_sha}")
             
-            # Delete and recreate domain-updates branch to ensure clean state
+            # Ensure domain-updates branch exists and is up to date with main
             try:
-                # Delete existing branch if it exists
+                # Check if branch exists
                 url = f"https://api.github.com/repos/{self.repo}/git/refs/heads/{branch_name}"
-                r = requests.delete(url, headers=headers)
-                if r.status_code == 200:
-                    logger.info(f"Deleted existing {branch_name} branch")
-                elif r.status_code == 422:
-                    logger.info(f"{branch_name} branch doesn't exist, will create new")
+                r = requests.get(url, headers=headers)
                 
-                # Create fresh branch from latest main
-                url = f"https://api.github.com/repos/{self.repo}/git/refs"
-                payload = {
-                    "ref": f"refs/heads/{branch_name}",
-                    "sha": main_sha
-                }
-                r = requests.post(url, headers=headers, json=payload)
-                r.raise_for_status()
-                logger.info(f"Created fresh {branch_name} branch from latest main")
-                
+                if r.status_code == 404:
+                    # Branch doesn't exist, create it from main
+                    url = f"https://api.github.com/repos/{self.repo}/git/refs"
+                    payload = {
+                        "ref": f"refs/heads/{branch_name}",
+                        "sha": main_sha
+                    }
+                    r = requests.post(url, headers=headers, json=payload)
+                    r.raise_for_status()
+                    logger.info(f"✅ Created {branch_name} branch from latest main")
+                else:
+                    # Branch exists, update it to latest main
+                    payload = {
+                        "sha": main_sha,
+                        "force": True
+                    }
+                    r = requests.patch(url, headers=headers, json=payload)
+                    r.raise_for_status()
+                    logger.info(f"✅ Updated {branch_name} branch to latest main")
             except Exception as e:
-                logger.warning(f"Failed to recreate branch, continuing: {e}")
+                logger.warning(f"⚠️ Failed to update branch, continuing: {e}")
             
             # Now update domains.json on the updated branch
             # Get domains.json from the now-updated branch
