@@ -172,8 +172,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           git fetch --tags --force
-          # Perform a dry run to get the proposed version
-          PROPOSED_VERSION=$(npx semantic-release --dry-run --no-ci | grep "Published release" | sed 's/.*release \([vV][0-9.]*\).*/\1/' || echo "v1.0.0")
+          # Perform a dry run to get the proposed version, handling timestamp
+          PROPOSED_VERSION=$(npx semantic-release --dry-run --no-ci 2>/dev/null | grep "Published release" | head -n 1 | sed 's/.*release \([vV][0-9.]*\).*/\1/' || echo "v1.0.0")
+          if [[ -z "$PROPOSED_VERSION" || "$PROPOSED_VERSION" == "v1.0.0" ]]; then
+            echo "Warning: Failed to extract proposed version, using fallback v1.0.0"
+            PROPOSED_VERSION="v1.0.0"
+          fi
           CURRENT_COMMIT=$(git rev-parse HEAD)
           echo "Proposed version: $PROPOSED_VERSION"
           echo "Current commit: $CURRENT_COMMIT"
@@ -190,12 +194,22 @@ jobs:
               MINOR=$(echo $PROPOSED_VERSION | cut -d. -f2)
               PATCH=$(echo $PROPOSED_VERSION | cut -d. -f3)
               LATEST_TAG="v$MAJOR.$MINOR.$((PATCH + 1))"
-              git tag "$LATEST_TAG" && git push origin "$LATEST_TAG"
+              git tag "$LATEST_TAG" && git push origin "$LATEST_TAG" || {
+                echo "Tag push failed, using existing tag"
+                LATEST_TAG=$PROPOSED_VERSION
+              }
             fi
           else
             echo "Tag $PROPOSED_VERSION does not exist, creating it"
             LATEST_TAG=$PROPOSED_VERSION
-            git tag "$LATEST_TAG" && git push origin "$LATEST_TAG"
+            git tag "$LATEST_TAG" && git push origin "$LATEST_TAG" || {
+              echo "Tag push failed, incrementing version"
+              MAJOR=$(echo $LATEST_TAG | cut -d. -f1 | sed 's/v//')
+              MINOR=$(echo $LATEST_TAG | cut -d. -f2)
+              PATCH=$(echo $LATEST_TAG | cut -d. -f3)
+              LATEST_TAG="v$MAJOR.$MINOR.$((PATCH + 1))"
+              git tag "$LATEST_TAG" && git push origin "$LATEST_TAG"
+            }
           fi
           
           # Run semantic-release to update changelog and release notes
