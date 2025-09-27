@@ -15,7 +15,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy dns-worker application files
 COPY . ./
 
-# Copy shared domain_helpers from listener directory
-COPY ../listener/domain_helpers.py ./
-
 CMD ["python", "dns_worker_app.py"]
