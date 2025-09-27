@@ -1,5 +1,5 @@
 # Base stage with common dependencies
-FROM python:3.11-slim as base
+FROM python:3.11-slim AS base
 
 WORKDIR /app
 
@@ -14,11 +14,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Listener service staging
-FROM base as listener
+FROM base AS listener
 COPY listener/ ./
 CMD ["python", "listener_app_sqs.py"]
 
 # DNS worker service staging
-FROM base as dns-worker
+FROM base AS dns-worker
 COPY dns-worker/ ./
 CMD ["python", "dns_worker_app.py"]
