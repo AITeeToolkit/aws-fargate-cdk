@@ -159,12 +159,14 @@ def handler(event, context):
 
         # Helper function to create custom resource for Route53 records
         def create_route53_record(id: str, record_name: str, record_type: str, record_values: list[str], alias_target=None, ttl: int = 300):
+            import time
             props = {
                 "HostedZoneId": zone.hosted_zone_id,
                 "RecordName": record_name,
                 "RecordType": record_type,
                 "RecordValues": record_values,
                 "TTL": str(ttl),
+                "ForceUpdate": str(int(time.time())),  # Force update on every deployment
             }
             if alias_target:
                 props["AliasTarget"] = alias_target
