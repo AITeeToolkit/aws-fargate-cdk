@@ -187,3 +187,66 @@ def get_tenant_for_domain(conn, domain_name):
     except Exception as e:
         logging.error(f"POSTGRES: Error retrieving tenant for domain {domain_name}: {e}")
         return None
+
+
+def delete_hosted_zone_and_records(conn, domain_name, region_name="us-east-1"):
+    """
+    Deletes all DNS records (A, MX, TXT, CNAME) for the domain and then deletes the hosted zone.
+    Also updates the database to mark domain inactive.
+    """
+    import boto3
+    route53_client = boto3.client("route53", region_name=region_name)
+
+    try:
+        # Find the hosted zone
+        response = route53_client.list_hosted_zones_by_name(DNSName=domain_name)
+        hosted_zones = response.get("HostedZones", [])
+        zone = next((z for z in hosted_zones if z["Name"] == f"{domain_name}."), None)
+
+        if not zone:
+            logging.warning(f"⚠️ No hosted zone found for {domain_name}, nothing to delete.")
+            return False
+
+        zone_id = zone["Id"].split("/")[-1]  # Clean zone ID
+
+        # Get all record sets
+        record_sets = route53_client.list_resource_record_sets(HostedZoneId=zone_id)
+
+        changes = []
+        for record in record_sets["ResourceRecordSets"]:
+            record_type = record["Type"]
+            record_name = record["Name"]
+
+            if record_type in ["A", "MX", "TXT", "CNAME"]:
+                logging.info(f"🗑️ Scheduling deletion for {record_type} record {record_name}")
+                changes.append({
+                    "Action": "DELETE",
+                    "ResourceRecordSet": record
+                })
+
+        # Batch delete records (skip SOA/NS, they are required for the zone)
+        if changes:
+            route53_client.change_resource_record_sets(
+                HostedZoneId=zone_id,
+                ChangeBatch={"Changes": changes}
+            )
+            logging.info(f"✅ Deleted {len(changes)} records from zone {zone_id} ({domain_name})")
+
+        # Delete the hosted zone itself
+        route53_client.delete_hosted_zone(Id=zone_id)
+        logging.info(f"✅ Deleted hosted zone {zone_id} for {domain_name}")
+
+        # Update DB to set inactive
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE domains SET active_status = 'N', deactivation_date = CURRENT_DATE WHERE full_url = %s",
+                (domain_name,)
+            )
+            conn.commit()
+
+        return True
+
+    except Exception as e:
+        logging.error(f"❌ Error deleting hosted zone for {domain_name}: {e}")
+        conn.rollback()
+        return False

@@ -41,7 +41,7 @@ jobs:
       - name: Build DNS Worker Docker Image
         run: |
           echo "🔧 Building DNS Worker image with tag: ${{ inputs.image_tag }}"
-          docker build --target dns-worker -t $ECR_REGISTRY/dns-worker:${{ inputs.image_tag }} ./apps
+          docker build -t $ECR_REGISTRY/dns-worker:${{ inputs.image_tag }} ./apps/dns-worker
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             docker tag $ECR_REGISTRY/dns-worker:${{ inputs.image_tag }} $ECR_REGISTRY/dns-worker:latest
           fi

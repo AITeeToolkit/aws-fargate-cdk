@@ -104,8 +104,8 @@ jobs:
             fi
             
             # Check for shared container files (affects both)
-            if echo "$CHANGED_FILES" | grep -E '^apps/(Dockerfile|requirements\.txt)$' > /dev/null; then
-              echo " Detected changes in shared container files - building both services"
+            if echo "$CHANGED_FILES" | grep -E '^apps/requirements\.txt$' > /dev/null; then
+              echo " Detected changes in shared requirements.txt - building both services"
               LISTENER_FLAG=true
               DNS_WORKER_FLAG=true
               IMAGE_FLAG=true

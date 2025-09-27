@@ -41,7 +41,7 @@ jobs:
       - name: Build Listener Docker Image
         run: |
           echo "🔧 Building Listener image with tag: ${{ inputs.image_tag }}"
-          docker build --target listener -t $ECR_REGISTRY/listener:${{ inputs.image_tag }} ./apps
+          docker build -t $ECR_REGISTRY/listener:${{ inputs.image_tag }} ./apps/listener
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             docker tag $ECR_REGISTRY/listener:${{ inputs.image_tag }} $ECR_REGISTRY/listener:latest
           fi
