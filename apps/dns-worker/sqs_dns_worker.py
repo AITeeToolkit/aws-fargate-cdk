@@ -460,27 +460,42 @@ class SQSDNSWorker:
             r = requests.get(url, headers=headers)
             r.raise_for_status()
             main_sha = r.json()["object"]["sha"]
+            logger.info(f"Latest main SHA: {main_sha}")
             
-            # Ensure branch exists
-            url = f"https://api.github.com/repos/{self.repo}/git/refs/heads/{branch_name}"
-            r = requests.get(url, headers=headers)
-            if r.status_code == 404:
-                logger.info(f"🌱 Creating branch '{branch_name}' from main")
+            # Delete and recreate domain-updates branch to ensure clean state
+            try:
+                # Delete existing branch if it exists
+                url = f"https://api.github.com/repos/{self.repo}/git/refs/heads/{branch_name}"
+                r = requests.delete(url, headers=headers)
+                if r.status_code == 200:
+                    logger.info(f"Deleted existing {branch_name} branch")
+                elif r.status_code == 422:
+                    logger.info(f"{branch_name} branch doesn't exist, will create new")
+                
+                # Create fresh branch from latest main
                 url = f"https://api.github.com/repos/{self.repo}/git/refs"
-                payload = {"ref": f"refs/heads/{branch_name}", "sha": main_sha}
+                payload = {
+                    "ref": f"refs/heads/{branch_name}",
+                    "sha": main_sha
+                }
                 r = requests.post(url, headers=headers, json=payload)
                 r.raise_for_status()
+                logger.info(f"Created fresh {branch_name} branch from latest main")
+                
+            except Exception as e:
+                logger.warning(f"Failed to recreate branch, continuing: {e}")
             
-            # Get existing file SHA
+            # Now update domains.json on the updated branch
+            # Get domains.json from the now-updated branch
             url = f"https://api.github.com/repos/{self.repo}/contents/domains.json"
             params = {"ref": branch_name}
             r = requests.get(url, headers=headers, params=params)
-            file_sha = r.json()["sha"] if r.status_code == 200 else None
+            file_sha = r.json().get("sha") if r.status_code == 200 else None
             
-            # Update file
+            # Update domains.json content
             content_b64 = base64.b64encode(domains_content.encode()).decode()
             payload = {
-                "message": f"Update domains.json with {len(domains)} active domains (SQS batch)",
+                "message": f"Update domains.json with {len(domains)} active domains",
                 "content": content_b64,
                 "branch": branch_name
             }
