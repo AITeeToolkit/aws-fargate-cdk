@@ -79,15 +79,15 @@ jobs:
           DNS_WORKER_FLAG=false
         
           if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
-            echo " Domain updates branch: forcing all flags to true"
-            IMAGE_FLAG=true
+            echo " Domain updates branch: only infrastructure changes needed"
+            IMAGE_FLAG=false
             INFRA_FLAG=true
-            LISTENER_FLAG=true
-            DNS_WORKER_FLAG=true
-            echo "images=true" >> $GITHUB_OUTPUT
+            LISTENER_FLAG=false
+            DNS_WORKER_FLAG=false
+            echo "images=false" >> $GITHUB_OUTPUT
             echo "infra=true" >> $GITHUB_OUTPUT
-            echo "listener=true" >> $GITHUB_OUTPUT
-            echo "dns_worker=true" >> $GITHUB_OUTPUT
+            echo "listener=false" >> $GITHUB_OUTPUT
+            echo "dns_worker=false" >> $GITHUB_OUTPUT
           else
             # Check for listener-specific changes
             if echo "$CHANGED_FILES" | grep -E '^apps/listener/' > /dev/null; then
