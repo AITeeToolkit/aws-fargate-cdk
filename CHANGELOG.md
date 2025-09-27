@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.74.3](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.74.2...v1.74.3) (2025-09-27)
+
+
+### ♻️ Code Refactoring
+
+* improve change detection logic in CI/CD workflow and remove domain-updates branch cleanup ([b749bb8](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/b749bb867b65b4a3942688e6652d9ef04510bc98))
+* simplify change detection logic and improve domain updates workflow ([44e1bbf](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/44e1bbf8fb2be7db53a9dd0d6bd19bf63007c78d))
+
 ## [1.74.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.74.0...v1.74.1) (2025-09-26)
 
 
