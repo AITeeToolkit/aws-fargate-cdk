@@ -30,5 +30,9 @@
   "hosted-zone:account=156041439702:domainName=hello.com:region=us-east-1": {
     "Id": "/hostedzone/Z05270543LE8CW4NPABQM",
     "Name": "hello.com."
+  },
+  "hosted-zone:account=156041439702:domainName=042322.xyz:region=us-east-1": {
+    "Id": "/hostedzone/Z0468843197U0KVRG8O23",
+    "Name": "042322.xyz."
   }
 }
