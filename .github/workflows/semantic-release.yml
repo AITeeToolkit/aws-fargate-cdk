@@ -111,6 +111,14 @@ jobs:
               IMAGE_FLAG=true
             fi
             
+            # Check for individual requirements.txt changes (affects both since they should be synced)
+            if echo "$CHANGED_FILES" | grep -E '^apps/(listener|dns-worker)/requirements\.txt$' > /dev/null; then
+              echo " Detected changes in individual requirements.txt - building both services"
+              LISTENER_FLAG=true
+              DNS_WORKER_FLAG=true
+              IMAGE_FLAG=true
+            fi
+            
             if [[ "$IMAGE_FLAG" == "false" ]]; then
               echo " No image-related changes detected"
             fi
