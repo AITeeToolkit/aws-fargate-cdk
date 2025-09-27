@@ -125,6 +125,9 @@ class FargateServiceConstruct(Construct):
                         "route53:CreateHostedZone",
                         "route53:GetHostedZone",
                         "route53:ListHostedZones",
+                        "route53:ListResourceRecordSets",
+                        "route53:ChangeResourceRecordSets",
+                        "route53:GetChange",
                     ],
                     resources=["*"],
                 )
@@ -176,6 +179,7 @@ class FargateServiceConstruct(Construct):
                         "route53:CreateHostedZone",
                         "route53:GetHostedZone",
                         "route53:ListHostedZones",
+                        "route53:ListResourceRecordSets",
                         "route53:ChangeResourceRecordSets",
                         "route53:GetChange",
                     ],
