@@ -371,7 +371,7 @@ jobs:
   auto-merge-domains:
     name: Auto-merge Domain Updates
     needs: [deploy-infrastructure]
-    if: github.ref_name == 'domain-updates' && needs.deploy-infrastructure.result == 'success'
+    if: always() && github.ref_name == 'domain-updates' && (needs.deploy-infrastructure.result == 'success' || needs.deploy-infrastructure.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main branch
