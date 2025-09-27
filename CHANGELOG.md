@@ -9,6 +9,13 @@ All notable changes to this project will be documented in this file. See [Conven
 
 * update deployment summary to show individual service tags and add Route53 permissions ([002e5ba](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/002e5ba7930898c624885317633983ad23107fdc))
 
+## [1.76.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.75.2...v1.76.0) (2025-09-27)
+
+
+### 🚀 Features
+
+* update deployment summary to show individual service tags and add Route53 permissions ([002e5ba](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/002e5ba7930898c624885317633983ad23107fdc))
+
 ## [1.75.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.75.1...v1.75.2) (2025-09-27)
 
 
