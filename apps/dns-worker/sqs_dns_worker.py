@@ -18,6 +18,9 @@ from botocore.exceptions import ClientError, NoCredentialsError
 from typing import Dict, Any, List, Set
 from collections import defaultdict
 
+# Import domain helper functions
+from domain_helpers import get_tenant_for_domain
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -77,6 +80,7 @@ class SQSDNSWorker:
         
         # Batch processing state
         self.pending_domains = set()
+        self.pending_deactivations = set()
         self.last_batch_time = time.time()
         
         # Statistics
@@ -85,6 +89,7 @@ class SQSDNSWorker:
             'batches_processed': 0,
             'domains_processed': 0,
             'hosted_zones_created': 0,
+            'hosted_zones_deleted': 0,
             'github_triggers': 0,
             'start_time': None
         }
@@ -185,16 +190,23 @@ class SQSDNSWorker:
             
             domain_name = message_data.get('domain_name')
             active = message_data.get('active')
-            operation_type = message_data.get('operation_type')
             
             if not domain_name or active not in ('Y', 'N'):
                 logger.error(f"Invalid message data: {message_data}")
                 return False
             
-            logger.info(f"Processing DNS message {message_id}: {domain_name} (active={active})")
+            logger.info(f"📨 Processing domain change: {domain_name} (active={active})")
             
-            # Add to pending batch
-            self.pending_domains.add(domain_name)
+            # Add to appropriate pending batch
+            if active == "Y":
+                self.pending_domains.add(domain_name)
+                # Remove from deactivations if it was there
+                self.pending_deactivations.discard(domain_name)
+            elif active == "N":
+                self.pending_deactivations.add(domain_name)
+                # Remove from activations if it was there
+                self.pending_domains.discard(domain_name)
+            
             self.stats['messages_processed'] += 1
             
             # Delete message from queue (we've successfully added it to batch)
@@ -255,6 +267,74 @@ class SQSDNSWorker:
             logger.error(f"❌ Failed to fetch active domains from database: {e}")
             return []
     
+    def update_domain_activation(self, domain_name: str) -> bool:
+        """
+        Update domains table to mark domain as active with tenant information.
+        
+        Args:
+            domain_name: Domain to activate
+            
+        Returns:
+            bool: True if updated successfully
+        """
+        try:
+            # Get tenant information
+            tenant_id = get_tenant_for_domain(self.db_connection, domain_name)
+            
+            if not tenant_id:
+                logger.warning(f"⚠️ Domain {domain_name} activation requested but no tenant found in purchased_domains")
+                return False
+            
+            # Update domains table to mark as active
+            with self.db_connection.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO domains (full_url, tenant_id, active_status, activation_date)
+                    VALUES (%s, %s, 'Y', CURRENT_DATE)
+                    ON CONFLICT (full_url) DO UPDATE SET
+                        tenant_id = EXCLUDED.tenant_id,
+                        active_status = 'Y',
+                        activation_date = CURRENT_DATE
+                    """,
+                    (domain_name, tenant_id)
+                )
+                self.db_connection.commit()
+            
+            logger.info(f"✅ Domain {domain_name} marked as active for tenant {tenant_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to update domain activation for {domain_name}: {e}")
+            self.db_connection.rollback()
+            return False
+    
+    def update_domain_deactivation(self, domain_name: str) -> bool:
+        """
+        Update domains table to mark domain as inactive.
+        
+        Args:
+            domain_name: Domain to deactivate
+            
+        Returns:
+            bool: True if updated successfully
+        """
+        try:
+            # Update domains table to mark as inactive
+            with self.db_connection.cursor() as cur:
+                cur.execute(
+                    "UPDATE domains SET active_status = 'N' WHERE full_url = %s",
+                    (domain_name,)
+                )
+                self.db_connection.commit()
+            
+            logger.info(f"✅ Domain {domain_name} marked as inactive in database")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to update domain deactivation for {domain_name}: {e}")
+            self.db_connection.rollback()
+            return False
+    
     def ensure_hosted_zones(self, domains: List[str]) -> List[str]:
         """
         Ensure hosted zones exist for all domains.
@@ -300,6 +380,65 @@ class SQSDNSWorker:
                 logger.error(f"❌ Failed to create hosted zone for {domain}: {e}")
         
         return created_zones
+    
+    def delete_hosted_zones(self, domains: List[str]) -> List[str]:
+        """
+        Delete hosted zones for deactivated domains.
+        
+        Args:
+            domains: List of domain names to delete hosted zones for
+            
+        Returns:
+            list: List of domains for which zones were deleted
+        """
+        deleted_zones = []
+        
+        for domain in domains:
+            try:
+                # Find the hosted zone
+                response = self.route53_client.list_hosted_zones_by_name(DNSName=domain)
+                hosted_zones = response.get("HostedZones", [])
+                zone = next((z for z in hosted_zones if z["Name"] == f"{domain}."), None)
+
+                if not zone:
+                    logger.warning(f"⚠️ No hosted zone found for {domain}, nothing to delete")
+                    continue
+
+                zone_id = zone["Id"].split("/")[-1]  # Clean zone ID
+
+                # Get all record sets
+                record_sets = self.route53_client.list_resource_record_sets(HostedZoneId=zone_id)
+
+                changes = []
+                for record in record_sets["ResourceRecordSets"]:
+                    record_type = record["Type"]
+                    record_name = record["Name"]
+
+                    if record_type in ["A", "MX", "TXT", "CNAME"]:
+                        logger.info(f"🗑️ Scheduling deletion for {record_type} record {record_name}")
+                        changes.append({
+                            "Action": "DELETE",
+                            "ResourceRecordSet": record
+                        })
+
+                # Batch delete records (skip SOA/NS, they are required for the zone)
+                if changes:
+                    self.route53_client.change_resource_record_sets(
+                        HostedZoneId=zone_id,
+                        ChangeBatch={"Changes": changes}
+                    )
+                    logger.info(f"✅ Deleted {len(changes)} records from zone {zone_id} ({domain})")
+
+                # Delete the hosted zone itself
+                self.route53_client.delete_hosted_zone(Id=zone_id)
+                deleted_zones.append(domain)
+                self.stats['hosted_zones_deleted'] += 1
+                logger.info(f"✅ Deleted hosted zone {zone_id} for {domain}")
+                
+            except Exception as e:
+                logger.error(f"❌ Failed to delete hosted zone for {domain}: {e}")
+        
+        return deleted_zones
     
     def trigger_github_workflow(self, domains: List[str]) -> bool:
         """
@@ -360,54 +499,121 @@ class SQSDNSWorker:
             logger.error(f"❌ Failed to trigger GitHub workflow: {e}")
             return False
     
+    def clear_cdk_context(self) -> bool:
+        """
+        Clear CDK context cache to force fresh hosted zone lookups.
+        
+        Returns:
+            bool: True if context cleared successfully
+        """
+        try:
+            headers = {"Authorization": f"token {self.github_token}"}
+            
+            # Get current cdk.context.json content
+            url = f"https://api.github.com/repos/{self.repo}/contents/cdk.context.json"
+            r = requests.get(url, headers=headers)
+            
+            if r.status_code == 404:
+                logger.info("📝 No cdk.context.json found, nothing to clear")
+                return True
+            
+            r.raise_for_status()
+            file_info = r.json()
+            
+            # Create minimal context (keep availability zones, remove hosted zone cache)
+            minimal_context = {
+                "availability-zones:account=156041439702:region=us-east-1": [
+                    "us-east-1a", "us-east-1b", "us-east-1c", 
+                    "us-east-1d", "us-east-1e", "us-east-1f"
+                ]
+            }
+            
+            # Update cdk.context.json with minimal context
+            content_b64 = base64.b64encode(
+                json.dumps(minimal_context, indent=2).encode()
+            ).decode()
+            
+            payload = {
+                "message": "Clear CDK context cache for fresh hosted zone lookups [skip ci]",
+                "content": content_b64,
+                "sha": file_info["sha"],
+                "branch": "domain-updates"
+            }
+            
+            r = requests.put(url, headers=headers, json=payload)
+            r.raise_for_status()
+            
+            logger.info("✅ Cleared CDK context cache for fresh hosted zone lookups")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to clear CDK context: {e}")
+            return False
+    
     def process_batch(self) -> bool:
         """
         Process the current batch of pending domains.
-        Fetches ALL active domains from database and processes them together.
+        Handles both activations and deactivations, then fetches ALL active domains.
         
         Returns:
             bool: True if batch processed successfully
         """
-        if not self.pending_domains:
+        if not self.pending_domains and not self.pending_deactivations:
             return True
         
-        pending_count = len(self.pending_domains)
-        logger.info(f"🔄 Processing batch triggered by {pending_count} domain changes")
+        pending_activations = len(self.pending_domains)
+        pending_deactivations = len(self.pending_deactivations)
+        logger.info(f"🔄 Processing batch: {pending_activations} activations, {pending_deactivations} deactivations")
         
         try:
-            # Step 1: Fetch ALL active domains from database (not just pending ones)
+            # Step 1: Handle domain deactivations atomically (database + hosted zones)
+            if self.pending_deactivations:
+                for domain in self.pending_deactivations:
+                    # Update database first
+                    db_success = self.update_domain_deactivation(domain)
+                    if db_success:
+                        # Only delete hosted zone if database update succeeded
+                        deleted_zones = self.delete_hosted_zones([domain])
+                        if deleted_zones:
+                            logger.info(f"✅ Atomically deactivated domain: {domain}")
+                        else:
+                            logger.warning(f"⚠️ Database updated but hosted zone deletion failed for: {domain}")
+                    else:
+                        logger.error(f"❌ Failed to deactivate domain in database: {domain}")
+            
+            # Step 2: Handle domain activations atomically (database + hosted zones)
+            if self.pending_domains:
+                for domain in self.pending_domains:
+                    # Update database first
+                    db_success = self.update_domain_activation(domain)
+                    if db_success:
+                        # Only create hosted zone if database update succeeded
+                        created_zones = self.ensure_hosted_zones([domain])
+                        if created_zones:
+                            logger.info(f"✅ Atomically activated domain: {domain}")
+                        else:
+                            logger.warning(f"⚠️ Database updated but hosted zone creation failed for: {domain}")
+                    else:
+                        logger.error(f"❌ Failed to activate domain in database: {domain}")
+            
+            # Step 3: Fetch ALL active domains from database (reflects current state)
             all_active_domains = self.fetch_active_domains_from_db()
             
-            if not all_active_domains:
-                logger.warning("⚠️ No active domains found in database")
-                self.pending_domains.clear()
-                self.last_batch_time = time.time()
-                return True
-            
-            logger.info(f"🌐 Processing {len(all_active_domains)} total active domains")
-            
-            # Step 2: Ensure hosted zones exist for ALL active domains
-            created_zones = self.ensure_hosted_zones(all_active_domains)
-            if created_zones:
-                logger.info(f"⏳ Waiting 15s for {len(created_zones)} hosted zone(s) to propagate...")
-                time.sleep(15)
-            
-            # Step 3: Trigger GitHub workflow with ALL active domains
-            success = self.trigger_github_workflow(all_active_domains)
-            
-            if success:
+            # Step 4: Clear CDK context cache and trigger GitHub workflow
+            self.clear_cdk_context()
+            if self.trigger_github_workflow(all_active_domains):
                 self.stats['batches_processed'] += 1
                 self.stats['domains_processed'] += len(all_active_domains)
-                logger.info(f"✅ Successfully processed batch: {len(all_active_domains)} total domains")
+                logger.info(f"✅ Successfully processed batch: {len(all_active_domains)} total active domains")
                 
                 # Clear pending domains (batch complete)
                 self.pending_domains.clear()
+                self.pending_deactivations.clear()
                 self.last_batch_time = time.time()
                 return True
             else:
                 logger.error(f"❌ Failed to process batch of {len(all_active_domains)} domains")
                 return False
-                
         except Exception as e:
             logger.error(f"❌ Error processing batch: {e}")
             return False
@@ -419,10 +625,10 @@ class SQSDNSWorker:
         Returns:
             bool: True if batch should be processed now
         """
-        if not self.pending_domains:
+        if not self.pending_domains and not self.pending_deactivations:
             return False
         
-        # Process if we have pending domains and timeout has elapsed
+        # Process if we have pending changes and timeout has elapsed
         time_since_last_batch = time.time() - self.last_batch_time
         return time_since_last_batch >= self.batch_timeout
     
@@ -494,6 +700,7 @@ class SQSDNSWorker:
         logger.info(f"Batches processed: {stats['batches_processed']}")
         logger.info(f"Domains processed: {stats['domains_processed']}")
         logger.info(f"Hosted zones created: {stats['hosted_zones_created']}")
+        logger.info(f"Hosted zones deleted: {stats['hosted_zones_deleted']}")
         logger.info(f"GitHub triggers: {stats['github_triggers']}")
         if stats.get('uptime_seconds'):
             logger.info(f"Uptime: {stats['uptime_seconds']:.1f} seconds")

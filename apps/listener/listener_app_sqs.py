@@ -1,6 +1,5 @@
-import os, requests, psycopg2, select, json, logging, time, base64
+import os, psycopg2, select, json, logging, time
 from sqs_dns_publisher import publish_domain_change
-from domain_helpers import ensure_hosted_zone_and_store, update_domain_with_tenant, delete_hosted_zone_and_records
 
 # Configure logging
 logging.basicConfig(
@@ -26,67 +25,7 @@ except Exception as e:
     logging.error(f"❌ Failed to connect to database: {e}")
     raise
 
-# GitHub repo + PAT from environment (kept for fallback)
-try:
-    GITHUB_PAT = os.environ["GH_TOKEN"]
-    logging.info("✅ GitHub token loaded")
-except KeyError as e:
-    logging.error(f"❌ Missing environment variable: {e}")
-    raise
-
-REPO = os.environ.get("REPO", "AITeeToolkit/aws-fargate-cdk")
-WORKFLOW = "infrastructure.yml"     # workflow filename
-region_name = "us-east-1"
-
-logging.info(f"🔧 Configuration: REPO={REPO}, WORKFLOW={WORKFLOW}")
 logging.info("🔄 SQS Mode: DNS operations will be queued for batch processing")
-
-
-# Trigger GitHub workflow (same as original listener_app.py)
-def trigger_github(domains):
-    branch_name = "domain-updates"  # fixed branch for updates
-    domains_content = json.dumps({"domains": domains}, indent=2)
-    headers = {"Authorization": f"token {GITHUB_PAT}"}
-
-    # 1. Get latest commit SHA from main
-    url = f"https://api.github.com/repos/{REPO}/git/refs/heads/main"
-    r = requests.get(url, headers=headers)
-    r.raise_for_status()
-    main_sha = r.json()["object"]["sha"]
-
-    # 2. Ensure the branch exists (create if missing)
-    url = f"https://api.github.com/repos/{REPO}/git/refs/heads/{branch_name}"
-    r = requests.get(url, headers=headers)
-    if r.status_code == 404:
-        logging.info(f"🌱 Creating branch '{branch_name}' from main")
-        url = f"https://api.github.com/repos/{REPO}/git/refs"
-        payload = {"ref": f"refs/heads/{branch_name}", "sha": main_sha}
-        r = requests.post(url, headers=headers, json=payload)
-        r.raise_for_status()
-
-    # 3. Get SHA of existing domains.json in this branch (if it exists)
-    url = f"https://api.github.com/repos/{REPO}/contents/domains.json"
-    params = {"ref": branch_name}
-    r = requests.get(url, headers=headers, params=params)
-    file_sha = r.json()["sha"] if r.status_code == 200 else None
-
-    # 4. Base64 encode content
-    content_b64 = base64.b64encode(domains_content.encode()).decode()
-
-    # 5. Commit update (create if new, update if exists)
-    payload = {
-        "message": f"Update domains.json with {len(domains)} active domains",
-        "content": content_b64,
-        "branch": branch_name
-    }
-    if file_sha:
-        payload["sha"] = file_sha  # update existing
-
-    url = f"https://api.github.com/repos/{REPO}/contents/domains.json"
-    r = requests.put(url, headers=headers, json=payload)
-    r.raise_for_status()
-
-    logging.info(f"✅ Committed domains.json with {len(domains)} domains to '{branch_name}'")
 
 
 # Fetch active domains from database (same as original listener_app.py)
@@ -109,54 +48,26 @@ def setup_listener():
 
 def handle_domain_change(domain_name: str, active: str):
     """
-    Handle domain status change with proper sequence:
-    1. If domain activated ('Y'), ensure hosted zone exists
-    2. If domain deactivated ('N'), delete hosted zone and records
-    3. Update domains table with tenant information
-    4. Queue to SQS for batch processing
+    Handle domain status change by queuing to DNS worker for atomic processing.
+    DNS worker will handle all database updates and Route53 operations together.
     
     Args:
         domain_name: Domain that changed
         active: 'Y' for activated, 'N' for deactivated
     """
     try:
-        if active == "Y":
-            logging.info(f"🔄 Processing domain activation for {domain_name}")
-            
-            # Step 1: Ensure hosted zone exists and get info
-            logging.info(f"🔍 Step 1: Ensuring hosted zone exists for {domain_name}")
-            hosted_zone_id, aws_hosted_zone_id = ensure_hosted_zone_and_store(conn, domain_name, region_name)
-            
-            if hosted_zone_id and aws_hosted_zone_id:
-                # Step 2: Update domains table with tenant information
-                logging.info(f"🔄 Step 2: Updating domains table with tenant info for {domain_name}")
-                tenant_id = update_domain_with_tenant(conn, domain_name, hosted_zone_id, aws_hosted_zone_id)
-                
-                if tenant_id:
-                    logging.info(f"✅ Domain {domain_name} successfully linked to tenant {tenant_id}")
-                else:
-                    logging.warning(f"⚠️ Domain {domain_name} activated but no tenant found in purchased_domains")
-            else:
-                logging.error(f"❌ Could not ensure hosted zone for {domain_name}")
-
-        elif active == "N":
-            logging.info(f"🔄 Processing domain deactivation for {domain_name}")
-            success = delete_hosted_zone_and_records(conn, domain_name, region_name)
-            if success:
-                logging.info(f"✅ Domain {domain_name} deactivated and DNS removed")
-            else:
-                logging.warning(f"⚠️ Domain {domain_name} deactivation failed or nothing to remove")
+        action = "activation" if active == "Y" else "deactivation"
+        logging.info(f"🔄 Processing domain {action} for {domain_name}")
         
-        # Step 4: Queue the change for batch processing via SQS
-        logging.info(f"🔄 Step 3: Queuing {domain_name} for batch processing")
+        # Queue the change for DNS worker to handle ALL operations atomically
+        logging.info(f"🔄 Queuing {domain_name} for atomic DNS worker processing")
         sqs_success = publish_domain_change(domain_name, active)
         
         if sqs_success:
-            action = "activation" if active == "Y" else "deactivation"
-            logging.info(f"✅ Successfully queued {domain_name} {action} for batch processing")
-            logging.info(f"🔄 DNS Worker will handle infrastructure updates in next batch cycle")
+            logging.info(f"✅ Successfully queued {domain_name} {action} for DNS worker")
+            logging.info(f"🔄 DNS Worker will handle database updates, hosted zone operations, and infrastructure updates atomically")
         else:
-            logging.error(f"❌ Failed to queue {domain_name} change for batch processing")
+            logging.error(f"❌ Failed to queue {domain_name} change for DNS worker")
             
     except Exception as e:
         logging.error(f"❌ Error processing domain change for {domain_name}: {e}")
