@@ -9,6 +9,13 @@ All notable changes to this project will be documented in this file. See [Conven
 
 * add empty tag_resolver.py file for future tag resolution implementation ([2625f16](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/2625f16ded9638fb9485aac98d1a0c2f258a394b))
 
+## [1.75.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.74.4...v1.75.0) (2025-09-27)
+
+
+### 🚀 Features
+
+* add empty tag_resolver.py file for future tag resolution implementation ([2625f16](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/2625f16ded9638fb9485aac98d1a0c2f258a394b))
+
 ## [1.74.4](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.74.3...v1.74.4) (2025-09-27)
 
 
