@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.75.2](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.75.1...v1.75.2) (2025-09-27)
+
+
+### ♻️ Code Refactoring
+
+* split shared requirements.txt into separate files for listener and dns-worker services ([0564bea](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/0564bea01274ce2cf389451cdfefabbca00e3b59))
+
 ## [1.75.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.75.0...v1.75.1) (2025-09-27)
 
 
