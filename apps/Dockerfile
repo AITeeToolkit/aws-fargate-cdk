@@ -13,12 +13,12 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Listener service stage
+# Listener service staging
 FROM base as listener
 COPY listener/ ./
 CMD ["python", "listener_app_sqs.py"]
 
-# DNS worker service stage
+# DNS worker service staging
 FROM base as dns-worker
 COPY dns-worker/ ./
 CMD ["python", "dns_worker_app.py"]
