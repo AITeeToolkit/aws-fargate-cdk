@@ -125,6 +125,12 @@ jobs:
 
       - name: Set Image Tags
         run: |
+          echo "🔍 Debug: Event name: ${{ github.event_name }}"
+          echo "🔍 Debug: Inputs - listener_tag: '${{ inputs.listener_tag }}'"
+          echo "🔍 Debug: Inputs - dns_worker_tag: '${{ inputs.dns_worker_tag }}'"
+          echo "🔍 Debug: Inputs - api_tag: '${{ inputs.api_tag }}'"
+          echo "🔍 Debug: Inputs - web_tag: '${{ inputs.web_tag }}'"
+          
           # Handle both workflow_call inputs and repository_dispatch client_payload
           if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
             echo "LISTENER_IMAGE_TAG=skip" >> $GITHUB_ENV
