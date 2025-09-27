@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 concurrency:
   group: infrastructure-deployment
-  cancel-in-progress: false  # Don't cancel, queue instead
+  cancel-in-progress: false
 
 on:
   push:
@@ -33,102 +33,81 @@ on:
         required: false
         type: string
   repository_dispatch:
-    types: [api-web-updated]
+    types: [deploy-infrastructure]
 
 env:
   AWS_REGION: us-east-1
   GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
-jobs:
   check-changes:
     name: Check What Changed
     runs-on: ubuntu-latest
     outputs:
-      has_image_changes: ${{ steps.changes.outputs.images }}
-      has_infra_changes: ${{ steps.changes.outputs.infra }}
-      listener_changed: ${{ steps.changes.outputs.listener }}
-      dns_worker_changed: ${{ steps.changes.outputs.dns_worker }}
+      has_image_changes: ${{ steps.changes.outputs.has_image_changes }}
+      has_infra_changes: ${{ steps.changes.outputs.has_infra_changes }}
+      listener_changed: ${{ steps.changes.outputs.listener_changed }}
+      dns_worker_changed: ${{ steps.changes.outputs.dns_worker_changed }}
+      only_domains_json_changed: ${{ steps.changes.outputs.only_domains_json_changed }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - id: changes
-        run: |
-          set -x  # ✅ Trace all commands
-        
-          BRANCH_NAME=${GITHUB_REF#refs/heads/}
-          echo "🔍 Branch detected: $BRANCH_NAME"
-        
-          # Handle merge commits differently
-          if git show --no-patch --format="%P" HEAD | grep -q " "; then
-            echo "🔀 Merge commit detected - checking against merge base"
-            # For merge commits, compare against the merge base of the two parents
-            MERGE_BASE=$(git merge-base HEAD~1 HEAD~2 2>/dev/null || echo "HEAD~1")
-            CHANGED_FILES=$(git diff --name-only $MERGE_BASE HEAD)
-          else
-            echo "📝 Regular commit - checking against previous commit"
-            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
-          fi
-          
-          echo " Changed files:"
-          echo "$CHANGED_FILES"
-        
-          IMAGE_FLAG=false
-          INFRA_FLAG=false
-          LISTENER_FLAG=false
-          DNS_WORKER_FLAG=false
-        
-          if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
-            echo " Domain updates branch: forcing all flags to true"
-            IMAGE_FLAG=true
-            INFRA_FLAG=true
-            LISTENER_FLAG=true
-            DNS_WORKER_FLAG=true
-            echo "images=true" >> $GITHUB_OUTPUT
-            echo "infra=true" >> $GITHUB_OUTPUT
-            echo "listener=true" >> $GITHUB_OUTPUT
-            echo "dns_worker=true" >> $GITHUB_OUTPUT
-          else
-            # Check for listener-specific changes
-            if echo "$CHANGED_FILES" | grep -E '^apps/listener/' > /dev/null; then
-              echo " Detected changes in listener files"
-              LISTENER_FLAG=true
-              IMAGE_FLAG=true
-            fi
-            
-            # Check for dns-worker-specific changes  
-            if echo "$CHANGED_FILES" | grep -E '^apps/dns-worker/' > /dev/null; then
-              echo " Detected changes in dns-worker files"
-              DNS_WORKER_FLAG=true
-              IMAGE_FLAG=true
-            fi
-            
-            # Check for shared container files (affects both)
-            if echo "$CHANGED_FILES" | grep -E '^apps/(Dockerfile|requirements\.txt)$' > /dev/null; then
-              echo " Detected changes in shared container files - building both services"
-              LISTENER_FLAG=true
-              DNS_WORKER_FLAG=true
-              IMAGE_FLAG=true
-            fi
-            
-            if [[ "$IMAGE_FLAG" == "false" ]]; then
-              echo " No image-related changes detected"
-            fi
-        
-            INFRA_PATHS="^(stacks/|cdk_constructs/|aspects/|infrastructure/|app\.py|domains\.json|cdk\.json|requirements\.txt|\.github/workflows/)"
 
-            if echo "$CHANGED_FILES" | grep -E "$INFRA_PATHS" > /dev/null; then
-              echo " Detected changes in infrastructure-related files"
-              INFRA_FLAG=true
-            fi
-        
-            echo "images=$IMAGE_FLAG" >> $GITHUB_OUTPUT
-            echo "infra=$INFRA_FLAG" >> $GITHUB_OUTPUT
-            echo "listener=$LISTENER_FLAG" >> $GITHUB_OUTPUT
-            echo "dns_worker=$DNS_WORKER_FLAG" >> $GITHUB_OUTPUT
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            has_image_changes: &images
+              - added|modified: 'apps/**'
+              - added|modified: 'apps/Dockerfile'
+              - added|modified: 'apps/requirements.txt'
+            has_infra_changes:
+              - added|modified: 'stacks/**'
+              - added|modified: 'cdk_constructs/**'
+              - added|modified: 'aspects/**'
+              - added|modified: 'app.py'
+              - added|modified: 'domains.json'
+              - added|modified: 'cdk.json'
+              - added|modified: 'requirements.txt'
+              - added|modified: '.github/workflows/**'
+            listener_changed: &listener
+              - added|modified: 'apps/listener/**'
+              - added|modified: 'apps/Dockerfile'
+              - added|modified: 'apps/requirements.txt'
+            dns_worker_changed: &dns_worker
+              - added|modified: 'apps/dns-worker/**'
+              - added|modified: 'apps/Dockerfile'
+              - added|modified: 'apps/requirements.txt'
+            only_domains_json_changed:
+              - added|modified: 'domains.json'
+
+      - name: Check if only domains.json changed
+        id: check-only-domains
+        run: |
+          # Use paths-filter output to determine if only domains.json was changed
+          if [[ "${{ steps.changes.outputs.only_domains_json_changed }}" == "true" && \
+                "${{ steps.changes.outputs.has_image_changes }}" == "false" && \
+                "${{ steps.changes.outputs.listener_changed }}" == "false" && \
+                "${{ steps.changes.outputs.dns_worker_changed }}" == "false" ]]; then
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+            # Allow domains.json and non-infra files like CHANGELOG.md
+            ONLY_DOMAINS=true
+            for file in $CHANGED_FILES; do
+              if [[ "$file" != "domains.json" && "$file" != "CHANGELOG.md" && \
+                    ! "$file" =~ ^\.github/workflows/ && ! "$file" =~ ^docs/ ]]; then
+                ONLY_DOMAINS=false
+                break
+              fi
+            done
+            echo "only_domains_json_changed=$ONLY_DOMAINS" >> $GITHUB_OUTPUT
+          else
+            echo "only_domains_json_changed=false" >> $GITHUB_OUTPUT
           fi
-        
-          # 📝 Write to the GitHub Actions summary UI
+
+      - name: Generate Summary
+        run: |
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
           {
             echo "## 🔍 Change Detection Summary"
             echo ""
@@ -141,19 +120,19 @@ jobs:
             echo ""
             echo "**Flags Set:**"
             echo ""
-            echo "• Image Changes: \`$IMAGE_FLAG\`"
-            echo "• Infra Changes: \`$INFRA_FLAG\`"
+            echo "• Image Changes: \`${{ steps.changes.outputs.has_image_changes }}\`"
+            echo "• Infra Changes: \`${{ steps.changes.outputs.has_infra_changes }}\`"
+            echo "• Only domains.json Changed: \`${{ steps.check-only-domains.outputs.only_domains_json_changed }}\`"
             if [[ "${{ github.event.inputs.force_infra }}" == "true" ]]; then
               echo "• 🔴 **Force Infra Deploy: ENABLED**"
             fi
           } >> $GITHUB_STEP_SUMMARY
 
-
   semantic-release:
     name: Semantic Release
     runs-on: ubuntu-latest
     needs: [check-changes]
-    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/domain-updates') && (needs.check-changes.outputs.has_image_changes == 'true' || needs.check-changes.outputs.has_infra_changes == 'true')
+    if: github.ref == 'refs/heads/main' && (needs.check-changes.outputs.has_image_changes == 'true' || needs.check-changes.outputs.has_infra_changes == 'true')
     outputs:
       new_release: ${{ steps.release_info.outputs.new_release }}
       latest_tag: ${{ steps.release_info.outputs.latest_tag }}
@@ -163,60 +142,44 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GH_TOKEN }}
+
       - uses: actions/setup-node@v4
         with:
           node-version: 18
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+
       - run: npm ci
-      - name: Run semantic-release with tag conflict handling
+
+      - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           git fetch --tags --force
-          # Extract version, ignoring timestamp
-          PROPOSED_VERSION=$(npx semantic-release --dry-run --no-ci 2>/dev/null | grep -oP 'release \K[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)
-          if [ -z "$PROPOSED_VERSION" ]; then
-            echo "Error: Failed to extract proposed version, aborting release"
-            exit 1
-          fi
-          CURRENT_COMMIT=$(git rev-parse HEAD)
-          echo "Proposed version: $PROPOSED_VERSION"
-          echo "Current commit: $CURRENT_COMMIT"
-          
-          # Check if tag exists and matches current commit
-          if git rev-parse "v$PROPOSED_VERSION" >/dev/null 2>&1; then
-            TAGGED_COMMIT=$(git rev-list -n 1 "v$PROPOSED_VERSION")
-            if [ "$TAGGED_COMMIT" = "$CURRENT_COMMIT" ]; then
-              echo "Tag v$PROPOSED_VERSION matches current commit, skipping"
-              LATEST_TAG="v$PROPOSED_VERSION"
-            else
-              echo "Tag v$PROPOSED_VERSION exists for different commit, incrementing"
-              IFS=. read -r major minor patch <<< "$PROPOSED_VERSION"
-              LATEST_TAG="v$major.$minor.$((patch + 1))"
-              git tag "$LATEST_TAG" && git push origin "$LATEST_TAG"
-            fi
-          else
-            echo "Tag v$PROPOSED_VERSION does not exist, creating"
-            LATEST_TAG="v$PROPOSED_VERSION"
-            git tag "$LATEST_TAG" && git push origin "$LATEST_TAG"
-          fi
-          
-          # Update changelog and notes
-          npx semantic-release --no-ci
-          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-          [[ -n "$LATEST_TAG" && "$LATEST_TAG" != "$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")" ]] && echo "new_release=true" || echo "new_release=false" >> $GITHUB_OUTPUT
+          npx semantic-release
+
       - name: Get release info
         id: release_info
         run: |
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
           echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-          [[ -n "$LATEST_TAG" && "$LATEST_TAG" != "$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")" ]] && echo "new_release=true" || echo "new_release=false" >> $GITHUB_OUTPUT
-
+          echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+          if [ "$LATEST_TAG" != "$PREVIOUS_TAG" ] && [ -n "$LATEST_TAG" ]; then
+            echo "new_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "new_release=false" >> $GITHUB_OUTPUT
+          fi
 
   generate-tag:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [check-changes]
-    if: always()
+    needs: [check-changes, semantic-release]
+    if: always() && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
     outputs:
       image_tag: ${{ steps.tag.outputs.image_tag }}
       listener_tag: ${{ steps.tag.outputs.listener_tag }}
@@ -224,15 +187,27 @@ jobs:
       api_tag: ${{ steps.tag.outputs.api_tag }}
       web_tag: ${{ steps.tag.outputs.web_tag }}
       should_deploy: ${{ steps.tag.outputs.should_deploy }}
+      listener_changed: ${{ steps.tag.outputs.listener_changed }}
+      dns_worker_changed: ${{ steps.tag.outputs.dns_worker_changed }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GH_TOKEN }}
+
       - id: tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          LISTENER_TAG=$(git tag -l "listener-v*" --sort=-version:refname | head -n1 | sed 's/listener-//' || echo "v1.0.0")
+          DNS_WORKER_TAG=$(git tag -l "dns-worker-v*" --sort=-version:refname | head -n1 | sed 's/dns-worker-//' || echo "v1.0.0")
+          
+          echo "🔍 Fetching latest API/WEB tags from storefront-cdk..."
+          API_TAG=$(git ls-remote --tags https://github.com/AITeeToolkit/storefront-cdk.git | grep 'api-v' | sed 's/.*api-//' | sort -V | tail -n1 || echo "v1.0.0")
+          WEB_TAG=$(git ls-remote --tags https://github.com/AITeeToolkit/storefront-cdk.git | grep 'web-v' | sed 's/.*web-//' | sort -V | tail -n1 || echo "v1.0.0")
+          echo "🏷️ Fetched from storefront-cdk - API: $API_TAG, WEB: $WEB_TAG"
+          
           increment_version() {
             local version=$1
             local clean_version=$(echo $version | sed 's/^v//')
@@ -241,19 +216,59 @@ jobs:
             local patch=$(echo $clean_version | cut -d. -f3)
             echo "v$major.$minor.$((patch + 1))"
           }
-          LISTENER_TAG=$(git tag -l "listener-v*" --sort=-version:refname | head -n1 | sed 's/listener-//' || echo "v1.0.0")
-          DNS_WORKER_TAG=$(git tag -l "dns-worker-v*" --sort=-version:refname | head -n1 | sed 's/dns-worker-//' || echo "v1.0.0")
-          API_TAG=$(git ls-remote --tags https://github.com/AITeeToolkit/storefront-cdk.git | grep 'api-v' | sed 's/.*api-//' | sort -V | tail -n1 || echo "v1.0.0")
-          WEB_TAG=$(git ls-remote --tags https://github.com/AITeeToolkit/storefront-cdk.git | grep 'web-v' | sed 's/.*web-//' | sort -V | tail -n1 || echo "v1.0.0")
+          
           if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
             API_TAG="${{ github.event.client_payload.api_tag }}"
             WEB_TAG="${{ github.event.client_payload.web_tag }}"
+            echo "🏷️ Using payload - API: $API_TAG, WEB: $WEB_TAG"
             echo "should_deploy=true" >> $GITHUB_OUTPUT
+            echo "listener_changed=false" >> $GITHUB_OUTPUT
+            echo "dns_worker_changed=false" >> $GITHUB_OUTPUT
           else
-            [[ "${{ needs.check-changes.outputs.listener }}" == "true" ]] && { LISTENER_TAG=$(increment_version "$LISTENER_TAG"); git tag "listener-$LISTENER_TAG" && git push origin "listener-$LISTENER_TAG"; }
-            [[ "${{ needs.check-changes.outputs.dns_worker }}" == "true" ]] && { DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG"); git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"; }
-            [[ "${{ needs.check-changes.outputs.has_image_changes }}" == "true" || "${{ needs.check-changes.outputs.has_infra_changes }}" == "true" ]] && echo "should_deploy=true" || echo "should_deploy=false" >> $GITHUB_OUTPUT
+            if [[ "${{ github.ref }}" == "refs/heads/domain-updates" ]]; then
+              if [[ "${{ needs.check-changes.outputs.only_domains_json_changed }}" == "true" ]]; then
+                echo "🏷️ Only domains.json changed on domain-updates: using existing listener tag, incrementing dns-worker"
+                DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
+                git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"
+                echo "dns_worker_changed=true" >> $GITHUB_OUTPUT
+                echo "listener_changed=false" >> $GITHUB_OUTPUT
+              else
+                echo "🏷️ domain-updates branch: incrementing listener and dns-worker"
+                LISTENER_TAG=$(increment_version "$LISTENER_TAG")
+                DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
+                git tag "listener-$LISTENER_TAG" && git push origin "listener-$LISTENER_TAG"
+                git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"
+                echo "dns_worker_changed=true" >> $GITHUB_OUTPUT
+                echo "listener_changed=true" >> $GITHUB_OUTPUT
+              fi
+              echo "should_deploy=true" >> $GITHUB_OUTPUT
+            else
+              if [[ "${{ needs.check-changes.outputs.listener_changed }}" == "true" ]]; then
+                LISTENER_TAG=$(increment_version "$LISTENER_TAG")
+                git tag "listener-$LISTENER_TAG" && git push origin "listener-$LISTENER_TAG"
+                echo "🏷️ Incremented listener: $LISTENER_TAG"
+                echo "listener_changed=true" >> $GITHUB_OUTPUT
+              else
+                echo "listener_changed=false" >> $GITHUB_OUTPUT
+              fi
+              
+              if [[ "${{ needs.check-changes.outputs.dns_worker_changed }}" == "true" ]]; then
+                DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
+                git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"
+                echo "🏷️ Incremented dns-worker: $DNS_WORKER_TAG"
+                echo "dns_worker_changed=true" >> $GITHUB_OUTPUT
+              else
+                echo "dns_worker_changed=false" >> $GITHUB_OUTPUT
+              fi
+              
+              if [[ "${{ needs.check-changes.outputs.has_infra_changes }}" == "true" || "${{ needs.check-changes.outputs.has_image_changes }}" == "true" ]]; then
+                echo "should_deploy=true" >> $GITHUB_OUTPUT
+              else
+                echo "should_deploy=false" >> $GITHUB_OUTPUT
+              fi
+            fi
           fi
+          
           REPO_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
           echo "image_tag=$REPO_TAG" >> $GITHUB_OUTPUT
           echo "listener_tag=$LISTENER_TAG" >> $GITHUB_OUTPUT
@@ -261,11 +276,10 @@ jobs:
           echo "api_tag=$API_TAG" >> $GITHUB_OUTPUT
           echo "web_tag=$WEB_TAG" >> $GITHUB_OUTPUT
 
-
   build-listener:
     name: Build & Push Listener Image
-    needs: [generate-tag, check-changes]
-    if: needs.check-changes.outputs.listener == 'true'
+    needs: [generate-tag, check-changes, semantic-release]
+    if: always() && needs.generate-tag.outputs.listener_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
     uses: ./.github/workflows/listener-build.yml
     with:
       environment: dev
@@ -274,8 +288,8 @@ jobs:
 
   build-dns-worker:
     name: Build & Push DNS Worker Image
-    needs: [generate-tag, check-changes]
-    if: needs.check-changes.outputs.dns_worker == 'true'
+    needs: [generate-tag, check-changes, semantic-release]
+    if: always() && needs.generate-tag.outputs.dns_worker_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
     uses: ./.github/workflows/dns-worker-build.yml
     with:
       environment: dev
@@ -370,4 +384,11 @@ jobs:
           echo "- [This Workflow Run](https://github.com/AITeeToolkit/aws-fargate-cdk/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
           echo "- [All Infrastructure Deployments](https://github.com/AITeeToolkit/aws-fargate-cdk/actions)" >> $GITHUB_STEP_SUMMARY
           echo "- [Infrastructure & Listener Changelog](https://github.com/AITeeToolkit/aws-fargate-cdk/blob/main/CHANGELOG.md)" >> $GITHUB_STEP_SUMMARY
-          
+
+      - name: Clean up domain-updates branch
+        if: github.ref == 'refs/heads/domain-updates' && needs.deploy-infrastructure.result == 'success'
+        run: |
+          echo "🧹 Deleting domain-updates branch after successful deployment"
+          git push origin --delete domain-updates
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
