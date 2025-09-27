@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.75.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.75.0...v1.75.1) (2025-09-27)
+
+
+### ♻️ Code Refactoring
+
+* split monolithic Dockerfile into separate service-specific files ([c80ddf1](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/c80ddf14dbe5bb0620f98d081441b864446170d7))
+
 ## [1.75.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.74.4...v1.75.0) (2025-09-27)
 
 
