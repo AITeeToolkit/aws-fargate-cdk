@@ -182,7 +182,29 @@ jobs:
         run: |
           # Fetch latest tags to ensure semantic-release has fresh state
           git fetch --tags --force
-          npx semantic-release
+          
+          # Run semantic-release and capture output
+          set +e  # Don't exit on error
+          OUTPUT=$(npx semantic-release 2>&1)
+          EXIT_CODE=$?
+          set -e  # Re-enable exit on error
+          
+          echo "$OUTPUT"
+          
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "Semantic-release completed successfully"
+            echo "new_release=true" >> $GITHUB_OUTPUT
+          elif [ $EXIT_CODE -eq 1 ]; then
+            echo "No release needed (semantic-release exit code 1)"
+            echo "new_release=false" >> $GITHUB_OUTPUT
+          elif echo "$OUTPUT" | grep -q "already exists"; then
+            echo "Tag already exists - treating as successful (no new release needed)"
+            echo "new_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "Semantic-release failed with exit code $EXIT_CODE"
+            echo "$OUTPUT"
+            exit $EXIT_CODE
+          fi
       - name: Get release info
         id: release_info
         run: |
@@ -251,16 +273,34 @@ jobs:
             echo "should_deploy=true" >> $GITHUB_OUTPUT
           else
             # REGULAR WORKFLOW: Handle local service changes
-            if [[ "${{ needs.check-changes.outputs.listener_changed }}" == "true" ]]; then
-              LISTENER_TAG=$(increment_version "$LISTENER_TAG")
-              git tag "listener-$LISTENER_TAG" && git push origin "listener-$LISTENER_TAG"
-              echo "🏷️ Incremented listener: $LISTENER_TAG"
-            fi
+            BRANCH_NAME="${{ github.ref_name }}"
+            SHORT_SHA="${{ github.sha }}"
+            SHORT_SHA=${SHORT_SHA:0:7}
             
-            if [[ "${{ needs.check-changes.outputs.dns_worker_changed }}" == "true" ]]; then
-              DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
-              git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"
-              echo "🏷️ Incremented dns-worker: $DNS_WORKER_TAG"
+            if [[ "$BRANCH_NAME" == "main" ]]; then
+              # Main branch: Create proper version tags
+              if [[ "${{ needs.check-changes.outputs.listener_changed }}" == "true" ]]; then
+                LISTENER_TAG=$(increment_version "$LISTENER_TAG")
+                git tag "listener-$LISTENER_TAG" && git push origin "listener-$LISTENER_TAG"
+                echo "🏷️ Incremented listener: $LISTENER_TAG"
+              fi
+              
+              if [[ "${{ needs.check-changes.outputs.dns_worker_changed }}" == "true" ]]; then
+                DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
+                git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"
+                echo "🏷️ Incremented dns-worker: $DNS_WORKER_TAG"
+              fi
+            else
+              # Non-main branch: Create branch-specific tags
+              if [[ "${{ needs.check-changes.outputs.listener_changed }}" == "true" ]]; then
+                LISTENER_TAG="${BRANCH_NAME}-${SHORT_SHA}"
+                echo "🏷️ Branch listener tag: $LISTENER_TAG"
+              fi
+              
+              if [[ "${{ needs.check-changes.outputs.dns_worker_changed }}" == "true" ]]; then
+                DNS_WORKER_TAG="${BRANCH_NAME}-${SHORT_SHA}"
+                echo "🏷️ Branch dns-worker tag: $DNS_WORKER_TAG"
+              fi
             fi
             
             if [[ "${{ needs.check-changes.outputs.has_infra_changes }}" == "true" || "${{ needs.check-changes.outputs.has_image_changes }}" == "true" ]]; then
@@ -282,7 +322,7 @@ jobs:
   build-listener:
     name: Build & Push Listener Image
     needs: [generate-tag, check-changes, semantic-release]
-    if: always() && needs.check-changes.outputs.listener_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
+    if: always() && github.ref == 'refs/heads/main' && needs.check-changes.outputs.listener_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
     uses: ./.github/workflows/listener-build.yml
     with:
       environment: dev
@@ -292,7 +332,7 @@ jobs:
   build-dns-worker:
     name: Build & Push DNS Worker Image
     needs: [generate-tag, check-changes, semantic-release]
-    if: always() && needs.check-changes.outputs.dns_worker_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
+    if: always() && github.ref == 'refs/heads/main' && needs.check-changes.outputs.dns_worker_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
     uses: ./.github/workflows/dns-worker-build.yml
     with:
       environment: dev
@@ -303,7 +343,7 @@ jobs:
     name: Deploy Infrastructure
     needs: [generate-tag, check-changes, build-listener, build-dns-worker, semantic-release]
     if: |
-      always() && (
+      always() && github.ref == 'refs/heads/main' && (
         needs.check-changes.outputs.has_infra_changes == 'true' ||
         needs.check-changes.outputs.has_image_changes == 'true' ||
         github.event_name == 'repository_dispatch'
