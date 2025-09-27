@@ -172,21 +172,36 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           git fetch --tags --force
-          # Check if the generated tag already exists and increment if needed
-          NEXT_VERSION=$(npx semantic-release --dry-run --no-ci | grep "Published release" | sed 's/.*release \([vV][0-9.]*\).*/\1/' || echo "v1.0.0")
-          if git rev-parse "$NEXT_VERSION" >/dev/null 2>&1; then
-            echo "Tag $NEXT_VERSION already exists, incrementing patch..."
-            MAJOR=$(echo $NEXT_VERSION | cut -d. -f1 | sed 's/v//')
-            MINOR=$(echo $NEXT_VERSION | cut -d. -f2)
-            PATCH=$(echo $NEXT_VERSION | cut -d. -f3)
-            NEXT_VERSION="v$MAJOR.$MINOR.$((PATCH + 1))"
+          # Perform a dry run to get the proposed version
+          PROPOSED_VERSION=$(npx semantic-release --dry-run --no-ci | grep "Published release" | sed 's/.*release \([vV][0-9.]*\).*/\1/' || echo "v1.0.0")
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+          echo "Proposed version: $PROPOSED_VERSION"
+          echo "Current commit: $CURRENT_COMMIT"
+          
+          # Check if the tag exists and matches the current commit
+          if git rev-parse "$PROPOSED_VERSION" >/dev/null 2>&1; then
+            TAGGED_COMMIT=$(git rev-list -n 1 $PROPOSED_VERSION)
+            if [ "$TAGGED_COMMIT" = "$CURRENT_COMMIT" ]; then
+              echo "Tag $PROPOSED_VERSION already exists and matches current commit, skipping tag creation"
+              LATEST_TAG=$PROPOSED_VERSION
+            else
+              echo "Tag $PROPOSED_VERSION exists but points to a different commit ($TAGGED_COMMIT), incrementing version"
+              MAJOR=$(echo $PROPOSED_VERSION | cut -d. -f1 | sed 's/v//')
+              MINOR=$(echo $PROPOSED_VERSION | cut -d. -f2)
+              PATCH=$(echo $PROPOSED_VERSION | cut -d. -f3)
+              LATEST_TAG="v$MAJOR.$MINOR.$((PATCH + 1))"
+              git tag "$LATEST_TAG" && git push origin "$LATEST_TAG"
+            fi
+          else
+            echo "Tag $PROPOSED_VERSION does not exist, creating it"
+            LATEST_TAG=$PROPOSED_VERSION
+            git tag "$LATEST_TAG" && git push origin "$LATEST_TAG"
           fi
-          echo "Attempting to release with version: $NEXT_VERSION"
-          git tag "$NEXT_VERSION" && git push origin "$NEXT_VERSION" || {
-            echo "Tag push failed, skipping release but proceeding with workflow"
-            echo "new_release=false" >> $GITHUB_ENV
-          }
+          
+          # Run semantic-release to update changelog and release notes
           npx semantic-release --no-ci
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          [[ -n "$LATEST_TAG" && "$LATEST_TAG" != "$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")" ]] && echo "new_release=true" || echo "new_release=false" >> $GITHUB_OUTPUT
       - name: Get release info
         id: release_info
         run: |
