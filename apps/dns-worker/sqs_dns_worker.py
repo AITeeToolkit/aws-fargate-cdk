@@ -319,6 +319,22 @@ class SQSDNSWorker:
             bool: True if updated successfully
         """
         try:
+            # Test connection and reconnect if needed
+            try:
+                with self.db_connection.cursor() as test_cur:
+                    test_cur.execute("SELECT 1")
+                    test_cur.fetchone()
+            except Exception:
+                logger.warning("⚠️ Database connection lost, reconnecting...")
+                self.db_connection = psycopg2.connect(
+                    host=os.environ["PGHOST"],
+                    user=os.environ["PGUSER"],
+                    password=os.environ["PGPASSWORD"],
+                    dbname=os.environ["PGDATABASE"],
+                    port=os.environ.get("PGPORT", "5432")
+                )
+                logger.info("✅ Database connection restored")
+            
             # Update domains table to mark as inactive
             with self.db_connection.cursor() as cur:
                 cur.execute(
@@ -332,7 +348,10 @@ class SQSDNSWorker:
             
         except Exception as e:
             logger.error(f"❌ Failed to update domain deactivation for {domain_name}: {e}")
-            self.db_connection.rollback()
+            try:
+                self.db_connection.rollback()
+            except:
+                pass  # Connection might be dead
             return False
     
     def ensure_hosted_zones(self, domains: List[str]) -> List[str]:
