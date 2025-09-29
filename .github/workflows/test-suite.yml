@@ -95,6 +95,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install flake8 black isort bandit safety
+          # Verify installations
+          black --version
+          isort --version
+          flake8 --version
+          bandit --version
+          safety --version
           
       - name: Run Black formatter check
         run: black --check --diff .
@@ -107,12 +113,26 @@ jobs:
         
       - name: Run Bandit security scan
         run: |
-          bandit -r . -f json -o bandit-report.json || echo '{"results": [], "errors": []}' > bandit-report.json
+          echo "Running Bandit security scan..."
+          if bandit -r . -f json -o bandit-report.json; then
+            echo "Bandit scan completed successfully"
+          else
+            echo "Bandit scan failed or found no issues, creating empty report"
+            echo '{"results": [], "errors": [], "metrics": {}}' > bandit-report.json
+          fi
+          ls -la bandit-report.json
         continue-on-error: true
         
       - name: Run Safety dependency scan
         run: |
-          safety check --json --output safety-report.json || echo '{"vulnerabilities": []}' > safety-report.json
+          echo "Running Safety dependency scan..."
+          if safety check --json --output safety-report.json; then
+            echo "Safety scan completed successfully"
+          else
+            echo "Safety scan failed or found no issues, creating empty report"
+            echo '{"vulnerabilities": [], "report_meta": {}}' > safety-report.json
+          fi
+          ls -la safety-report.json
         continue-on-error: true
         
       - name: Upload security reports

@@ -1,8 +1,9 @@
 name: Staging Deployment
 
 on:
-  push:
-    branches: [main]
+  # Disabled until staging environment is set up
+  # push:
+  #   branches: [main]
   workflow_dispatch:
     inputs:
       force_deploy:
