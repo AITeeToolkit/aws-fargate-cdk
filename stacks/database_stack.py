@@ -98,6 +98,11 @@ class DatabaseStack(Stack):
             security_groups=[self.db_security_group],
             storage_encrypted=True,
         )
+        
+        # Override CloudFormation to allow replacement of custom-named resource
+        cfn_db = self.db_instance.node.default_child
+        cfn_db.add_override("UpdateReplacePolicy", "Snapshot")
+        cfn_db.add_override("DeletionPolicy", "Snapshot" if deletion_protection else "Delete")
 
         self.secret = self.db_instance.secret
 
