@@ -392,7 +392,7 @@ jobs:
       )
     uses: ./.github/workflows/infra-build.yml
     with:
-      environment: ${{ env.ENVIRONMENT }}
+      environment: ${{ inputs.environment || github.event.client_payload.environment || 'dev' }}
       image_tag: ${{ needs.generate-tag.outputs.image_tag }}
       listener_tag: ${{ needs.generate-tag.outputs.listener_tag }}
       dns_worker_tag: ${{ needs.generate-tag.outputs.dns_worker_tag }}
