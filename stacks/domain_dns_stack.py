@@ -38,13 +38,12 @@ class DomainDnsStack(Stack):
         # Lambda function for idempotent Route53 record creation
         route53_record_lambda = _lambda.Function(
             self, "Route53RecordLambda",
-            runtime=_lambda.Runtime.PYTHON_3_9,
+            runtime=_lambda.Runtime.PYTHON_3_11,
             handler="index.handler",
             code=_lambda.Code.from_inline(
                 """
 import json
 import boto3
-import cfnresponse
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -132,15 +131,21 @@ def handler(event, context):
             )
 
         # Send success response
-        cfnresponse.send(event, context, cfnresponse.SUCCESS, {
-            'HostedZoneId': hosted_zone_id,
-            'RecordName': record_name,
-            'RecordType': record_type
-        })
+        return {
+            'statusCode': 200,
+            'body': json.dumps({
+                'HostedZoneId': hosted_zone_id,
+                'RecordName': record_name,
+                'RecordType': record_type
+            })
+        }
 
     except Exception as e:
         logger.error(f"Error processing {record_name} {record_type}: {str(e)}")
-        cfnresponse.send(event, context, cfnresponse.FAILED, {'Error': str(e)})
+        return {
+            'statusCode': 500,
+            'body': json.dumps({'Error': str(e)})
+        }
 """
             ),
             timeout=Duration.seconds(30),
