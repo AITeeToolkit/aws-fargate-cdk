@@ -7,8 +7,9 @@ concurrency:
 on:
   pull_request:
     branches: [main, develop]
-  push:
-    branches: [main, develop]
+  # Removed push trigger to prevent duplicate runs with semantic-release
+  # push:
+  #   branches: [main, develop]
   workflow_call:
     inputs:
       environment:
