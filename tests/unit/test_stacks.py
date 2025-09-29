@@ -205,7 +205,7 @@ class TestServiceStacks:
 class TestECRStack:
     """Test ECR repository creation"""
     
-    def test_ecr_repositories_creation(self, cdk_app, test_environment, mock_aws_services):
+    def test_ecr_repositories_creation(self, cdk_app, test_environment):
         """Test ECR repositories are created for all services"""
         # ECR stack uses boto3 to check existing repos, so we need mocked AWS
         ecr_stack = ECRStack(
@@ -226,7 +226,7 @@ class TestECRStack:
             }
         })
         
-    def test_ecr_repositories_dict(self, cdk_app, test_environment, mock_aws_services):
+    def test_ecr_repositories_dict(self, cdk_app, test_environment):
         """Test ECR repositories are accessible via repositories dict"""
         ecr_stack = ECRStack(
             cdk_app, "TestECRStack",

@@ -8,13 +8,14 @@ import aws_cdk as cdk
 from aws_cdk import Environment, App
 from moto import mock_aws
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 def aws_credentials():
     """Mock AWS credentials for testing"""
     os.environ["AWS_ACCESS_KEY_ID"] = "testing"
     os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
     os.environ["AWS_SECURITY_TOKEN"] = "testing"
     os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
+    os.environ["AWS_REGION"] = "us-east-1"  # Some services need this specifically
 
 
 @pytest.fixture
@@ -29,7 +30,7 @@ def test_environment():
     return cdk.Environment(account="123456789012", region="us-east-1")
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def mock_aws_services():
     """Mock AWS services for testing"""
     with mock_aws():
