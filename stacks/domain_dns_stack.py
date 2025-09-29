@@ -81,6 +81,7 @@ def handler(event, context):
         change_batch = {'Changes': []}
 
         if request_type in ['Create', 'Update']:
+            # Always check and create missing records (idempotent)
             if not record_exists:
                 # Create new record
                 change = {
@@ -99,9 +100,51 @@ def handler(event, context):
                     del change['ResourceRecordSet']['TTL']
                     del change['ResourceRecordSet']['ResourceRecords']
                 change_batch['Changes'].append(change)
-                logger.info(f"Creating {record_type} record for {record_name}")
+                logger.info(f"Creating missing {record_type} record for {record_name}")
             else:
-                logger.info(f"Record {record_type} {record_name} already exists, skipping creation")
+                # Verify existing record has correct values
+                existing_record = next(
+                    (record for record in existing_records 
+                     if record['Name'] == record_name and record['Type'] == record_type), 
+                    None
+                )
+                
+                # Check if values match what we expect
+                needs_update = False
+                if record_type == 'A' and 'AliasTarget' in props:
+                    # For alias records, check alias target
+                    expected_dns = props['AliasTarget']['DNSName']
+                    if existing_record.get('AliasTarget', {}).get('DNSName') != expected_dns:
+                        needs_update = True
+                        logger.info(f"Alias target mismatch for {record_name}: expected {expected_dns}")
+                else:
+                    # For regular records, check resource records
+                    existing_values = [rr['Value'] for rr in existing_record.get('ResourceRecords', [])]
+                    if set(existing_values) != set(record_values):
+                        needs_update = True
+                        logger.info(f"Record values mismatch for {record_name}: expected {record_values}, got {existing_values}")
+                
+                if needs_update:
+                    # Update the record by replacing it
+                    change = {
+                        'Action': 'UPSERT',
+                        'ResourceRecordSet': {
+                            'Name': record_name,
+                            'Type': record_type,
+                            'TTL': ttl,
+                            'ResourceRecords': [
+                                {'Value': value} for value in record_values
+                            ]
+                        }
+                    }
+                    if record_type == 'A' and 'AliasTarget' in props:
+                        change['ResourceRecordSet']['AliasTarget'] = props['AliasTarget']
+                        del change['ResourceRecordSet']['TTL']
+                        del change['ResourceRecordSet']['ResourceRecords']
+                    change_batch['Changes'].append(change)
+                    logger.info(f"Updating {record_type} record for {record_name}")
+                else:
+                    logger.info(f"Record {record_type} {record_name} exists with correct values, no action needed")
 
         elif request_type == 'Delete':
             if record_exists:
@@ -164,14 +207,12 @@ def handler(event, context):
 
         # Helper function to create custom resource for Route53 records
         def create_route53_record(id: str, record_name: str, record_type: str, record_values: list[str], alias_target=None, ttl: int = 300):
-            import time
             props = {
                 "HostedZoneId": zone.hosted_zone_id,
                 "RecordName": record_name,
                 "RecordType": record_type,
                 "RecordValues": record_values,
                 "TTL": str(ttl),
-                "ForceUpdate": str(int(time.time())),  # Force update on every deployment
             }
             if alias_target:
                 props["AliasTarget"] = alias_target
