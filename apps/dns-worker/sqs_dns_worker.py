@@ -18,6 +18,7 @@ import boto3
 import psycopg2
 import requests
 from botocore.exceptions import ClientError, NoCredentialsError
+
 # Import domain helper functions
 from domain_helpers import get_tenant_for_domain
 
