@@ -19,6 +19,9 @@ class DatabaseStack(Stack):
         vpc: ec2.IVpc,
         environment: str = "dev",
         use_public_access: bool = True,  # Default: private
+        multi_az: bool = False,
+        instance_class: str = "db.t3.micro",
+        deletion_protection: bool = False,
         **kwargs
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -64,6 +67,14 @@ class DatabaseStack(Stack):
             description="Allow public IP PostgreSQL access"
         )
 
+        # Parse instance class
+        instance_class_parts = instance_class.split('.')
+        if len(instance_class_parts) != 3:
+            raise ValueError(f"Invalid instance class format: {instance_class}")
+        
+        db_class = getattr(ec2.InstanceClass, instance_class_parts[1].upper())
+        db_size = getattr(ec2.InstanceSize, instance_class_parts[2].upper())
+        
         # RDS instance
         self.db_instance = rds.DatabaseInstance(
             self, f"DB",
@@ -75,18 +86,17 @@ class DatabaseStack(Stack):
             subnet_group=public_subnet_group,
             publicly_accessible=use_public_access,
             credentials=credentials,
-            instance_type=ec2.InstanceType.of(
-                ec2.InstanceClass.BURSTABLE3,
-                ec2.InstanceSize.MICRO
-            ),
-            multi_az=False,
+            instance_type=ec2.InstanceType.of(db_class, db_size),
+            multi_az=multi_az,
             allocated_storage=20,
             max_allocated_storage=100,
-            backup_retention=Duration.days(7),
-            removal_policy=RemovalPolicy.SNAPSHOT,
-            delete_automated_backups=True,
+            backup_retention=Duration.days(7 if environment != 'prod' else 30),
+            removal_policy=RemovalPolicy.SNAPSHOT if deletion_protection else RemovalPolicy.DESTROY,
+            deletion_protection=deletion_protection,
+            delete_automated_backups=not deletion_protection,
             database_name="postgres",
-            security_groups=[self.db_security_group]
+            security_groups=[self.db_security_group],
+            storage_encrypted=True
         )
 
         self.secret = self.db_instance.secret

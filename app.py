@@ -21,7 +21,32 @@ from stacks.sqs_stack import SQSStack
 app = cdk.App()
 
 env = cdk.Environment(account="156041439702", region="us-east-1")
-env_name = app.node.try_get_context("env") or "dev"
+env_name = app.node.try_get_context("env") or os.getenv("ENVIRONMENT", "dev")
+
+# Environment-specific configuration
+env_config = {
+    "dev": {
+        "db_multi_az": False,
+        "db_instance_class": "db.t3.micro",
+        "ecs_desired_count": 1,
+        "enable_deletion_protection": False
+    },
+    "staging": {
+        "db_multi_az": False,
+        "db_instance_class": "db.t3.small",
+        "ecs_desired_count": 1,
+        "enable_deletion_protection": False
+    },
+    "prod": {
+        "db_multi_az": False,  # Single AZ to reduce costs
+        "db_instance_class": "db.t3.medium",
+        "ecs_desired_count": 1,
+        "enable_deletion_protection": True
+    }
+}
+
+current_config = env_config.get(env_name, env_config["dev"])
+print(f"🚀 Deploying to {env_name} environment with config: {current_config}")
 
 try:
     with open("domains.json", "r") as f:
@@ -82,7 +107,10 @@ database_stack = DatabaseStack(
     app, f"DatabaseStack-{env_name}",
     env=env,
     vpc=network_stack.vpc,
-    environment=env_name
+    environment=env_name,
+    multi_az=current_config["db_multi_az"],
+    instance_class=current_config["db_instance_class"],
+    deletion_protection=current_config["enable_deletion_protection"]
 )
 
 # OpenSearch domain for logging and search (public access)

@@ -1,7 +1,7 @@
 name: CI/CD Pipeline
 
 concurrency:
-  group: ci-cd-pipeline-${{ github.event.client_payload.environment || 'dev' }}
+  group: ci-cd-pipeline-${{ inputs.environment || github.event.client_payload.environment || 'dev' }}
   cancel-in-progress: false  # Don't cancel, queue instead
 
 on:
@@ -32,17 +32,46 @@ on:
       web_tag:
         required: false
         type: string
+  workflow_call:
+    inputs:
+      environment:
+        description: Environment to deploy to
+        required: true
+        type: string
+      force_infra:
+        description: Force infra deploy
+        required: false
+        default: true
+        type: boolean
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      GH_TOKEN:
+        required: true
   repository_dispatch:
     types: [api-web-updated]
 
 env:
   AWS_REGION: us-east-1
   GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+  ENVIRONMENT: ${{ inputs.environment || github.event.client_payload.environment || 'dev' }}
 
 jobs:
+  test-gate:
+    name: Test Gate
+    if: github.event_name != 'repository_dispatch'
+    uses: ./.github/workflows/test-suite.yml
+    with:
+      environment: ${{ inputs.environment || github.event.client_payload.environment || 'dev' }}
+    secrets: inherit
+
   check-changes:
     name: Check What Changed
     runs-on: ubuntu-latest
+    needs: [test-gate]
+    if: always() && (needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped')
     outputs:
       has_image_changes: ${{ steps.changes.outputs.images }}
       has_infra_changes: ${{ steps.changes.outputs.infra }}
@@ -160,8 +189,8 @@ jobs:
   semantic-release:
     name: Semantic Release
     runs-on: ubuntu-latest
-    needs: [check-changes]
-    if: github.ref == 'refs/heads/main' && (needs.check-changes.outputs.has_image_changes == 'true' || needs.check-changes.outputs.has_infra_changes == 'true')
+    needs: [test-gate, check-changes]
+    if: github.ref == 'refs/heads/main' && (needs.check-changes.outputs.has_image_changes == 'true' || needs.check-changes.outputs.has_infra_changes == 'true') && (needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped')
     outputs:
       new_release: ${{ steps.release_info.outputs.new_release }}
       latest_tag: ${{ steps.release_info.outputs.latest_tag }}
@@ -221,8 +250,8 @@ jobs:
   generate-tag:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [check-changes, semantic-release]
-    if: always() && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
+    needs: [test-gate, check-changes, semantic-release]
+    if: always() && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped') && (needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped')
     outputs:
       image_tag: ${{ steps.tag.outputs.image_tag }}
       listener_tag: ${{ steps.tag.outputs.listener_tag }}
@@ -325,8 +354,8 @@ jobs:
 
   build-listener:
     name: Build & Push Listener Image
-    needs: [generate-tag, check-changes, semantic-release]
-    if: always() && github.ref == 'refs/heads/main' && needs.check-changes.outputs.listener_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
+    needs: [test-gate, generate-tag, check-changes, semantic-release]
+    if: always() && github.ref == 'refs/heads/main' && needs.check-changes.outputs.listener_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped') && (needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped')
     uses: ./.github/workflows/listener-build.yml
     with:
       environment: dev
@@ -335,8 +364,8 @@ jobs:
 
   build-dns-worker:
     name: Build & Push DNS Worker Image
-    needs: [generate-tag, check-changes, semantic-release]
-    if: always() && github.ref == 'refs/heads/main' && needs.check-changes.outputs.dns_worker_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
+    needs: [test-gate, generate-tag, check-changes, semantic-release]
+    if: always() && github.ref == 'refs/heads/main' && needs.check-changes.outputs.dns_worker_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped') && (needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped')
     uses: ./.github/workflows/dns-worker-build.yml
     with:
       environment: dev
@@ -345,22 +374,25 @@ jobs:
 
   deploy-infrastructure:
     name: Deploy Infrastructure
-    needs: [generate-tag, check-changes, build-listener, build-dns-worker, semantic-release]
+    needs: [test-gate, generate-tag, check-changes, build-listener, build-dns-worker, semantic-release]
     if: |
-      always() && (github.ref == 'refs/heads/main' || github.ref_name == 'domain-updates') && (
+      always() && (github.ref == 'refs/heads/main' || github.ref_name == 'domain-updates' || github.event_name == 'workflow_call') && (
         needs.check-changes.outputs.has_infra_changes == 'true' ||
         needs.check-changes.outputs.has_image_changes == 'true' ||
-        github.event_name == 'repository_dispatch'
+        github.event_name == 'repository_dispatch' ||
+        inputs.force_infra == true
       ) && (
         (needs.build-listener.result == 'success' || needs.build-listener.result == 'skipped') &&
         (needs.build-dns-worker.result == 'success' || needs.build-dns-worker.result == 'skipped') ||
         needs.check-changes.outputs.has_image_changes == 'false'
       ) && (
         needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped'
+      ) && (
+        needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped'
       )
     uses: ./.github/workflows/infra-build.yml
     with:
-      environment: dev
+      environment: ${{ env.ENVIRONMENT }}
       image_tag: ${{ needs.generate-tag.outputs.image_tag }}
       listener_tag: ${{ needs.generate-tag.outputs.listener_tag }}
       dns_worker_tag: ${{ needs.generate-tag.outputs.dns_worker_tag }}
@@ -427,13 +459,17 @@ jobs:
           DEV_STATUS: ${{ needs.deploy-infrastructure.result }}
           BRANCH_NAME: ${{ github.ref_name }}
         run: |
-          # Determine environment based on branch
-          if [ "$BRANCH_NAME" = "main" ]; then
+          # Determine environment based on input or branch
+          ENV_TARGET="${{ env.ENVIRONMENT }}"
+          if [ "$ENV_TARGET" = "prod" ]; then
             ENV_NAME="Production"
             ENV_DESCRIPTION="Production Environment"
+          elif [ "$ENV_TARGET" = "staging" ]; then
+            ENV_NAME="Staging"
+            ENV_DESCRIPTION="Staging Environment"
           else
             ENV_NAME="Development"
-            ENV_DESCRIPTION="Development Only"
+            ENV_DESCRIPTION="Development Environment"
           fi
           
           echo "# 🔧 $ENV_NAME Deployment Summary" >> $GITHUB_STEP_SUMMARY
