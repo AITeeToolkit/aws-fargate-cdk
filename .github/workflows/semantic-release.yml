@@ -374,17 +374,13 @@ jobs:
 
   deploy-infrastructure:
     name: Deploy Infrastructure
-    needs: [test-gate, generate-tag, check-changes, build-listener, build-dns-worker, semantic-release]
+    needs: [test-gate, generate-tag, check-changes, semantic-release]
     if: |
       always() && (github.ref == 'refs/heads/main' || github.ref_name == 'domain-updates' || github.event_name == 'workflow_call') && (
         needs.check-changes.outputs.has_infra_changes == 'true' ||
         needs.check-changes.outputs.has_image_changes == 'true' ||
         github.event_name == 'repository_dispatch' ||
         inputs.force_infra == true
-      ) && (
-        (needs.build-listener.result == 'success' || needs.build-listener.result == 'skipped') &&
-        (needs.build-dns-worker.result == 'success' || needs.build-dns-worker.result == 'skipped') ||
-        needs.check-changes.outputs.has_image_changes == 'false'
       ) && (
         needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped'
       ) && (
