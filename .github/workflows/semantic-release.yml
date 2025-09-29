@@ -427,12 +427,21 @@ jobs:
           DEV_STATUS: ${{ needs.deploy-infrastructure.result }}
           BRANCH_NAME: ${{ github.ref_name }}
         run: |
-          echo "# 🔧 Development Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          # Determine environment based on branch
+          if [ "$BRANCH_NAME" = "main" ]; then
+            ENV_NAME="Production"
+            ENV_DESCRIPTION="Production Environment"
+          else
+            ENV_NAME="Development"
+            ENV_DESCRIPTION="Development Only"
+          fi
+          
+          echo "# 🔧 $ENV_NAME Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Branch Information" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch:** \`$BRANCH_NAME\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Environment:** Development Only" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** $ENV_DESCRIPTION" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Service Versions" >> $GITHUB_STEP_SUMMARY
           echo "- **Listener:** \`$LISTENER_TAG\`" >> $GITHUB_STEP_SUMMARY
@@ -446,27 +455,36 @@ jobs:
           echo "|-------------|--------|--------|" >> $GITHUB_STEP_SUMMARY
           
           if [ "$DEV_STATUS" = "success" ]; then
-            echo "| Development | ✅ Success | Deployed successfully |" >> $GITHUB_STEP_SUMMARY
+            echo "| $ENV_NAME | ✅ Success | Deployed successfully |" >> $GITHUB_STEP_SUMMARY
           elif [ "$DEV_STATUS" = "skipped" ]; then
-            echo "| Development | ⏭️ Skipped | No infrastructure changes detected |" >> $GITHUB_STEP_SUMMARY
+            echo "| $ENV_NAME | ⏭️ Skipped | No infrastructure changes detected |" >> $GITHUB_STEP_SUMMARY
           else
-            echo "| Development | ❌ Failed | Deployment failed |" >> $GITHUB_STEP_SUMMARY
+            echo "| $ENV_NAME | ❌ Failed | Deployment failed |" >> $GITHUB_STEP_SUMMARY
           fi
           
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 📋 Next Steps" >> $GITHUB_STEP_SUMMARY
           if [ "$DEV_STATUS" = "success" ]; then
-            echo "- Test your changes in the development environment" >> $GITHUB_STEP_SUMMARY
-            echo "- Monitor application logs for any issues" >> $GITHUB_STEP_SUMMARY
+            if [ "$BRANCH_NAME" = "main" ]; then
+              echo "- ✅ Production deployment completed successfully" >> $GITHUB_STEP_SUMMARY
+              echo "- Monitor production application logs for any issues" >> $GITHUB_STEP_SUMMARY
+              echo "- Verify services are running correctly in production" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- Test your changes in the development environment" >> $GITHUB_STEP_SUMMARY
+              echo "- Monitor application logs for any issues" >> $GITHUB_STEP_SUMMARY
+              echo "- Create a pull request to merge into main for production deployment" >> $GITHUB_STEP_SUMMARY
+              echo "- Production deployment will trigger automatically after PR merge" >> $GITHUB_STEP_SUMMARY
+            fi
           elif [ "$DEV_STATUS" = "skipped" ]; then
             echo "- ✅ No deployment needed - only non-infrastructure files changed" >> $GITHUB_STEP_SUMMARY
             echo "- 📝 Changes were documentation, workflow, or other non-deployment files" >> $GITHUB_STEP_SUMMARY
           else
             echo "- Check deployment logs for error details" >> $GITHUB_STEP_SUMMARY
             echo "- Fix issues and re-run deployment" >> $GITHUB_STEP_SUMMARY
+            if [ "$BRANCH_NAME" != "main" ]; then
+              echo "- Production deployment will trigger automatically after PR merge" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
-          echo "- Create a pull request to merge into main for production deployment" >> $GITHUB_STEP_SUMMARY
-          echo "- Production deployment will trigger automatically after PR merge" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           echo "## 🔗 Quick Links" >> $GITHUB_STEP_SUMMARY
