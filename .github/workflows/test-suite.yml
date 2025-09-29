@@ -66,14 +66,14 @@ jobs:
           echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
           
       - name: Upload test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: unit-test-results
           path: junit/unit-test-results.xml
           
       - name: Upload coverage reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: |
@@ -114,7 +114,7 @@ jobs:
         continue-on-error: true
         
       - name: Upload security reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: security-reports
@@ -157,7 +157,7 @@ jobs:
           ENVIRONMENT: ${{ env.ENVIRONMENT }}
           
       - name: Upload integration test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: integration-test-results
@@ -199,7 +199,7 @@ jobs:
           ENVIRONMENT: ${{ env.ENVIRONMENT }}
           
       - name: Upload performance test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: performance-test-results
@@ -214,7 +214,7 @@ jobs:
       results: ${{ steps.summary.outputs.results }}
     steps:
       - name: Download all test artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         
       - name: Generate test summary
         id: summary
