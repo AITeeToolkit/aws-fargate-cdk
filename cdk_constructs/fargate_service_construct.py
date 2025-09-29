@@ -1,12 +1,9 @@
-from aws_cdk import (
-    Duration,
-    aws_ecs as ecs,
-    aws_ec2 as ec2,
-    aws_logs as logs,
-    aws_iam as iam,
-    aws_ssm as ssm,
-    RemovalPolicy,
-)
+from aws_cdk import Duration, RemovalPolicy
+from aws_cdk import aws_ec2 as ec2
+from aws_cdk import aws_ecs as ecs
+from aws_cdk import aws_iam as iam
+from aws_cdk import aws_logs as logs
+from aws_cdk import aws_ssm as ssm
 from constructs import Construct
 
 
@@ -34,14 +31,16 @@ class FargateServiceConstruct(Construct):
 
         # Log group
         log_group = logs.LogGroup(
-            self, f"{id}LogGroup",
+            self,
+            f"{id}LogGroup",
             removal_policy=RemovalPolicy.DESTROY,
             retention=logs.RetentionDays.ONE_WEEK,
         )
 
         # Execution role
         execution_role = iam.Role(
-            self, f"{id}ExecutionRole",
+            self,
+            f"{id}ExecutionRole",
             assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name(
@@ -66,13 +65,16 @@ class FargateServiceConstruct(Construct):
 
         # Task definition
         task_def = ecs.FargateTaskDefinition(
-            self, f"{id}TaskDef",
+            self,
+            f"{id}TaskDef",
             family=f"{id}-taskdef",
             memory_limit_mib=512,
             cpu=256,
             execution_role=execution_role,
-            task_role=opensearch_task_role or iam.Role(
-                self, f"{id}TaskRole",
+            task_role=opensearch_task_role
+            or iam.Role(
+                self,
+                f"{id}TaskRole",
                 assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
             ),
         )
@@ -81,13 +83,15 @@ class FargateServiceConstruct(Construct):
         if opensearch_task_role:
             # Add additional permissions to the provided OpenSearch role
             opensearch_task_role.add_managed_policy(
-                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2ContainerRegistryReadOnly")
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonEC2ContainerRegistryReadOnly"
+                )
             )
-            
+
             # Add SQS permissions if provided
             if sqs_managed_policy:
                 opensearch_task_role.add_managed_policy(sqs_managed_policy)
-            
+
             opensearch_task_role.add_to_policy(
                 iam.PolicyStatement(
                     actions=[
@@ -136,13 +140,15 @@ class FargateServiceConstruct(Construct):
         else:
             # Use default task role permissions
             task_def.task_role.add_managed_policy(
-                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2ContainerRegistryReadOnly")
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonEC2ContainerRegistryReadOnly"
+                )
             )
-            
+
             # Add SQS permissions if provided
             if sqs_managed_policy:
                 task_def.task_role.add_managed_policy(sqs_managed_policy)
-            
+
             task_def.task_role.add_to_policy(
                 iam.PolicyStatement(
                     actions=[
@@ -221,20 +227,23 @@ class FargateServiceConstruct(Construct):
                 interval=Duration.seconds(30),
                 timeout=Duration.seconds(5),
                 retries=3,
-                start_period=Duration.seconds(60)
+                start_period=Duration.seconds(60),
             ),
         )
 
         # Fargate service (no ALB wiring here)
         service = ecs.FargateService(
-            self, f"{id}Service",
+            self,
+            f"{id}Service",
             cluster=cluster,
             task_definition=task_def,
             enable_execute_command=True,
             assign_public_ip=True,  # Enable public IP for internet access
             desired_count=desired_count,
             service_name=service_name,
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),  # Use public subnets
+            vpc_subnets=ec2.SubnetSelection(
+                subnet_type=ec2.SubnetType.PUBLIC
+            ),  # Use public subnets
             security_groups=security_groups or [],
             cloud_map_options=cloud_map_options,
         )
@@ -245,9 +254,8 @@ class FargateServiceConstruct(Construct):
             maximum_percent=200,
             minimum_healthy_percent=50,
             deployment_circuit_breaker=ecs.CfnService.DeploymentCircuitBreakerProperty(
-                enable=True,
-                rollback=True
-            )
+                enable=True, rollback=True
+            ),
         )
 
         self.service = service

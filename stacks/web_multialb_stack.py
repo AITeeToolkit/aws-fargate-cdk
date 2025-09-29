@@ -1,19 +1,16 @@
-from aws_cdk import (
-    Stack,
-    Duration,
-    aws_ec2 as ec2,
-    aws_ecs as ecs,
-    aws_elasticloadbalancingv2 as elbv2,
-    aws_certificatemanager as acm,
-    aws_route53 as route53,
-)
+from aws_cdk import Duration, Stack
+from aws_cdk import aws_certificatemanager as acm
+from aws_cdk import aws_ec2 as ec2
+from aws_cdk import aws_ecs as ecs
+from aws_cdk import aws_elasticloadbalancingv2 as elbv2
+from aws_cdk import aws_route53 as route53
 from constructs import Construct
 
 
 def chunk_list(data, chunk_size):
     """Yield successive chunk_size-sized chunks from list."""
     for i in range(0, len(data), chunk_size):
-        yield data[i:i + chunk_size]
+        yield data[i : i + chunk_size]
 
 
 class MultiAlbStack(Stack):
@@ -25,7 +22,7 @@ class MultiAlbStack(Stack):
         vpc: ec2.IVpc,
         domains: list[str],  # just a list of domains now
         alb_security_group: ec2.ISecurityGroup,
-        **kwargs
+        **kwargs,
     ):
         """
         domains: ["foo.com", "bar.net", "sub.example.org", ...]
@@ -44,14 +41,14 @@ class MultiAlbStack(Stack):
                 f"Alb{idx}",
                 vpc=vpc,
                 internet_facing=True,
-                security_group=self.alb_security_group
+                security_group=self.alb_security_group,
             )
 
             listener = alb.add_listener(
                 f"HttpsListener{idx}",
                 port=443,
                 ssl_policy=elbv2.SslPolicy.RECOMMENDED_TLS,
-                open=True
+                open=True,
             )
             self.listeners.append(listener)
 
@@ -59,9 +56,8 @@ class MultiAlbStack(Stack):
             listener.add_action(
                 f"Default403-{idx}",
                 action=elbv2.ListenerAction.fixed_response(
-                    status_code=403,
-                    message_body="Forbidden"
-                )
+                    status_code=403, message_body="Forbidden"
+                ),
             )
 
             certs = []
@@ -71,16 +67,14 @@ class MultiAlbStack(Stack):
 
                 # Look up existing hosted zone
                 zone = route53.HostedZone.from_lookup(
-                    self,
-                    f"Zone-{domain.replace('.', '-')}",
-                    domain_name=root_zone_name
+                    self, f"Zone-{domain.replace('.', '-')}", domain_name=root_zone_name
                 )
 
                 cert = acm.Certificate(
                     self,
                     f"Cert-{domain.replace('.', '-')}",
                     domain_name=domain,
-                    validation=acm.CertificateValidation.from_dns(zone)
+                    validation=acm.CertificateValidation.from_dns(zone),
                 )
 
                 certs.append(elbv2.ListenerCertificate(cert.certificate_arn))
@@ -96,7 +90,8 @@ class MultiAlbStack(Stack):
         """
         for idx, listener in enumerate(self.listeners, start=1):
             domains_for_this_listener = [
-                d for d, alb in self.domain_to_alb.items()
+                d
+                for d, alb in self.domain_to_alb.items()
                 if alb == listener.load_balancer
             ]
             listener.add_targets(
@@ -104,15 +99,17 @@ class MultiAlbStack(Stack):
                 port=port,
                 protocol=elbv2.ApplicationProtocol.HTTP,
                 targets=[service],
-                conditions=[elbv2.ListenerCondition.host_headers(domains_for_this_listener)],
+                conditions=[
+                    elbv2.ListenerCondition.host_headers(domains_for_this_listener)
+                ],
                 priority=1000 + idx,
                 health_check=elbv2.HealthCheck(
                     enabled=True,
                     path="/health",
                     healthy_http_codes="200-499",  # Accept any non-5xx response
-                    interval=Duration.seconds(30),   # Normal interval (30 seconds)
-                    timeout=Duration.seconds(5),    # Normal timeout
+                    interval=Duration.seconds(30),  # Normal interval (30 seconds)
+                    timeout=Duration.seconds(5),  # Normal timeout
                     healthy_threshold_count=2,
-                    unhealthy_threshold_count=3     # Normal retry count
-                )
+                    unhealthy_threshold_count=3,  # Normal retry count
+                ),
             )

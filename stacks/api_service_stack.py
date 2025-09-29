@@ -1,15 +1,15 @@
-from aws_cdk import (
-    Stack,
-    aws_ecs as ecs,
-    aws_ec2 as ec2,
-    aws_secretsmanager as secretsmanager,
-    aws_iam as iam,
-    aws_servicediscovery as servicediscovery,
-    aws_ssm as ssm
-)
 import aws_cdk as cdk
+from aws_cdk import Stack
+from aws_cdk import aws_ec2 as ec2
+from aws_cdk import aws_ecs as ecs
+from aws_cdk import aws_iam as iam
+from aws_cdk import aws_secretsmanager as secretsmanager
+from aws_cdk import aws_servicediscovery as servicediscovery
+from aws_cdk import aws_ssm as ssm
 from constructs import Construct
+
 from cdk_constructs.fargate_service_construct import FargateServiceConstruct
+
 
 class APIServiceStack(Stack):
     def __init__(
@@ -26,7 +26,7 @@ class APIServiceStack(Stack):
         ecs_task_security_group: ec2.ISecurityGroup = None,
         opensearch_role: iam.IRole = None,
         sqs_managed_policy: iam.IManagedPolicy = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
@@ -40,8 +40,12 @@ class APIServiceStack(Stack):
         main_queue_parameter = f"/storefront-{environment}/sqs/main-queue-url"
         priority_queue_parameter = f"/storefront-{environment}/sqs/priority-queue-url"
         email_queue_parameter = f"/storefront-{environment}/sqs/email-queue-url"
-        image_processing_queue_parameter = f"/storefront-{environment}/sqs/image-processing-queue-url"
-        order_processing_queue_parameter = f"/storefront-{environment}/sqs/order-processing-queue-url"
+        image_processing_queue_parameter = (
+            f"/storefront-{environment}/sqs/image-processing-queue-url"
+        )
+        order_processing_queue_parameter = (
+            f"/storefront-{environment}/sqs/order-processing-queue-url"
+        )
 
         # Environment variables for API service
         api_environment = {
@@ -56,7 +60,7 @@ class APIServiceStack(Stack):
             "SQS_PRIORITY_QUEUE_PARAMETER": priority_queue_parameter,
             "SQS_EMAIL_QUEUE_PARAMETER": email_queue_parameter,
             "SQS_IMAGE_PROCESSING_QUEUE_PARAMETER": image_processing_queue_parameter,
-            "SQS_ORDER_PROCESSING_QUEUE_PARAMETER": order_processing_queue_parameter
+            "SQS_ORDER_PROCESSING_QUEUE_PARAMETER": order_processing_queue_parameter,
         }
 
         # Secrets configuration (from CloudFormation template)
@@ -76,12 +80,13 @@ class APIServiceStack(Stack):
             "POSTGRES_HOST": f"/storefront-{environment}/database/host",
             "POSTGRES_PORT": f"/storefront-{environment}/database/port",
             "POSTGRES_DB": f"/storefront-{environment}/database/name",
-            "REDIS_URL": f"/storefront-{environment}/redis-url"
+            "REDIS_URL": f"/storefront-{environment}/redis-url",
         }
 
         # Use the Fargate service construct for consistency
         fargate_construct = FargateServiceConstruct(
-            self, "api-service",
+            self,
+            "api-service",
             cluster=cluster,
             vpc=vpc,
             container_image=ecs.ContainerImage.from_registry(image_uri),
@@ -89,15 +94,17 @@ class APIServiceStack(Stack):
             environment=api_environment,
             secrets=api_secrets,
             desired_count=1,
-            security_groups=[ecs_task_security_group] if ecs_task_security_group else [],
+            security_groups=(
+                [ecs_task_security_group] if ecs_task_security_group else []
+            ),
             service_name=service_name,
             opensearch_task_role=opensearch_role,  # Pass the OpenSearch role
             sqs_managed_policy=sqs_managed_policy,  # Pass the SQS managed policy
             cloud_map_options=ecs.CloudMapOptions(
                 name=service_name,
                 dns_record_type=servicediscovery.DnsRecordType.A,
-                dns_ttl=cdk.Duration.seconds(10)
-            )
+                dns_ttl=cdk.Duration.seconds(10),
+            ),
         )
 
         # Expose the service from this stack

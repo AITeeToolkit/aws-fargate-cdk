@@ -1,14 +1,13 @@
-from aws_cdk import (
-    Stack,
-    aws_route53 as route53,
-    aws_lambda as _lambda,
-    aws_iam as iam,
-    custom_resources as cr,
-    aws_elasticloadbalancingv2 as elbv2,
-    Duration
-)
-from constructs import Construct
 import json
+
+from aws_cdk import Duration, Stack
+from aws_cdk import aws_elasticloadbalancingv2 as elbv2
+from aws_cdk import aws_iam as iam
+from aws_cdk import aws_lambda as _lambda
+from aws_cdk import aws_route53 as route53
+from aws_cdk import custom_resources as cr
+from constructs import Construct
+
 
 class DomainDnsStack(Stack):
     def __init__(
@@ -25,19 +24,19 @@ class DomainDnsStack(Stack):
         dmarc_rua: str = None,
         dmarc_ruf: str = None,
         dmarc_policy: str = "quarantine",
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         # Lookup the existing hosted zone
         zone = route53.HostedZone.from_lookup(
-            self, "HostedZone",
-            domain_name=domain_name
+            self, "HostedZone", domain_name=domain_name
         )
 
         # Lambda function for idempotent Route53 record creation
         route53_record_lambda = _lambda.Function(
-            self, "Route53RecordLambda",
+            self,
+            "Route53RecordLambda",
             runtime=_lambda.Runtime.PYTHON_3_11,
             handler="index.handler",
             code=_lambda.Code.from_inline(
@@ -199,14 +198,21 @@ def handler(event, context):
             iam.PolicyStatement(
                 actions=[
                     "route53:ListResourceRecordSets",
-                    "route53:ChangeResourceRecordSets"
+                    "route53:ChangeResourceRecordSets",
                 ],
-                resources=[f"arn:aws:route53:::hostedzone/{zone.hosted_zone_id}"]
+                resources=[f"arn:aws:route53:::hostedzone/{zone.hosted_zone_id}"],
             )
         )
 
         # Helper function to create custom resource for Route53 records
-        def create_route53_record(id: str, record_name: str, record_type: str, record_values: list[str], alias_target=None, ttl: int = 300):
+        def create_route53_record(
+            id: str,
+            record_name: str,
+            record_type: str,
+            record_values: list[str],
+            alias_target=None,
+            ttl: int = 300,
+        ):
             props = {
                 "HostedZoneId": zone.hosted_zone_id,
                 "RecordName": record_name,
@@ -216,102 +222,97 @@ def handler(event, context):
             }
             if alias_target:
                 props["AliasTarget"] = alias_target
-            
+
             # Create custom resource policy that includes Lambda invoke permission
-            custom_resource_policy = cr.AwsCustomResourcePolicy.from_statements([
-                iam.PolicyStatement(
-                    actions=["lambda:InvokeFunction"],
-                    resources=[route53_record_lambda.function_arn]
-                ),
-                iam.PolicyStatement(
-                    actions=[
-                        "route53:ListResourceRecordSets",
-                        "route53:ChangeResourceRecordSets"
-                    ],
-                    resources=[f"arn:aws:route53:::hostedzone/{zone.hosted_zone_id}"]
-                )
-            ])
-            
+            custom_resource_policy = cr.AwsCustomResourcePolicy.from_statements(
+                [
+                    iam.PolicyStatement(
+                        actions=["lambda:InvokeFunction"],
+                        resources=[route53_record_lambda.function_arn],
+                    ),
+                    iam.PolicyStatement(
+                        actions=[
+                            "route53:ListResourceRecordSets",
+                            "route53:ChangeResourceRecordSets",
+                        ],
+                        resources=[
+                            f"arn:aws:route53:::hostedzone/{zone.hosted_zone_id}"
+                        ],
+                    ),
+                ]
+            )
+
             cr.AwsCustomResource(
-                self, id,
+                self,
+                id,
                 on_create=cr.AwsSdkCall(
                     service="Lambda",
                     action="invoke",
                     parameters={
                         "FunctionName": route53_record_lambda.function_name,
-                        "Payload": json.dumps({
-                            "RequestType": "Create",
-                            "ResourceProperties": props
-                        })
+                        "Payload": json.dumps(
+                            {"RequestType": "Create", "ResourceProperties": props}
+                        ),
                     },
-                    physical_resource_id=cr.PhysicalResourceId.of(f"{record_name}-{record_type}")
+                    physical_resource_id=cr.PhysicalResourceId.of(
+                        f"{record_name}-{record_type}"
+                    ),
                 ),
                 on_update=cr.AwsSdkCall(
                     service="Lambda",
                     action="invoke",
                     parameters={
                         "FunctionName": route53_record_lambda.function_name,
-                        "Payload": json.dumps({
-                            "RequestType": "Update",
-                            "ResourceProperties": props
-                        })
+                        "Payload": json.dumps(
+                            {"RequestType": "Update", "ResourceProperties": props}
+                        ),
                     },
-                    physical_resource_id=cr.PhysicalResourceId.of(f"{record_name}-{record_type}")
+                    physical_resource_id=cr.PhysicalResourceId.of(
+                        f"{record_name}-{record_type}"
+                    ),
                 ),
                 on_delete=cr.AwsSdkCall(
                     service="Lambda",
                     action="invoke",
                     parameters={
                         "FunctionName": route53_record_lambda.function_name,
-                        "Payload": json.dumps({
-                            "RequestType": "Delete",
-                            "ResourceProperties": props
-                        })
+                        "Payload": json.dumps(
+                            {"RequestType": "Delete", "ResourceProperties": props}
+                        ),
                     },
-                    physical_resource_id=cr.PhysicalResourceId.of(f"{record_name}-{record_type}")
+                    physical_resource_id=cr.PhysicalResourceId.of(
+                        f"{record_name}-{record_type}"
+                    ),
                 ),
                 policy=custom_resource_policy,
-                install_latest_aws_sdk=False  # Use Lambda runtime's built-in SDK
+                install_latest_aws_sdk=False,  # Use Lambda runtime's built-in SDK
             )
 
         # Root domain ALIAS record to ALB
         alias_target = {
             "HostedZoneId": alb.load_balancer_canonical_hosted_zone_id,
             "DNSName": alb.load_balancer_dns_name,
-            "EvaluateTargetHealth": False
+            "EvaluateTargetHealth": False,
         }
         create_route53_record(
-            "RootAliasRecord",
-            domain_name,
-            "A",
-            [],
-            alias_target=alias_target
+            "RootAliasRecord", domain_name, "A", [], alias_target=alias_target
         )
 
         # Dev subdomain ALIAS record to ALB
         create_route53_record(
-            "DevAliasRecord",
-            f"dev.{domain_name}",
-            "A",
-            [],
-            alias_target=alias_target
+            "DevAliasRecord", f"dev.{domain_name}", "A", [], alias_target=alias_target
         )
 
         # SPF record
         spf_value = " ".join(["v=spf1"] + (spf_servers or []) + ["~all"])
-        create_route53_record(
-            "SPF",
-            domain_name,
-            "TXT",
-            [spf_value]
-        )
+        create_route53_record("SPF", domain_name, "TXT", [spf_value])
 
         # DKIM record
         create_route53_record(
             "DKIM",
             f"{dkim_selector}._domainkey.{domain_name}",
             "TXT",
-            [f"v=DKIM1; k=rsa; p={dkim_public_key.strip()}"]
+            [f"v=DKIM1; k=rsa; p={dkim_public_key.strip()}"],
         )
 
         # DMARC record
@@ -320,20 +321,10 @@ def handler(event, context):
             dmarc_value += f"; rua=mailto:{dmarc_rua}"
         if dmarc_ruf:
             dmarc_value += f"; ruf=mailto:{dmarc_ruf}"
-        create_route53_record(
-            "DMARC",
-            f"_dmarc.{domain_name}",
-            "TXT",
-            [dmarc_value]
-        )
+        create_route53_record("DMARC", f"_dmarc.{domain_name}", "TXT", [dmarc_value])
 
         # MX record
-        create_route53_record(
-            "MX",
-            domain_name,
-            "MX",
-            [f"10 {mail_server}"]
-        )
+        create_route53_record("MX", domain_name, "MX", [f"10 {mail_server}"])
 
         # Expose zone if needed downstream
         self.hosted_zone = zone
