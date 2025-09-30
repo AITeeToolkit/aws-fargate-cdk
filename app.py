@@ -45,14 +45,14 @@ env_config = {
     },
     "staging": {
         "db_multi_az": False,
-        "db_instance_class": "db.t3.small",
-        "ecs_desired_count": 2,
+        "db_instance_class": "db.t3.micro",
+        "ecs_desired_count": 1,
         "enable_deletion_protection": False,
     },
     "prod": {
-        "db_multi_az": True,  # Multi-AZ for production
-        "db_instance_class": "db.t3.medium",
-        "ecs_desired_count": 3,
+        "db_multi_az": False,  # Multi-AZ for production
+        "db_instance_class": "db.t3.micro",
+        "ecs_desired_count": 1,
         "enable_deletion_protection": True,
     },
 }
