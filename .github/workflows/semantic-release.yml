@@ -231,6 +231,9 @@ jobs:
           elif [ $EXIT_CODE -eq 1 ]; then
             echo "No release needed (semantic-release exit code 1)"
             echo "new_release=false" >> $GITHUB_OUTPUT
+          elif [ $EXIT_CODE -eq 128 ] && echo "$OUTPUT" | grep -q "already exists"; then
+            echo "Tag already exists (git exit code 128) - treating as successful (no new release needed)"
+            echo "new_release=false" >> $GITHUB_OUTPUT
           elif echo "$OUTPUT" | grep -q "already exists"; then
             echo "Tag already exists - treating as successful (no new release needed)"
             echo "new_release=false" >> $GITHUB_OUTPUT

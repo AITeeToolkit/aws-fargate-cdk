@@ -26,6 +26,7 @@ class APIServiceStack(Stack):
         ecs_task_security_group: ec2.ISecurityGroup = None,
         opensearch_role: iam.IRole = None,
         sqs_managed_policy: iam.IManagedPolicy = None,
+        desired_count: int = 1,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -93,7 +94,7 @@ class APIServiceStack(Stack):
             container_port=3001,
             environment=api_environment,
             secrets=api_secrets,
-            desired_count=1,
+            desired_count=desired_count,
             security_groups=(
                 [ecs_task_security_group] if ecs_task_security_group else []
             ),

@@ -182,6 +182,7 @@ for current_env in environments_to_deploy:
         service_name="dns-worker-service",
         db_secret=database_stack.secret,
         sqs_managed_policy=sqs_stack.sqs_managed_policy,
+        desired_count=current_config["ecs_desired_count"],
     )
 
     # Deploy API service (internal only) for this environment
