@@ -94,7 +94,7 @@ for current_env in environments_to_deploy:
     print(
         f"🛠️ Creating stacks for {current_env} environment with config: {current_config}"
     )
-    
+
     # Multi-ALB stack for this environment
     multi_alb_stack = MultiAlbStack(
         app,
