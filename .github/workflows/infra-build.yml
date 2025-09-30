@@ -9,9 +9,14 @@ on:
   workflow_call:
     inputs:
       environment:
-        description: "Deployment environment (dev/prod)"
+        description: "Deployment environment (dev/staging/prod)"
         required: true
         type: string
+      deploy_all_environments:
+        description: "Deploy all environments (dev, staging, prod)"
+        required: false
+        type: boolean
+        default: false
       image_tag:
         description: "Image tag"
         required: false
@@ -192,11 +197,20 @@ jobs:
           echo "  API:        $API_IMAGE_TAG"
           echo "  Web:      $WEB_IMAGE_TAG"
           
-          CONTEXT="--context env=$ENVIRONMENT"
-          CONTEXT="$CONTEXT --context listenerTag=$LISTENER_IMAGE_TAG"
+          # Build context parameters
+          CONTEXT="--context listenerTag=$LISTENER_IMAGE_TAG"
           CONTEXT="$CONTEXT --context dnsWorkerTag=$DNS_WORKER_IMAGE_TAG"
           CONTEXT="$CONTEXT --context apiTag=$API_IMAGE_TAG"
           CONTEXT="$CONTEXT --context webTag=$WEB_IMAGE_TAG"
+          
+          # Add environment context based on deploy mode
+          if [ "${{ inputs.deploy_all_environments }}" = "true" ]; then
+            echo "🌍 Deploying ALL environments: dev, staging, prod"
+            CONTEXT="$CONTEXT --context deploy-all=true"
+          else
+            echo "🎯 Deploying single environment: $ENVIRONMENT"
+            CONTEXT="$CONTEXT --context env=$ENVIRONMENT"
+          fi
 
           cdk deploy --all --require-approval never $CONTEXT
 

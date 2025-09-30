@@ -43,6 +43,11 @@ on:
         required: false
         default: true
         type: boolean
+      deploy_all_environments:
+        description: "Deploy all environments (dev, staging, prod)"
+        required: false
+        default: false
+        type: boolean
     secrets:
       AWS_ACCESS_KEY_ID:
         required: true
@@ -389,6 +394,7 @@ jobs:
     uses: ./.github/workflows/infra-build.yml
     with:
       environment: ${{ inputs.environment || github.event.client_payload.environment || 'dev' }}
+      deploy_all_environments: ${{ inputs.deploy_all_environments || false }}
       image_tag: ${{ needs.generate-tag.outputs.image_tag }}
       listener_tag: ${{ needs.generate-tag.outputs.listener_tag }}
       dns_worker_tag: ${{ needs.generate-tag.outputs.dns_worker_tag }}
