@@ -76,8 +76,9 @@ class MultiAlbStack(Stack):
             for root_zone_name, domains in zones_map.items():
                 # Look up existing hosted zone
                 zone = route53.HostedZone.from_lookup(
-                    self, f"Zone-{root_zone_name.replace('.', '-')}-{idx}",
-                    domain_name=root_zone_name
+                    self,
+                    f"Zone-{root_zone_name.replace('.', '-')}-{idx}",
+                    domain_name=root_zone_name,
                 )
 
                 # Create wildcard certificate for this zone
@@ -85,7 +86,9 @@ class MultiAlbStack(Stack):
                     self,
                     f"WildcardCert-{root_zone_name.replace('.', '-')}-{idx}",
                     domain_name=f"*.{root_zone_name}",
-                    subject_alternative_names=[root_zone_name],  # Also cover root domain
+                    subject_alternative_names=[
+                        root_zone_name
+                    ],  # Also cover root domain
                     validation=acm.CertificateValidation.from_dns(zone),
                 )
 

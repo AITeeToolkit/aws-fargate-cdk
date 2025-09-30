@@ -327,7 +327,7 @@ class TestOpenSearchStack:
 
         # Just verify basic properties exist
         template.has_resource_properties(
-            "AWS::OpenSearchService::Domain", {"EngineVersion": "OpenSearch_2.3"}
+            "AWS::OpenSearchService::Domain", {"EngineVersion": "OpenSearch_3.1"}
         )
 
     def test_opensearch_iam_role(self, cdk_app, test_environment):
