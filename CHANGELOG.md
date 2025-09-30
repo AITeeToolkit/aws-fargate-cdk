@@ -8,6 +8,62 @@ All notable changes to this project will be documented in this file. See [Conven
 ### 🚀 Features
 
 * add atomic domain activation/deactivation with hosted zone management ([5925173](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/592517375f3dd504332446931e7f5ea899f6fd76))
+* add configurable desired_count for ECS services and handle git tag conflicts ([81128b0](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/81128b0b37f3337ebca6e32aec1aba92c1432956))
+* add domain helper functions import for tenant resolution ([16e4754](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/16e4754b2ddf8e7c969d5784d1739440d8961bad))
+* add domain_helpers import from listener directory to dns-worker Dockerfile ([ef58820](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/ef58820008bf85ea78c735795d4f7a87ef6ae5c7))
+* add GitHub Actions workflows for staging and production deployments ([a983a74](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/a983a742a15370db305c8b8909df7b5d15fbad10))
+* add hosted zone configuration for 042322.xyz domain ([d3f4a01](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/d3f4a0137b4e543d4b3afbbb9caf4e8316fa1ce7))
+* add multi-environment deployment support to workflows ([1c7ccfc](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/1c7ccfc5f6008a04dfb10a015d09cd5c2c8e8c39))
+* add snapshot policy for database instance replacement with custom name ([e9f9dee](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/e9f9dee63ab90a212f7ad593565e923a9f48c4d6))
+* force Route53 record updates by adding timestamp to custom resource props ([96477e6](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/96477e6c82737e48b37d5bfd4739ef96e14f857d))
+* implement efficient delta-based DNS record management ([9ec737a](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/9ec737adf0af3d7bfcb88b59e5217abac1028272))
+* temporarily disable hosted zone deletion while keeping record cleanup ([901dffc](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/901dffc0fff18ed9b8ef8b9f7b5b1f2bf17fa9e3))
+* update deployment summary to show individual service tags and add Route53 permissions ([002e5ba](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/002e5ba7930898c624885317633983ad23107fdc))
+
+
+### 🐛 Bug Fixes
+
+* add database connection recovery to DNS worker ([1accf13](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/1accf1383b5068d51b8d2f8e4f49c27068a14eb2))
+* align concurrency groups to prevent simultaneous infrastructure deployments ([a16e510](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/a16e510d5fbaf4de8b611d132c0d28116db0eea1))
+* correct auto-merge condition for domain-updates branch ([744469e](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/744469e2790dff327fb61c628f5b202bb294452d))
+* correct change detection flags for domain-updates branch ([a65a546](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/a65a54694f7bea621cf29bad3ed62560e3ecfbcb))
+* delete and recreate domain-updates branch for clean deployments ([7b42094](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/7b420947dcd74b0f7e561af2f98ae8f0adc65b38))
+* disable environment-dependent tests until staging/prod exist ([bf01e02](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/bf01e020a1e85fa5726f6c00393cf9ba30f1a5ee))
+* disable staging deployment until environment exists ([f17fa9c](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/f17fa9ce9a2aca245b5baea7a8c7fe488fcc07e1))
+* ensure security scans create valid JSON reports even on failure and auto-apply AWS mocks in tests ([a49fa5f](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/a49fa5f275ada61a22a45c14afb7ae0ea979bd64))
+* format code with black and isort ([1de9e39](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/1de9e39eb69a03b39aca809609a141b9f514a71a))
+* improve error handling for Bandit and Safety security scans by creating fallback reports ([2e8bde2](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/2e8bde2d1313edad36e91d6fdeaf5cf94af743a5))
+* make deployment summary environment-aware ([128b888](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/128b8886c1fe376cd6990a0adcb7bb4e37956322))
+* prevent duplicate test runs by removing push trigger ([987cc20](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/987cc2029da0ed9eb7030e05a93bf6c54c9f01c5))
+* rename deactivation_date to inactivation_date and add DeleteHostedZone IAM permission ([3356464](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/33564646e9f6b69bd13e8030364f9cde00d2f9f4))
+* resolve black/isort conflict with proper configuration ([81e8b87](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/81e8b87d457cbfe13ff6efd0cfa5df6e08c0fc87))
+* resolve black/isort formatting conflicts and add concurrency ([c3b6f80](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/c3b6f80d7506db9539dd49bdab4e5d333fcaa3e6))
+* resolve concurrency deadlock between workflows ([72a13e3](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/72a13e3057861d48cc047ddd13024610be7cd36e))
+* resolve env context issue in semantic-release workflow ([c42322f](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/c42322fa2a4303dd5fa102708d93108444596575))
+* update tag resolver to fetch API/WEB tags from storefront-cdk repository ([2e3314e](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/2e3314e458d8ec7109956af57786698d4afe565e))
+* use latest tags instead of 'unchanged' for domain-updates branch ([1755172](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/175517232277fb8806661049739513ffa177715d))
+
+
+### ⚡ Performance Improvements
+
+* downgrade staging/prod infrastructure to reduce costs ([2d305a2](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/2d305a26160e1a80726964678401219082cffe73))
+
+
+### ♻️ Code Refactoring
+
+* improve security scan workflow with better error handling and code formatting ([28fc8d5](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/28fc8d50a2fac9fe3edd9a6d3d186e89e1d541d1))
+* move branch cleanup to workflow instead of DNS worker ([8859ece](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/8859ece0d0f436b8c21253f327b559f1c3195e3d))
+* move domain_helpers.py into dns-worker app directory ([4232b2c](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/4232b2cbc7cfa0ae3aefcac4ef1b86babbabf643))
+* simplify deploy-infrastructure job dependencies and conditions ([b7b7654](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/b7b7654b14467295e66416b36c38da5a68431dc1))
+* switch to parameter names instead of direct values for OpenSearch and SQS endpoints ([10fa27a](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/10fa27ab917aef2867d2483444a0fdefe354adc4))
+* upgrade Lambda runtime to Python 3.11 and replace cfnresponse with direct JSON responses ([ab3be39](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/ab3be39a49446083de2614034549a2051d46caa4))
+
+## [1.76.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.75.2...v1.76.0) (2025-09-30)
+
+
+### 🚀 Features
+
+* add atomic domain activation/deactivation with hosted zone management ([5925173](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/592517375f3dd504332446931e7f5ea899f6fd76))
 * add domain helper functions import for tenant resolution ([16e4754](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/16e4754b2ddf8e7c969d5784d1739440d8961bad))
 * add domain_helpers import from listener directory to dns-worker Dockerfile ([ef58820](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/ef58820008bf85ea78c735795d4f7a87ef6ae5c7))
 * add GitHub Actions workflows for staging and production deployments ([a983a74](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/a983a742a15370db305c8b8909df7b5d15fbad10))
