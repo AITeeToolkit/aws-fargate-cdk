@@ -98,7 +98,7 @@ network_stack = NetworkStack(app, "NetworkStack", env=env)
 
 shared_stack = SharedStack(app, "SharedStack", env=env, vpc=network_stack.vpc)
 
-# App container registries - only create once
+# App container registries - only create one time
 ecr_stack = ECRStack(
     app,
     "StorefrontECRStack",
