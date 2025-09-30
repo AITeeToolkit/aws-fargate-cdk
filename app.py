@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 import json
-import os
-
 import aws_cdk as cdk
 
 from scripts.tag_resolver import resolve_tag
 from stacks.api_service_stack import APIServiceStack
+from stacks.certificate_stack import CertificateStack
 from stacks.database_stack import DatabaseStack
 from stacks.dns_worker_service_stack import DNSWorkerServiceStack
 from stacks.domain_dns_stack import DomainDnsStack
 from stacks.ecr_stack import ECRStack
-from stacks.iam_stack import IAMStack
 from stacks.listener_service_stack import ListenerServiceStack
 from stacks.network_stack import NetworkStack
 from stacks.opensearch_stack import OpenSearchStack
@@ -106,6 +104,14 @@ ecr_stack = ECRStack(
     repository_names=["api", "web", "listener", "dns-worker"],
 )
 
+# Create shared wildcard certificates (one per root domain, shared across all environments)
+certificate_stack = CertificateStack(
+    app,
+    "SharedCertificateStack",
+    env=env,
+    domains=base_domains,
+)
+
 # Deploy stacks for each environment
 for current_env in environments_to_deploy:
     current_config = env_config.get(current_env, env_config["dev"])
@@ -121,7 +127,7 @@ for current_env in environments_to_deploy:
         else f"  📋 Domains for {current_env}: {env_domains}"
     )
 
-    # Multi-ALB stack for this environment
+    # Multi-ALB stack for this environment (using shared certificates)
     multi_alb_stack = MultiAlbStack(
         app,
         f"MultiAlbStack-{current_env}",
@@ -130,6 +136,7 @@ for current_env in environments_to_deploy:
         domains=env_domains,
         alb_security_group=shared_stack.alb_security_group,
         environment=current_env,
+        certificate_arns=certificate_stack.certificates,
     )
 
     # Add mail DNS records automatically for this environment

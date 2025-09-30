@@ -56,7 +56,11 @@ jobs:
           
       - name: Run unit tests
         run: |
-          pytest tests/unit/ -v --cov=stacks --cov=apps --junitxml=junit/unit-test-results.xml --cov-report=xml
+          pytest tests/unit/ -v --cov=stacks --cov=apps \
+            --junitxml=junit/unit-test-results.xml \
+            --html=junit/unit-test-results.html --self-contained-html \
+            --cov-report=xml \
+            --cov-report=html:htmlcov
           
       - name: Extract coverage percentage
         id: coverage

@@ -23,6 +23,7 @@ class MultiAlbStack(Stack):
         domains: list[str],  # just a list of domains now
         alb_security_group: ec2.ISecurityGroup,
         environment: str = "dev",
+        certificate_arns: dict[str, str] = None,  # domain -> cert ARN mapping
         **kwargs,
     ):
         """
@@ -62,37 +63,47 @@ class MultiAlbStack(Stack):
                 ),
             )
 
-            # Group domains by root zone to create wildcard certificates
-            zones_map = {}  # root_zone -> [domains]
+            # Map domains to ALB
             for domain in domain_chunk:
-                root_zone_name = ".".join(domain.split(".")[-2:])
-                if root_zone_name not in zones_map:
-                    zones_map[root_zone_name] = []
-                zones_map[root_zone_name].append(domain)
                 self.domain_to_alb[domain] = alb
 
-            # Create one wildcard cert per root zone
+            # Use provided certificates or create new ones
             certs = []
-            for root_zone_name, domains in zones_map.items():
-                # Look up existing hosted zone
-                zone = route53.HostedZone.from_lookup(
-                    self,
-                    f"Zone-{root_zone_name.replace('.', '-')}-{idx}",
-                    domain_name=root_zone_name,
-                )
+            if certificate_arns:
+                # Use existing shared certificates
+                cert_arns_for_chunk = set()
+                for domain in domain_chunk:
+                    root_zone = ".".join(domain.split(".")[-2:])
+                    if root_zone in certificate_arns:
+                        cert_arns_for_chunk.add(certificate_arns[root_zone])
+                
+                for cert_arn in cert_arns_for_chunk:
+                    certs.append(elbv2.ListenerCertificate(cert_arn))
+            else:
+                # Fallback: Create certificates (old behavior)
+                zones_map = {}  # root_zone -> [domains]
+                for domain in domain_chunk:
+                    root_zone_name = ".".join(domain.split(".")[-2:])
+                    if root_zone_name not in zones_map:
+                        zones_map[root_zone_name] = []
+                    zones_map[root_zone_name].append(domain)
 
-                # Create wildcard certificate for this zone
-                cert = acm.Certificate(
-                    self,
-                    f"WildcardCert-{root_zone_name.replace('.', '-')}-{idx}",
-                    domain_name=f"*.{root_zone_name}",
-                    subject_alternative_names=[
-                        root_zone_name
-                    ],  # Also cover root domain
-                    validation=acm.CertificateValidation.from_dns(zone),
-                )
+                for root_zone_name in zones_map.keys():
+                    zone = route53.HostedZone.from_lookup(
+                        self,
+                        f"Zone-{root_zone_name.replace('.', '-')}-{idx}",
+                        domain_name=root_zone_name,
+                    )
 
-                certs.append(elbv2.ListenerCertificate(cert.certificate_arn))
+                    cert = acm.Certificate(
+                        self,
+                        f"WildcardCert-{root_zone_name.replace('.', '-')}-{idx}",
+                        domain_name=f"*.{root_zone_name}",
+                        subject_alternative_names=[root_zone_name],
+                        validation=acm.CertificateValidation.from_dns(zone),
+                    )
+
+                    certs.append(elbv2.ListenerCertificate(cert.certificate_arn))
 
             # Attach all certs for this chunk
             listener.add_certificates(f"Certs-{idx}", certs)
