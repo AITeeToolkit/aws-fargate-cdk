@@ -162,7 +162,10 @@ for current_env in environments_to_deploy:
 
     # OpenSearch domain for logging and search for this environment
     opensearch_stack = OpenSearchStack(
-        app, f"OpenSearchStack-{current_env}", env=env, environment=current_env,
+        app,
+        f"OpenSearchStack-{current_env}",
+        env=env,
+        environment=current_env,
     )
 
     # SQS queues for message processing for this environment
