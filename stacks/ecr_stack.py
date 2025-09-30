@@ -12,7 +12,6 @@ class ECRStack(Stack):
         construct_id: str,
         *,
         repository_names: list[str],
-        environment: str = "dev",
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -23,7 +22,8 @@ class ECRStack(Stack):
         ecr_client = boto3.client("ecr")
 
         for name in repository_names:
-            repo_name = f"storefront/{environment}/{name}"
+            # Shared repository name (no environment prefix)
+            repo_name = f"storefront/{name}"
 
             # Try to import existing repository first, create if it doesn't exist
             try:

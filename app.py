@@ -17,8 +17,7 @@ from stacks.opensearch_stack import OpenSearchStack
 from stacks.shared_stack import SharedStack
 from stacks.sqs_stack import SQSStack
 from stacks.web_multialb_stack import MultiAlbStack
-
-# from stacks.parameters_stack import ParametersStack
+from stacks.parameters_stack import ParametersStack
 from stacks.web_service_stack import WebServiceStack
 
 app = cdk.App()
@@ -145,14 +144,14 @@ for current_env in environments_to_deploy:
     )
 
     # Parameters stack for SSM parameters
-    # parameters_stack = ParametersStack(
-    #     app, f"ParametersStack-{env_name}",
-    #     env=env,
-    #     environment=env_name,
-    #     cluster=shared_stack.cluster,
-    #     namespace=shared_stack.cluster.default_cloud_map_namespace,
-    #     api_service_name="api-service"  # This should match your service name
-    # )
+    parameters_stack = ParametersStack(
+        app, f"ParametersStack-{env_name}",
+        env=env,
+        environment=env_name,
+        cluster=shared_stack.cluster,
+        namespace=shared_stack.cluster.default_cloud_map_namespace,
+        api_service_name="api-service"  # This should match your service name
+    )
 
     # Deploy listener service for this environment
     listener_service = ListenerServiceStack(
