@@ -28,9 +28,13 @@ class DomainDnsStack(Stack):
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # Lookup the existing hosted zone
+        # Extract root domain (e.g., "cidertees.com" from "dev.cidertees.com")
+        # Get the last two parts of the domain (root zone)
+        root_zone_name = ".".join(domain_name.split(".")[-2:])
+        
+        # Lookup the existing hosted zone for the root domain
         zone = route53.HostedZone.from_lookup(
-            self, "HostedZone", domain_name=domain_name
+            self, "HostedZone", domain_name=root_zone_name
         )
 
         # Lambda function for idempotent Route53 record creation
@@ -288,19 +292,14 @@ def handler(event, context):
                 install_latest_aws_sdk=False,  # Use Lambda runtime's built-in SDK
             )
 
-        # Root domain ALIAS record to ALB
+        # Domain ALIAS record to ALB (works for both root and subdomains)
         alias_target = {
             "HostedZoneId": alb.load_balancer_canonical_hosted_zone_id,
             "DNSName": alb.load_balancer_dns_name,
             "EvaluateTargetHealth": False,
         }
         create_route53_record(
-            "RootAliasRecord", domain_name, "A", [], alias_target=alias_target
-        )
-
-        # Dev subdomain ALIAS record to ALB
-        create_route53_record(
-            "DevAliasRecord", f"dev.{domain_name}", "A", [], alias_target=alias_target
+            "DomainAliasRecord", domain_name, "A", [], alias_target=alias_target
         )
 
         # SPF record
