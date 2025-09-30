@@ -22,6 +22,7 @@ class MultiAlbStack(Stack):
         vpc: ec2.IVpc,
         domains: list[str],  # just a list of domains now
         alb_security_group: ec2.ISecurityGroup,
+        environment: str = "dev",
         **kwargs,
     ):
         """
@@ -42,6 +43,7 @@ class MultiAlbStack(Stack):
                 vpc=vpc,
                 internet_facing=True,
                 security_group=self.alb_security_group,
+                load_balancer_name=f"web-alb-{environment}-{idx}",
             )
 
             listener = alb.add_listener(
@@ -60,25 +62,34 @@ class MultiAlbStack(Stack):
                 ),
             )
 
-            certs = []
+            # Group domains by root zone to create wildcard certificates
+            zones_map = {}  # root_zone -> [domains]
             for domain in domain_chunk:
-                # Get the root zone (strip subdomains if necessary)
                 root_zone_name = ".".join(domain.split(".")[-2:])
+                if root_zone_name not in zones_map:
+                    zones_map[root_zone_name] = []
+                zones_map[root_zone_name].append(domain)
+                self.domain_to_alb[domain] = alb
 
+            # Create one wildcard cert per root zone
+            certs = []
+            for root_zone_name, domains in zones_map.items():
                 # Look up existing hosted zone
                 zone = route53.HostedZone.from_lookup(
-                    self, f"Zone-{domain.replace('.', '-')}", domain_name=root_zone_name
+                    self, f"Zone-{root_zone_name.replace('.', '-')}-{idx}",
+                    domain_name=root_zone_name
                 )
 
+                # Create wildcard certificate for this zone
                 cert = acm.Certificate(
                     self,
-                    f"Cert-{domain.replace('.', '-')}",
-                    domain_name=domain,
+                    f"WildcardCert-{root_zone_name.replace('.', '-')}-{idx}",
+                    domain_name=f"*.{root_zone_name}",
+                    subject_alternative_names=[root_zone_name],  # Also cover root domain
                     validation=acm.CertificateValidation.from_dns(zone),
                 )
 
                 certs.append(elbv2.ListenerCertificate(cert.certificate_arn))
-                self.domain_to_alb[domain] = alb
 
             # Attach all certs for this chunk
             listener.add_certificates(f"Certs-{idx}", certs)

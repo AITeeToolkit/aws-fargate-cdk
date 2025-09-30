@@ -24,7 +24,8 @@ class OpenSearchStack(Stack):
         self.domain = opensearch.Domain(
             self,
             f"OpenSearchDomain-{self.env_name}",
-            version=opensearch.EngineVersion.OPENSEARCH_2_3,
+            domain_name=f"opensearch-{self.env_name}",
+            version=opensearch.EngineVersion.open_search("3.1"),
             # Free tier instance configuration
             capacity=opensearch.CapacityConfig(
                 data_nodes=1,  # Single node for free tier

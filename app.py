@@ -129,6 +129,7 @@ for current_env in environments_to_deploy:
         vpc=network_stack.vpc,
         domains=env_domains,
         alb_security_group=shared_stack.alb_security_group,
+        environment=current_env,
     )
 
     # Add mail DNS records automatically for this environment
@@ -161,7 +162,7 @@ for current_env in environments_to_deploy:
 
     # OpenSearch domain for logging and search for this environment
     opensearch_stack = OpenSearchStack(
-        app, f"OpenSearchStack-{current_env}", env=env, environment=current_env
+        app, f"OpenSearchStack-{current_env}", env=env, environment=current_env,
     )
 
     # SQS queues for message processing for this environment
