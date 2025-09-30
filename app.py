@@ -91,7 +91,9 @@ ecr_stack = ECRStack(
 # Deploy stacks for each environment
 for current_env in environments_to_deploy:
     current_config = env_config.get(current_env, env_config["dev"])
-    print(f"🛠️ Creating stacks for {current_env} environment with config: {current_config}")
+    print(
+        f"🛠️ Creating stacks for {current_env} environment with config: {current_config}"
+    )
     
     # Multi-ALB stack for this environment
     multi_alb_stack = MultiAlbStack(
@@ -137,7 +139,9 @@ for current_env in environments_to_deploy:
     )
 
     # SQS queues for message processing for this environment
-    sqs_stack = SQSStack(app, f"SQSStack-{current_env}", env=env, environment=current_env)
+    sqs_stack = SQSStack(
+        app, f"SQSStack-{current_env}", env=env, environment=current_env
+    )
 
     # Parameters stack for SSM parameters
     # parameters_stack = ParametersStack(
