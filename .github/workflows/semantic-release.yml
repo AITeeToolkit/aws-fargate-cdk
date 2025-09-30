@@ -62,7 +62,6 @@ env:
   AWS_REGION: us-east-1
   GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
   ENVIRONMENT: ${{ inputs.environment || github.event.client_payload.environment || 'dev' }}
-  DEPLOY_ALL: ${{ inputs.deploy_all_environments || contains(github.event.head_commit.message, '[deploy-all]') || false }}
 
 jobs:
   test-gate:
@@ -418,7 +417,7 @@ jobs:
     uses: ./.github/workflows/infra-build.yml
     with:
       environment: ${{ inputs.environment || github.event.client_payload.environment || 'dev' }}
-      deploy_all_environments: ${{ env.DEPLOY_ALL }}
+      deploy_all_environments: ${{ inputs.deploy_all_environments || contains(github.event.head_commit.message, '[deploy-all]') || false }}
       image_tag: ${{ needs.generate-tag.outputs.image_tag }}
       listener_tag: ${{ needs.generate-tag.outputs.listener_tag }}
       dns_worker_tag: ${{ needs.generate-tag.outputs.dns_worker_tag }}
