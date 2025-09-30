@@ -4,7 +4,7 @@ import os
 
 import aws_cdk as cdk
 
-from infrastructure.scripts.tag_resolver import resolve_tag
+from scripts.tag_resolver import resolve_tag
 from stacks.api_service_stack import APIServiceStack
 from stacks.database_stack import DatabaseStack
 from stacks.dns_worker_service_stack import DNSWorkerServiceStack
