@@ -119,25 +119,29 @@ jobs:
       - name: Run Bandit security scan
         run: |
           echo "Running Bandit security scan..."
-          if bandit -r . -f json -o bandit-report.json; then
-            echo "Bandit scan completed successfully"
-          else
-            echo "Bandit scan failed or found no issues, creating empty report"
-            echo '{"results": [], "errors": [], "metrics": {}}' > bandit-report.json
-          fi
+          # Create empty report first as fallback
+          echo '{"results": [], "errors": [], "metrics": {}}' > bandit-report.json
+          
+          # Try to run bandit, but don't fail if it errors
+          bandit -r . -f json -o bandit-report.json || echo "Bandit scan completed with issues or errors"
+          
+          echo "Bandit report created:"
           ls -la bandit-report.json
+          cat bandit-report.json | head -5
         continue-on-error: true
         
       - name: Run Safety dependency scan
         run: |
           echo "Running Safety dependency scan..."
-          if safety check --json --output safety-report.json; then
-            echo "Safety scan completed successfully"
-          else
-            echo "Safety scan failed or found no issues, creating empty report"
-            echo '{"vulnerabilities": [], "report_meta": {}}' > safety-report.json
-          fi
+          # Create empty report first as fallback
+          echo '{"vulnerabilities": [], "report_meta": {}}' > safety-report.json
+          
+          # Try to run safety, but don't fail if it errors
+          safety check --json --output safety-report.json || echo "Safety scan completed with issues or errors"
+          
+          echo "Safety report created:"
           ls -la safety-report.json
+          cat safety-report.json | head -5
         continue-on-error: true
         
       - name: Upload security reports
