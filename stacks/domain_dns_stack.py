@@ -32,7 +32,7 @@ class DomainDnsStack(Stack):
         # Get the last two parts of the domain (root zone)
         root_zone_name = ".".join(domain_name.split(".")[-2:])
 
-        # Lookup the existing hosted zone for the root domain
+        # Lookup existing hosted zone for the root domain
         zone = route53.HostedZone.from_lookup(
             self, "HostedZone", domain_name=root_zone_name
         )
