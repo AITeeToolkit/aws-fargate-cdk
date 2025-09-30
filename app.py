@@ -68,18 +68,20 @@ except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
     print(f"⚠️ Could not read domains.json: {e}")
     base_domains = []
 
+
 # Function to add environment prefix to domains
 def get_env_domains(base_domains: list[str], environment: str) -> list[str]:
     """
     Add environment prefix to domains:
     - dev: dev.domain.com
-    - staging: staging.domain.com  
+    - staging: staging.domain.com
     - prod: domain.com (no prefix)
     """
     if environment == "prod":
         return base_domains  # No prefix for prod
     else:
         return [f"{environment}.{domain}" for domain in base_domains]
+
 
 listener_tag = resolve_tag("listenerTag", "LISTENER_IMAGE_TAG", app, "listener")
 dns_worker_tag = resolve_tag("dnsWorkerTag", "DNS_WORKER_IMAGE_TAG", app, "dns-worker")
@@ -113,8 +115,12 @@ for current_env in environments_to_deploy:
 
     # Get environment-specific domains (dev.domain.com, staging.domain.com, or domain.com for prod)
     env_domains = get_env_domains(base_domains, current_env)
-    print(f"  📋 Domains for {current_env}: {env_domains[:3]}..." if len(env_domains) > 3 else f"  📋 Domains for {current_env}: {env_domains}")
-    
+    print(
+        f"  📋 Domains for {current_env}: {env_domains[:3]}..."
+        if len(env_domains) > 3
+        else f"  📋 Domains for {current_env}: {env_domains}"
+    )
+
     # Multi-ALB stack for this environment
     multi_alb_stack = MultiAlbStack(
         app,
