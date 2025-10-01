@@ -14,6 +14,7 @@ from stacks.ecr_stack import ECRStack
 from stacks.listener_service_stack import ListenerServiceStack
 from stacks.network_stack import NetworkStack
 from stacks.opensearch_stack import OpenSearchStack
+from stacks.redis_stack import RedisStack
 from stacks.shared_stack import SharedStack
 from stacks.sqs_stack import SQSStack
 from stacks.web_multialb_stack import MultiAlbStack
@@ -42,20 +43,32 @@ env_config = {
     "dev": {
         "db_multi_az": False,
         "db_instance_class": "db.t3.micro",
+        "db_publicly_accessible": True,  # Allow direct access for development
         "ecs_desired_count": 1,
         "enable_deletion_protection": False,
+        "redis_max_storage_gb": 1,
+        "redis_max_ecpu": 3000,
+        "redis_snapshot_retention": 1,
     },
     "staging": {
         "db_multi_az": False,
         "db_instance_class": "db.t3.micro",
+        "db_publicly_accessible": True,  # Private for staging
         "ecs_desired_count": 1,
         "enable_deletion_protection": False,
+        "redis_max_storage_gb": 2,
+        "redis_max_ecpu": 5000,
+        "redis_snapshot_retention": 7,
     },
     "prod": {
         "db_multi_az": False,  # Multi-AZ for production
         "db_instance_class": "db.t3.micro",
+        "db_publicly_accessible": True,  # Private for production
         "ecs_desired_count": 1,
         "enable_deletion_protection": True,
+        "redis_max_storage_gb": 5,
+        "redis_max_ecpu": 10000,
+        "redis_snapshot_retention": 7,
     },
 }
 
@@ -167,6 +180,7 @@ for current_env in environments_to_deploy:
         multi_az=current_config["db_multi_az"],
         instance_class=current_config["db_instance_class"],
         deletion_protection=current_config["enable_deletion_protection"],
+        publicly_accessible=current_config["db_publicly_accessible"],
     )
 
     # OpenSearch domain for logging and search for this environment
@@ -180,6 +194,18 @@ for current_env in environments_to_deploy:
     # SQS queues for message processing for this environment
     sqs_stack = SQSStack(
         app, f"SQSStack-{current_env}", env=env, environment=current_env
+    )
+
+    # Redis Serverless for caching for this environment
+    redis_stack = RedisStack(
+        app,
+        f"RedisStack-{current_env}",
+        env=env,
+        vpc=network_stack.vpc,
+        environment=current_env,
+        max_storage_gb=current_config["redis_max_storage_gb"],
+        max_ecpu=current_config["redis_max_ecpu"],
+        snapshot_retention=current_config["redis_snapshot_retention"],
     )
 
     # Parameters stack for SSM parameters

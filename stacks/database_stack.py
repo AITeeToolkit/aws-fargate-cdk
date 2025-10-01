@@ -14,7 +14,7 @@ class DatabaseStack(Stack):
         *,
         vpc: ec2.IVpc,
         environment: str = "dev",
-        use_public_access: bool = True,  # Default: private
+        publicly_accessible: bool = False,  # Default: private
         multi_az: bool = False,
         instance_class: str = "db.t3.micro",
         deletion_protection: bool = False,
@@ -25,7 +25,7 @@ class DatabaseStack(Stack):
         # Optional CDK context override (e.g. --context public_db=true)
         context_override = self.node.try_get_context("public_db")
         if context_override is not None:
-            use_public_access = str(context_override).lower() == "true"
+            publicly_accessible = str(context_override).lower() == "true"
 
         # Store credentials in Secrets Manager
         credentials = rds.Credentials.from_generated_secret(
@@ -97,7 +97,7 @@ class DatabaseStack(Stack):
             instance_identifier=f"rds-{environment}",
             vpc=vpc,
             subnet_group=public_subnet_group,
-            publicly_accessible=use_public_access,
+            publicly_accessible=publicly_accessible,
             credentials=credentials,
             instance_type=ec2.InstanceType.of(db_class, db_size),
             multi_az=multi_az,
