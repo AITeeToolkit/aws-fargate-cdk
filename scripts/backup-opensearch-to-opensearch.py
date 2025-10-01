@@ -7,11 +7,12 @@ Copies indices from one OpenSearch domain to another using scroll and bulk APIs
 import argparse
 import json
 import sys
-from typing import List, Dict, Any
-import boto3
-from requests_aws4auth import AWS4Auth
-import requests
+from typing import Any, Dict, List
 from urllib.parse import urlparse
+
+import boto3
+import requests
+from requests_aws4auth import AWS4Auth
 
 
 # Colors for output
