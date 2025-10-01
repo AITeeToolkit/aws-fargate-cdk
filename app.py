@@ -255,4 +255,10 @@ for current_env in environments_to_deploy:
         desired_count=current_config["ecs_desired_count"],
     )
 
+    # Attach web service to ALB with host-based routing
+    multi_alb_stack.attach_web_service(
+        service=web_service.service,
+        port=3000,
+    )
+
 app.synth()

@@ -68,7 +68,7 @@ SOURCE_SECRET_ARN=arn:aws:secretsmanager:us-east-1:ACCOUNT:secret:storefront/dev
 TARGET_SECRET_ARN=arn:aws:secretsmanager:us-east-1:ACCOUNT:secret:storefront/staging/rds-credentials-XXX \
 SOURCE_DB=postgres \
 TARGET_DB=postgres \
-./infrastructure/scripts/backup-rds-to-rds.sh pg_dump
+./scripts/backup-rds-to-rds.sh pg_dump
 ```
 
 #### Using Direct Credentials
@@ -84,7 +84,7 @@ TARGET_PORT=5432 \
 TARGET_DB=postgres \
 TARGET_USER=postgres \
 TARGET_PASSWORD=your-password \
-./infrastructure/scripts/backup-rds-to-rds.sh pg_dump
+./scripts/backup-rds-to-rds.sh pg_dump
 ```
 
 #### With Clean Option (Drops existing objects first)
@@ -95,7 +95,7 @@ TARGET_SECRET_ARN=... \
 SOURCE_DB=postgres \
 TARGET_DB=postgres \
 CLEAN_FIRST=true \
-./infrastructure/scripts/backup-rds-to-rds.sh pg_dump
+./scripts/backup-rds-to-rds.sh pg_dump
 ```
 
 #### Custom Backup File Location
@@ -106,7 +106,7 @@ TARGET_SECRET_ARN=... \
 SOURCE_DB=postgres \
 TARGET_DB=postgres \
 BACKUP_FILE=/path/to/backup.dump \
-./infrastructure/scripts/backup-rds-to-rds.sh pg_dump
+./scripts/backup-rds-to-rds.sh pg_dump
 ```
 
 ### Method 2: AWS Snapshot (Physical Backup)
@@ -123,7 +123,7 @@ TARGET_INSTANCE_ID=staging-db-restored \
 SNAPSHOT_ID=backup-20250930 \
 INSTANCE_CLASS=db.t3.micro \
 AWS_REGION=us-east-1 \
-./infrastructure/scripts/backup-rds-to-rds.sh snapshot
+./scripts/backup-rds-to-rds.sh snapshot
 ```
 
 ## Environment Variables
@@ -191,7 +191,7 @@ SOURCE_DB=postgres
 TARGET_DB=postgres
 CLEAN_FIRST=true
 
-./infrastructure/scripts/backup-rds-to-rds.sh pg_dump
+./scripts/backup-rds-to-rds.sh pg_dump
 ```
 
 ### Example 2: Create Snapshot and Restore
@@ -206,7 +206,7 @@ SNAPSHOT_ID=prod-backup-$(date +%Y%m%d)
 INSTANCE_CLASS=db.t3.medium
 AWS_REGION=us-east-1
 
-./infrastructure/scripts/backup-rds-to-rds.sh snapshot
+./scripts/backup-rds-to-rds.sh snapshot
 ```
 
 ### Example 3: Backup to Local File Only
