@@ -565,7 +565,7 @@ class TestMultiAlbStack:
             cdk_app, "TestSharedStack", env=test_environment, vpc=network_stack.vpc
         )
 
-        # Create multi-ALB stack with mock certificate ARN
+        # Create multi-ALB stack with mock certificate ARN (mapped by root zone)
         multi_alb_stack = MultiAlbStack(
             cdk_app,
             "TestMultiAlbStack",
@@ -575,7 +575,7 @@ class TestMultiAlbStack:
             alb_security_group=shared_stack.alb_security_group,
             environment="test",
             certificate_arns={
-                "test.example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"
+                "example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"
             },
         )
         template = assertions.Template.from_stack(multi_alb_stack)
@@ -599,7 +599,7 @@ class TestMultiAlbStack:
             alb_security_group=shared_stack.alb_security_group,
             environment="test",
             certificate_arns={
-                "test.example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"
+                "example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"
             },
         )
         template = assertions.Template.from_stack(multi_alb_stack)
@@ -626,7 +626,7 @@ class TestMultiAlbStack:
             alb_security_group=shared_stack.alb_security_group,
             environment="test",
             certificate_arns={
-                "test.example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"
+                "example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"
             },
         )
         template = assertions.Template.from_stack(multi_alb_stack)
@@ -653,7 +653,7 @@ class TestDomainDnsStack:
             alb_security_group=shared_stack.alb_security_group,
             environment="test",
             certificate_arns={
-                "test.example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"
+                "example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"
             },
         )
 
@@ -691,7 +691,7 @@ class TestDomainDnsStack:
             alb_security_group=shared_stack.alb_security_group,
             environment="test",
             certificate_arns={
-                "test.example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"
+                "example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"
             },
         )
 
