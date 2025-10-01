@@ -1,7 +1,11 @@
 {
     "app": "python3 app.py",
     "context": {
-      "env": "dev"
+      "env": "dev",
+      "allowed_ips": {
+        "70.122.3.208/32": "Nel home",
+        "75.40.190.44/32": "Raphael home"
+      }
     },
     "versionReporting": false
   }

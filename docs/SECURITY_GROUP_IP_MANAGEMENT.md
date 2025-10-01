@@ -158,7 +158,7 @@ aws ec2 describe-security-groups \
 
 ## Remove IP Access
 
-### Option 1: Update cdk.json
+### Option 1: Update cdk.json (Recommended)
 
 Remove the IP from the list and redeploy:
 
@@ -173,29 +173,35 @@ Remove the IP from the list and redeploy:
 }
 ```
 
-### Option 2: Update cdk.json with description
-
-```bash
-cdk deploy SharedStack --context \
-  allowed_ips='{"70.122.3.208/32": "Nel home", "75.40.190.44/32": "Raphael home"}' --require-approval never
-```
-
-### Option 3: Update cdk.json with description for loop
-
-```bash
-for env in dev staging prod; do
-  cdk deploy DatabaseStack-$env OpenSearchStack-$env \
-    --context env=$env \
-    --context allowed_ips='{"70.122.3.208/32": "Nel home", "75.40.190.44/32": "Raphael home"}' \
-    --require-approval never
-done
-```
-
+Then deploy:
 ```bash
 cdk deploy --all --require-approval never
 ```
 
-### Option 2: Manual Removal via AWS CLI
+### Option 2: Update via Command Line
+
+**Important**: When deploying with `--context allowed_ips`, you must specify the same IPs for ALL deployments. Otherwise, CDK will overwrite security groups with only the IPs from the current deployment.
+
+**Correct approach** - Store IPs in cdk.json:
+```json
+{
+  "context": {
+    "allowed_ips": {
+      "70.122.3.208/32": "Nel home",
+      "75.40.190.44/32": "Raphael home"
+    }
+  }
+}
+```
+
+Then deploy without context flags:
+```bash
+cdk deploy --all --require-approval never
+```
+
+**Why this matters**: If you deploy different stacks separately with different `--context allowed_ips` values, each deployment will overwrite the security group rules with only the IPs specified in that deployment.
+
+### Option 3: Manual Removal via AWS CLI
 
 ```bash
 # Get security group ID

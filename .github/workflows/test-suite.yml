@@ -254,21 +254,23 @@ jobs:
       - name: Get service endpoints
         id: endpoints
         run: |
-          # Get ALB DNS from CloudFormation outputs
+          # Get web endpoint based on environment
           ENV_NAME="${{ env.ENVIRONMENT }}"
           
-          # Try to get MultiAlbStack outputs (Web service is on ALB)
-          ALB_DNS=$(aws cloudformation describe-stacks \
-            --stack-name "MultiAlbStack-${ENV_NAME}" \
-            --query 'Stacks[0].Outputs[?OutputKey==`AlbDnsName`].OutputValue' \
-            --output text 2>/dev/null || echo "")
+          # Get first domain from domains.json (limit to 1-2 domains for testing)
+          FIRST_DOMAIN=$(jq -r '.domains[0] // "cidertees.com"' domains.json 2>/dev/null || echo "cidertees.com")
           
-          if [ -n "$ALB_DNS" ]; then
-            echo "WEB_ENDPOINT=https://${ALB_DNS}" >> $GITHUB_ENV
-            echo "✅ Web endpoint configured: https://${ALB_DNS}"
+          # Use actual domain with environment prefix (host-based routing requires domain)
+          if [ "$ENV_NAME" = "prod" ]; then
+            # Production uses root domain (e.g., cidertees.com)
+            WEB_DOMAIN="$FIRST_DOMAIN"
           else
-            echo "⚠️  Could not find ALB DNS, performance tests may skip"
+            # Dev/Staging use environment prefix (e.g., dev.cidertees.com, staging.cidertees.com)
+            WEB_DOMAIN="${ENV_NAME}.${FIRST_DOMAIN}"
           fi
+          
+          echo "WEB_ENDPOINT=https://${WEB_DOMAIN}" >> $GITHUB_ENV
+          echo "✅ Web endpoint configured: https://${WEB_DOMAIN}"
       
       - name: Run performance tests
         id: perf_results
