@@ -56,11 +56,14 @@ jobs:
           
       - name: Run unit tests
         run: |
-          pytest tests/unit/ -v --cov=stacks --cov=apps \
-            --junitxml=junit/unit-test-results.xml \
-            --html=junit/unit-test-results.html --self-contained-html \
+          pytest tests/unit/ -v \
+            --cov=stacks --cov=apps \
+            --cov-report=term-missing \
             --cov-report=xml \
-            --cov-report=html:htmlcov
+            --cov-report=html:htmlcov \
+            --cov-fail-under=80 \
+            --junitxml=junit/unit-test-results.xml \
+            --html=junit/unit-test-results.html --self-contained-html
           
       - name: Extract coverage percentage
         id: coverage
@@ -188,7 +191,9 @@ jobs:
         run: |
           pytest tests/integration/ -v -m "not slow" \
             --junitxml=junit/integration-test-results.xml \
-            --tb=short 2>&1 | tee integration_output.txt
+            --html=junit/integration-test-results.html --self-contained-html \
+            --tb=short \
+            2>&1 | tee integration_output.txt
           
           # Extract test counts
           PASSED=$(grep -oP '\d+(?= passed)' integration_output.txt || echo "0")
@@ -211,7 +216,9 @@ jobs:
         if: always()
         with:
           name: integration-test-results
-          path: junit/integration-test-results.xml
+          path: |
+            junit/integration-test-results.xml
+            junit/integration-test-results.html
 
   performance-tests:
     name: Performance Tests
@@ -268,8 +275,9 @@ jobs:
         run: |
           pytest tests/integration/test_performance.py -v -m "performance" \
             --junitxml=junit/performance-test-results.xml \
+            --html=junit/performance-test-results.html --self-contained-html \
             --tb=short \
-            -v 2>&1 | tee perf_output.txt
+            2>&1 | tee perf_output.txt
           
           # Extract test counts
           PASSED=$(grep -oP '\d+(?= passed)' perf_output.txt || echo "0")
@@ -302,7 +310,9 @@ jobs:
         if: always()
         with:
           name: performance-test-results
-          path: junit/performance-test-results.xml
+          path: |
+            junit/performance-test-results.xml
+            junit/performance-test-results.html
 
   test-summary:
     name: Test Summary
