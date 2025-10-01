@@ -221,11 +221,42 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
           
-      - name: Run performance tests
+      - name: Get service endpoints
+        id: endpoints
         run: |
-          pytest tests/integration/ -v -m "performance" \
+          # Get ALB DNS from CloudFormation outputs
+          ENV_NAME="${{ env.ENVIRONMENT }}"
+          
+          # Try to get MultiAlbStack outputs
+          ALB_DNS=$(aws cloudformation describe-stacks \
+            --stack-name "MultiAlbStack-${ENV_NAME}" \
+            --query 'Stacks[0].Outputs[?OutputKey==`AlbDnsName`].OutputValue' \
+            --output text 2>/dev/null || echo "")
+          
+          if [ -n "$ALB_DNS" ]; then
+            echo "API_ENDPOINT=https://${ALB_DNS}" >> $GITHUB_ENV
+            echo "WEB_ENDPOINT=https://${ALB_DNS}" >> $GITHUB_ENV
+          else
+            echo "⚠️  Could not find ALB DNS, performance tests may skip"
+          fi
+      
+      - name: Run performance tests
+        id: perf_tests
+        run: |
+          pytest tests/integration/test_performance.py -v -m "performance" \
             --junitxml=junit/performance-test-results.xml \
-            --tb=short
+            --tb=short \
+            -v 2>&1 | tee perf_output.txt
+          
+          # Check if all tests were skipped
+          SKIPPED=$(grep -c "SKIPPED" perf_output.txt || echo "0")
+          PASSED=$(grep -c "PASSED" perf_output.txt || echo "0")
+          
+          if [ "$PASSED" -eq 0 ] && [ "$SKIPPED" -gt 0 ]; then
+            echo "⚠️  All performance tests were skipped - no tests actually ran!"
+            echo "This usually means endpoints are not configured."
+            exit 1
+          fi
         env:
           ENVIRONMENT: ${{ env.ENVIRONMENT }}
           
