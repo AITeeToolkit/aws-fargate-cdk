@@ -217,8 +217,35 @@ jobs:
           # Fetch latest tags to ensure semantic-release has fresh state
           git fetch --tags --force
           
-          # Clean up any potential tag conflicts before running semantic-release
+          # Check what version semantic-release would create
           echo "Checking for potential tag conflicts..."
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $LATEST_TAG"
+          
+          # Pre-emptively check if the tag already exists locally or remotely
+          if git rev-parse "$LATEST_TAG" >/dev/null 2>&1; then
+            echo "Tag $LATEST_TAG exists locally, checking if it's the same commit..."
+            TAG_COMMIT=$(git rev-list -n 1 "$LATEST_TAG")
+            HEAD_COMMIT=$(git rev-parse HEAD)
+            
+            if [ "$TAG_COMMIT" != "$HEAD_COMMIT" ]; then
+              echo "Tag points to different commit, forcing version increment..."
+              # Calculate next version
+              CURRENT_VERSION=$(echo "$LATEST_TAG" | sed 's/v//')
+              MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+              MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
+              PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
+              NEXT_PATCH=$((PATCH + 1))
+              NEXT_VERSION="v${MAJOR}.${MINOR}.${NEXT_PATCH}"
+              
+              echo "Creating $NEXT_VERSION to resolve conflict..."
+              git tag -a "$NEXT_VERSION" -m "chore(release): $NEXT_VERSION [skip ci]"
+              git push origin "$NEXT_VERSION"
+              
+              echo "new_release=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
           
           # Run semantic-release and capture output
           set +e  # Don't exit on error
