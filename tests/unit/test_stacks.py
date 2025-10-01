@@ -574,7 +574,9 @@ class TestMultiAlbStack:
             domains=["test.example.com"],
             alb_security_group=shared_stack.alb_security_group,
             environment="test",
-            certificate_arns={"test.example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"},
+            certificate_arns={
+                "test.example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"
+            },
         )
         template = assertions.Template.from_stack(multi_alb_stack)
 
@@ -596,7 +598,9 @@ class TestMultiAlbStack:
             domains=["test.example.com"],
             alb_security_group=shared_stack.alb_security_group,
             environment="test",
-            certificate_arns={"test.example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"},
+            certificate_arns={
+                "test.example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"
+            },
         )
         template = assertions.Template.from_stack(multi_alb_stack)
 
@@ -621,7 +625,9 @@ class TestMultiAlbStack:
             domains=["test.example.com"],
             alb_security_group=shared_stack.alb_security_group,
             environment="test",
-            certificate_arns={"test.example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"},
+            certificate_arns={
+                "test.example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"
+            },
         )
         template = assertions.Template.from_stack(multi_alb_stack)
 
@@ -646,7 +652,9 @@ class TestDomainDnsStack:
             domains=["test.example.com"],
             alb_security_group=shared_stack.alb_security_group,
             environment="test",
-            certificate_arns={"test.example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"},
+            certificate_arns={
+                "test.example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"
+            },
         )
 
         # Create domain DNS stack
@@ -682,7 +690,9 @@ class TestDomainDnsStack:
             domains=["test.example.com"],
             alb_security_group=shared_stack.alb_security_group,
             environment="test",
-            certificate_arns={"test.example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"},
+            certificate_arns={
+                "test.example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"
+            },
         )
 
         dns_stack = DomainDnsStack(
