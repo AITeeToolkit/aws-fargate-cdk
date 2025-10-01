@@ -1,4 +1,4 @@
-from aws_cdk import Duration, Stack
+from aws_cdk import CfnOutput, Duration, Stack
 from aws_cdk import aws_certificatemanager as acm
 from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_ecs as ecs
@@ -107,6 +107,17 @@ class MultiAlbStack(Stack):
 
             # Attach all certs for this chunk
             listener.add_certificates(f"Certs-{idx}", certs)
+        
+        # Export the first ALB's DNS name for testing/monitoring
+        if self.domain_to_alb:
+            first_alb = list(self.domain_to_alb.values())[0]
+            CfnOutput(
+                self,
+                "AlbDnsName",
+                value=first_alb.load_balancer_dns_name,
+                description="DNS name of the first Application Load Balancer",
+                export_name=f"{environment}-alb-dns"
+            )
 
     def attach_service(self, service: ecs.FargateService, port: int = 3000):
         """
