@@ -21,10 +21,10 @@ class TestAPIPerformance:
     def setup(self):
         """Setup for API performance tests"""
         self.env = os.getenv("ENVIRONMENT", "staging")
-        # Get API endpoint from environment or construct it
-        self.api_endpoint = os.getenv("API_ENDPOINT")
+        # API is internal - test via Web service which proxies to API
+        self.api_endpoint = os.getenv("WEB_ENDPOINT")
         if not self.api_endpoint:
-            pytest.skip("API_ENDPOINT not configured for performance testing")
+            pytest.skip("WEB_ENDPOINT not configured for performance testing")
 
     def test_api_concurrent_requests(self):
         """Test API can handle concurrent requests"""

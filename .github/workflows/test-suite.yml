@@ -227,15 +227,15 @@ jobs:
           # Get ALB DNS from CloudFormation outputs
           ENV_NAME="${{ env.ENVIRONMENT }}"
           
-          # Try to get MultiAlbStack outputs
+          # Try to get MultiAlbStack outputs (Web service is on ALB)
           ALB_DNS=$(aws cloudformation describe-stacks \
             --stack-name "MultiAlbStack-${ENV_NAME}" \
             --query 'Stacks[0].Outputs[?OutputKey==`AlbDnsName`].OutputValue' \
             --output text 2>/dev/null || echo "")
           
           if [ -n "$ALB_DNS" ]; then
-            echo "API_ENDPOINT=https://${ALB_DNS}" >> $GITHUB_ENV
             echo "WEB_ENDPOINT=https://${ALB_DNS}" >> $GITHUB_ENV
+            echo "✅ Web endpoint configured: https://${ALB_DNS}"
           else
             echo "⚠️  Could not find ALB DNS, performance tests may skip"
           fi
