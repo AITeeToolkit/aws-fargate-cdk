@@ -2,5 +2,6 @@
     "app": "python3 app.py",
     "context": {
       "env": "dev"
-    }
+    },
+    "versionReporting": false
   }
