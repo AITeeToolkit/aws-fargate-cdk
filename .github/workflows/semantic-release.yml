@@ -49,9 +49,9 @@ on:
         default: false
         type: boolean
     secrets:
-      AWS_ACCESS_KEY_ID:
+      AWS_CODEBUILD_ACCESS_KEY_ID:
         required: true
-      AWS_SECRET_ACCESS_KEY:
+      AWS_CODEBUILD_SECRET_ACCESS_KEY:
         required: true
       GH_TOKEN:
         required: true
