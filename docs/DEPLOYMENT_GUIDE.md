@@ -2,16 +2,34 @@
 
 ## Overview
 
-This guide outlines the complete process for promoting code changes from development to production using our multi-environment CI/CD pipeline with proper testing gates.
+This guide outlines the complete process for promoting code changes from development to production using our multi-repository CI/CD pipeline with proper testing gates.
 
-## Environment Architecture
+## Repository Architecture
 
 ```
+storefront-cdk (Application Code)
+     ↓
+  Build & Push Images to ECR
+     ↓
+  Trigger → aws-fargate-cdk (Infrastructure)
+     ↓
 Development → Staging → Production
      ↓           ↓          ↓
    Feature    Integration  Manual
    Testing     Testing    Approval
 ```
+
+### Repositories
+
+- **storefront-cdk**: Application code (API, Web frontend)
+  - Builds Docker images
+  - Pushes to ECR
+  - Triggers infrastructure deployments
+  
+- **aws-fargate-cdk**: Infrastructure as Code
+  - Manages AWS resources (ECS, RDS, Route53, etc.)
+  - Deploys application images to environments
+  - Runs integration and performance tests
 
 ### Environment Configurations
 
@@ -25,58 +43,127 @@ Development → Staging → Production
 
 ### 1. Development Environment (Automatic)
 
+**Repository:** `storefront-cdk` → `aws-fargate-cdk`
+
 **Triggers:**
-- Push to any branch
+- Push to any branch (except `main`)
 - Pull request creation
 
 **Process:**
-1. **Change Detection** - Identifies modified services
-2. **Unit Tests** - Runs comprehensive test suite
-3. **Lint & Security** - Code quality and security scanning
-4. **Build Images** - Builds only changed services
-5. **Deploy to Dev** - Automatic deployment to development environment
+
+#### In storefront-cdk:
+1. **Change Detection** - Identifies modified services (API/Web)
+2. **Semantic Versioning** - Generates version tags
+3. **Build Images** - Builds only changed services
+4. **Push to ECR** - Uploads images with version tags
+5. **Trigger Infrastructure** - Sends `deploy-infrastructure` event to aws-fargate-cdk
+
+#### In aws-fargate-cdk:
+6. **Receive Event** - Gets image tags from storefront-cdk
+7. **Deploy to Dev** - Updates ECS services with new images
+8. **Health Checks** - Verifies services are running
 
 **Requirements:**
-- All unit tests must pass (80% coverage minimum)
-- Code must pass linting and security scans
+- No test requirements (fast feedback loop)
 - No manual approval required
+- Automatic rollback on health check failure
+
+**Image Tags:** `api:dev-<sha>`, `web:dev-<sha>`
+
+---
 
 ### 2. Staging Environment (Semi-Automatic)
 
+**Repository:** `storefront-cdk` → `aws-fargate-cdk`
+
 **Triggers:**
-- Push to `main` branch (after PR merge)
+- Push to `main` branch in storefront-cdk (after PR merge)
 
 **Process:**
-1. **Pre-deployment Tests** - Full test suite execution
-2. **Integration Tests** - Tests against staging environment
-3. **Performance Tests** - Load and performance validation
-4. **Deploy to Staging** - Automatic deployment if tests pass
-5. **Post-deployment Verification** - Health checks and smoke tests
+
+#### In storefront-cdk:
+1. **Change Detection** - Identifies modified services
+2. **Semantic Release** - Generates semantic version (e.g., v1.2.3)
+3. **Build Images** - Builds API and Web services
+4. **Push to ECR** - Uploads images with semantic version tags
+5. **Trigger Staging** - Sends `staging-deploy` event to aws-fargate-cdk
+
+#### In aws-fargate-cdk:
+6. **Test Gate** - Runs full test suite
+   - Unit tests (80% coverage required)
+   - Lint & security scans (Bandit, Safety)
+   - Integration tests (ECS, RDS, SQS connectivity)
+   - Performance tests (API load, Web concurrency)
+7. **Deploy to Staging** - Updates infrastructure with new images
+   - NetworkStack-staging
+   - DatabaseStack-staging
+   - APIServiceStack-staging (new image)
+   - WebServiceStack-staging (new image)
+   - All supporting stacks
+8. **Post-deployment Verification** - Health checks and smoke tests
+9. **Staging Summary** - Reports deployment status
 
 **Requirements:**
 - All pre-deployment tests must pass
 - Integration tests must complete successfully
-- Performance benchmarks must be met
+- Performance benchmarks must be met (95% success rate, <2s avg response)
 - Post-deployment health checks must pass
+
+**Image Tags:** `api:v1.2.3`, `web:v1.2.3`
+
+**Deployment Time:** ~15-20 minutes (including tests)
+
+---
 
 ### 3. Production Environment (Manual Approval)
 
+**Repository:** `aws-fargate-cdk` only
+
 **Triggers:**
-- Manual workflow dispatch (after staging validation)
+- Manual workflow dispatch in GitHub Actions
+- Requires staging to be healthy and validated
 
 **Process:**
-1. **Pre-deployment Validation** - Verify staging deployment status
-2. **Manual Approval** - Required approval with 5-minute wait timer
-3. **Pre-deployment Backup** - Database and configuration backup
-4. **Blue-Green Deployment** - Zero-downtime production deployment
-5. **Post-deployment Monitoring** - 24-hour enhanced monitoring
-6. **Rollback Plan** - Automatic rollback triggers if issues detected
+
+1. **Pre-deployment Validation** 
+   - Verify staging deployment is successful
+   - Confirm staging health checks passed
+   - Review staging performance metrics
+
+2. **Manual Workflow Trigger**
+   - Go to [Production Deployment Workflow](https://github.com/AITeeToolkit/aws-fargate-cdk/actions/workflows/production-deployment.yml)
+   - Click "Run workflow"
+   - Confirm image tags from staging (e.g., `api:v1.2.3`, `web:v1.2.3`)
+
+3. **Pre-deployment Tests**
+   - Unit tests (80% coverage)
+   - Security scans
+   - Integration tests against production
+
+4. **Manual Approval Gate**
+   - 5-minute wait timer
+   - Requires approval from authorized personnel
+   - Safety checks validation
+
+5. **Production Deployment**
+   - Blue-green deployment strategy
+   - Zero-downtime rolling updates
+   - Gradual traffic shift
+
+6. **Post-deployment Monitoring**
+   - Enhanced monitoring for 24 hours
+   - Automatic rollback triggers
+   - Alert thresholds active
 
 **Requirements:**
 - Staging environment must be healthy and stable
 - Manual approval from authorized personnel
 - All safety checks must pass
 - Rollback plan must be validated
+
+**Image Tags:** Same as staging (e.g., `api:v1.2.3`, `web:v1.2.3`)
+
+**Deployment Time:** ~25-30 minutes (including approval wait)
 
 ## Testing Strategy
 
@@ -119,42 +206,276 @@ pytest tests/unit/ -v --cov=stacks --cov=apps
 # Tests will skip gracefully if resources don't exist
 pytest tests/integration/ -v -m "not slow"
 
+# Run performance tests
+export WEB_ENDPOINT="https://staging.cidertees.com"
+export ENVIRONMENT=staging
+pytest tests/integration/test_performance.py -v -m "performance"
+
 # Run all tests with coverage
 pytest tests/ -v --cov-report=html
 ```
 
-### Manual Deployments
+### Deployment Workflows
 
 #### Deploy to Development
+
+**In storefront-cdk repository:**
 ```bash
-# Automatic on push to any branch
-git push origin feature-branch
+# Create feature branch
+git checkout -b feature/my-feature
+
+# Make changes to API or Web code
+# Commit and push
+git add .
+git commit -m "feat: add new feature"
+git push origin feature/my-feature
+
+# This automatically:
+# 1. Builds changed images
+# 2. Pushes to ECR with dev-<sha> tags
+# 3. Triggers aws-fargate-cdk dev deployment
 ```
+
+**Result:** Changes deployed to dev environment in ~5-10 minutes
+
+---
 
 #### Deploy to Staging
+
+**In storefront-cdk repository:**
 ```bash
-# Automatic on push to main
-git push origin main
+# Merge PR to main
+# This automatically:
+# 1. Runs semantic-release (generates v1.2.3)
+# 2. Builds API and Web images
+# 3. Pushes to ECR with v1.2.3 tags
+# 4. Triggers aws-fargate-cdk staging deployment
+
+git checkout main
+git pull origin main
+# Or merge PR via GitHub UI
 ```
+
+**In aws-fargate-cdk repository:**
+- Receives `staging-deploy` event
+- Runs full test suite
+- Deploys to staging if tests pass
+- Runs post-deployment health checks
+
+**Result:** Changes deployed to staging in ~15-20 minutes
+
+---
 
 #### Deploy to Production
-1. Go to [GitHub Actions](https://github.com/AITeeToolkit/aws-fargate-cdk/actions)
-2. Select "Production Deployment" workflow
-3. Click "Run workflow"
-4. Confirm deployment parameters
-5. Approve when prompted
 
-#### Emergency Deployment
+**Prerequisites:**
+1. Staging deployment must be successful
+2. Staging health checks must pass
+3. Manual testing in staging completed
+
+**Steps:**
+1. Go to [Production Deployment Workflow](https://github.com/AITeeToolkit/aws-fargate-cdk/actions/workflows/production-deployment.yml)
+2. Click "Run workflow"
+3. Enter parameters:
+   - `api_tag`: Version from staging (e.g., `v1.2.3`)
+   - `web_tag`: Version from staging (e.g., `v1.2.3`)
+   - `listener_tag`: `latest` (or specific version)
+   - `dns_worker_tag`: `latest` (or specific version)
+4. Click "Run workflow"
+5. Wait for pre-deployment tests
+6. **Approve deployment** when prompted (5-minute timer)
+7. Monitor deployment progress
+
+**Result:** Changes deployed to production in ~25-30 minutes
+
+---
+
+#### Emergency Deployment (Hotfix)
+
+**For critical production issues:**
+
+1. Create hotfix branch from main
 ```bash
-# For critical hotfixes (skips some safety checks)
-# Use GitHub Actions UI with emergency_deploy: true
+git checkout main
+git pull origin main
+git checkout -b hotfix/critical-fix
 ```
+
+2. Make minimal fix and commit
+```bash
+git add .
+git commit -m "fix: critical security patch"
+git push origin hotfix/critical-fix
+```
+
+3. Merge to main (fast-track PR approval)
+4. Wait for staging deployment
+5. Immediately trigger production deployment with `emergency_deploy: true`
+
+**Note:** Emergency deploys skip some safety checks but still require approval
+
+---
 
 #### Rollback Production
+
+**If issues detected after deployment:**
+
+1. Go to [Production Deployment Workflow](https://github.com/AITeeToolkit/aws-fargate-cdk/actions/workflows/production-deployment.yml)
+2. Click "Run workflow"
+3. Enter previous working version:
+   - `api_tag`: Previous version (e.g., `v1.2.2`)
+   - `web_tag`: Previous version (e.g., `v1.2.2`)
+4. Add note: "Rollback due to [issue]"
+5. Approve rollback
+
+**Alternative - ECS Console:**
 ```bash
-# Use GitHub Actions UI with rollback_version parameter
-# Example: rollback_version: "v1.75.0"
+# Quick rollback via AWS CLI
+aws ecs update-service \
+  --cluster storefront-cluster-prod \
+  --service api-service-prod \
+  --task-definition api-service-prod:previous-revision \
+  --force-new-deployment
 ```
+
+---
+
+### Infrastructure-Only Deployments (aws-fargate-cdk)
+
+When making changes to infrastructure code (CDK stacks, configurations) without application code changes:
+
+#### Deploy Infrastructure to Development
+
+**In aws-fargate-cdk repository:**
+```bash
+# Create feature branch
+git checkout -b feature/add-new-stack
+
+# Make infrastructure changes
+# Edit stacks, add resources, etc.
+git add .
+git commit -m "feat: add new monitoring stack"
+git push origin feature/add-new-stack
+
+# This automatically:
+# 1. Runs unit tests
+# 2. Runs lint & security scans
+# 3. Deploys changed stacks to dev
+# 4. Uses latest images from ECR
+```
+
+**Result:** Infrastructure changes deployed to dev in ~10-15 minutes
+
+---
+
+#### Deploy Infrastructure to All Environments
+
+**Use `[deploy-all]` commit message to deploy to dev, staging, AND prod:**
+
+```bash
+# Make infrastructure change
+git add .
+git commit -m "feat: update security group rules [deploy-all]"
+git push origin main
+
+# This automatically:
+# 1. Runs full test suite
+# 2. Deploys to dev environment
+# 3. Deploys to staging environment
+# 4. Deploys to prod environment (in sequence)
+# 5. Uses latest images from ECR for each environment
+```
+
+**When to use `[deploy-all]`:**
+- ✅ Security group updates
+- ✅ IAM policy changes
+- ✅ Database configuration updates
+- ✅ Infrastructure-wide changes
+- ❌ Application code changes (use storefront-cdk instead)
+
+**Result:** Infrastructure changes deployed to all environments in ~30-40 minutes
+
+---
+
+#### Deploy Infrastructure to Staging Only
+
+**Push to main without `[deploy-all]`:**
+
+```bash
+# Make infrastructure change
+git add .
+git commit -m "feat: add new SQS queue"
+git push origin main
+
+# This automatically:
+# 1. Runs full test suite
+# 2. Detects infrastructure changes
+# 3. Deploys to staging only (main branch default)
+# 4. Uses latest images from ECR
+```
+
+**Result:** Infrastructure changes deployed to staging in ~15-20 minutes
+
+---
+
+#### Manual Infrastructure Deployment
+
+**For specific environment or stack:**
+
+1. Go to [CI/CD Pipeline Workflow](https://github.com/AITeeToolkit/aws-fargate-cdk/actions/workflows/semantic-release.yml)
+2. Click "Run workflow"
+3. Select parameters:
+   - `environment`: dev, staging, or prod
+   - `force_infra`: true (force deployment even if no changes)
+   - `deploy_all_environments`: true (deploy to all environments)
+4. Click "Run workflow"
+
+**Use cases:**
+- Deploy specific stack to specific environment
+- Force re-deployment without code changes
+- Deploy infrastructure after manual ECR image push
+
+---
+
+### Skip CI/CD Workflows
+
+**To push code without triggering any workflows, use `[skip ci]` in commit message:**
+
+```bash
+# In either repository (storefront-cdk or aws-fargate-cdk)
+git add .
+git commit -m "docs: update documentation [skip ci]"
+git push origin main
+
+# Alternative syntax (also works)
+git commit -m "chore: update config [ci skip]"
+```
+
+**When to use `[skip ci]`:**
+- ✅ Documentation updates (README, guides, comments)
+- ✅ Configuration file changes that don't affect deployment
+- ✅ Workflow file fixes (to avoid recursive triggers)
+- ✅ Minor formatting or typo fixes
+- ❌ Code changes (always test and deploy)
+- ❌ Infrastructure changes (always validate)
+
+**Effect:**
+- **storefront-cdk**: Skips image builds, ECR pushes, deployment triggers
+- **aws-fargate-cdk**: Skips tests, infrastructure deployments
+
+**Example use cases:**
+```bash
+# Update README
+git commit -m "docs: add deployment examples [skip ci]"
+
+# Fix typo in comments
+git commit -m "chore: fix typo in comments [skip ci]"
+
+# Update GitHub workflow (avoid triggering itself)
+git commit -m "ci: fix workflow syntax [skip ci]"
+```
+
+---
 
 ## Monitoring and Alerts
 
