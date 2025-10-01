@@ -36,14 +36,15 @@ class RedisStack(Stack):
             description="Allow Redis traffic from VPC",
         )
 
-        # Create subnet group for ElastiCache
-        subnet_group = elasticache.CfnSubnetGroup(
-            self,
-            "RedisSubnetGroup",
-            description=f"Subnet group for Redis Serverless - {environment}",
-            subnet_ids=[subnet.subnet_id for subnet in vpc.private_subnets],
-            cache_subnet_group_name=f"redis-subnet-group-{environment}",
-        )
+        # Get private subnet IDs (use isolated subnets if no private subnets exist)
+        private_subnet_ids = [subnet.subnet_id for subnet in vpc.private_subnets]
+        
+        if not private_subnet_ids:
+            # Fall back to isolated subnets
+            private_subnet_ids = [subnet.subnet_id for subnet in vpc.isolated_subnets]
+        
+        if not private_subnet_ids:
+            raise ValueError(f"No private or isolated subnets found in VPC for {environment}")
 
         # Create ElastiCache Serverless for Redis
         self.redis_cache = elasticache.CfnServerlessCache(
@@ -52,8 +53,8 @@ class RedisStack(Stack):
             engine="redis",
             serverless_cache_name=f"storefront-cache-{environment}",
             description=f"Redis Serverless cache for {environment} environment",
-            # Use subnet group instead of direct subnet IDs
-            subnet_ids=[subnet.subnet_id for subnet in vpc.private_subnets],
+            # Provide subnet IDs directly (ElastiCache Serverless doesn't use subnet groups)
+            subnet_ids=private_subnet_ids,
             security_group_ids=[self.redis_security_group.security_group_id],
             # Set usage limits to control costs
             cache_usage_limits=elasticache.CfnServerlessCache.CacheUsageLimitsProperty(
