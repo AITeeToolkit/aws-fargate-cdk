@@ -101,16 +101,17 @@ class SharedStack(Stack):
         allowed_ips = self.node.try_get_context("allowed_ips")
         if allowed_ips and isinstance(allowed_ips, str):
             import json
+
             allowed_ips = json.loads(allowed_ips)
         elif not allowed_ips:
             allowed_ips = []
-        
+
         # Handle both list and dict formats
         if isinstance(allowed_ips, dict):
             ip_items = allowed_ips.items()
         else:
             ip_items = [(ip, ip) for ip in allowed_ips]
-        
+
         for ip, description in ip_items:
             # Web service port
             self.ecs_task_sg.add_ingress_rule(

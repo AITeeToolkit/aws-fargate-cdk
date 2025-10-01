@@ -139,16 +139,17 @@ class OpenSearchStack(Stack):
         allowed_ips = self.node.try_get_context("allowed_ips")
         if allowed_ips and isinstance(allowed_ips, str):
             import json
+
             allowed_ips = json.loads(allowed_ips)
         elif not allowed_ips:
             allowed_ips = []
-        
+
         # Extract just IPs (handle both list and dict formats)
         if isinstance(allowed_ips, dict):
             ip_list = list(allowed_ips.keys())
         else:
             ip_list = allowed_ips
-        
+
         if ip_list:
             self.domain.add_access_policies(
                 iam.PolicyStatement(
@@ -162,11 +163,7 @@ class OpenSearchStack(Stack):
                         "es:ESHttpHead",
                     ],
                     resources=[f"{self.domain.domain_arn}/*"],
-                    conditions={
-                        "IpAddress": {
-                            "aws:SourceIp": ip_list
-                        }
-                    },
+                    conditions={"IpAddress": {"aws:SourceIp": ip_list}},
                 )
             )
 

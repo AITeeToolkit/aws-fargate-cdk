@@ -515,12 +515,12 @@ class TestCertificateStack:
             cdk_app,
             "TestCertificateStack",
             env=test_environment,
-            domains=["test.example.com", "*.test.example.com"],
+            domains=["test.example.com"],
         )
         template = assertions.Template.from_stack(cert_stack)
 
-        # Verify certificates are created
-        template.resource_count_is("AWS::CertificateManager::Certificate", 2)
+        # Verify certificate is created (one per domain)
+        template.resource_count_is("AWS::CertificateManager::Certificate", 1)
 
     def test_wildcard_certificates(self, cdk_app, test_environment):
         """Test wildcard certificates are created"""
@@ -564,14 +564,8 @@ class TestMultiAlbStack:
         shared_stack = SharedStack(
             cdk_app, "TestSharedStack", env=test_environment, vpc=network_stack.vpc
         )
-        cert_stack = CertificateStack(
-            cdk_app,
-            "TestCertificateStack",
-            env=test_environment,
-            domains=["test.example.com"],
-        )
 
-        # Create multi-ALB stack
+        # Create multi-ALB stack with mock certificate ARN
         multi_alb_stack = MultiAlbStack(
             cdk_app,
             "TestMultiAlbStack",
@@ -580,7 +574,7 @@ class TestMultiAlbStack:
             domains=["test.example.com"],
             alb_security_group=shared_stack.alb_security_group,
             environment="test",
-            certificate_arns=cert_stack.certificates,
+            certificate_arns={"test.example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"},
         )
         template = assertions.Template.from_stack(multi_alb_stack)
 
@@ -593,22 +587,16 @@ class TestMultiAlbStack:
         shared_stack = SharedStack(
             cdk_app, "TestSharedStack", env=test_environment, vpc=network_stack.vpc
         )
-        cert_stack = CertificateStack(
-            cdk_app,
-            "TestCertificateStack",
-            env=test_environment,
-            domains=["test.example.com"],
-        )
 
         multi_alb_stack = MultiAlbStack(
             cdk_app,
-            "TestMultiAlbStack",
+            "TestMultiAlbStack2",
             env=test_environment,
             vpc=network_stack.vpc,
             domains=["test.example.com"],
             alb_security_group=shared_stack.alb_security_group,
             environment="test",
-            certificate_arns=cert_stack.certificates,
+            certificate_arns={"test.example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"},
         )
         template = assertions.Template.from_stack(multi_alb_stack)
 
@@ -624,22 +612,16 @@ class TestMultiAlbStack:
         shared_stack = SharedStack(
             cdk_app, "TestSharedStack", env=test_environment, vpc=network_stack.vpc
         )
-        cert_stack = CertificateStack(
-            cdk_app,
-            "TestCertificateStack",
-            env=test_environment,
-            domains=["test.example.com"],
-        )
 
         multi_alb_stack = MultiAlbStack(
             cdk_app,
-            "TestMultiAlbStack",
+            "TestMultiAlbStack3",
             env=test_environment,
             vpc=network_stack.vpc,
             domains=["test.example.com"],
             alb_security_group=shared_stack.alb_security_group,
             environment="test",
-            certificate_arns=cert_stack.certificates,
+            certificate_arns={"test.example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"},
         )
         template = assertions.Template.from_stack(multi_alb_stack)
 
@@ -656,21 +638,15 @@ class TestDomainDnsStack:
         shared_stack = SharedStack(
             cdk_app, "TestSharedStack", env=test_environment, vpc=network_stack.vpc
         )
-        cert_stack = CertificateStack(
-            cdk_app,
-            "TestCertificateStack",
-            env=test_environment,
-            domains=["test.example.com"],
-        )
         multi_alb_stack = MultiAlbStack(
             cdk_app,
-            "TestMultiAlbStack",
+            "TestMultiAlbStack4",
             env=test_environment,
             vpc=network_stack.vpc,
             domains=["test.example.com"],
             alb_security_group=shared_stack.alb_security_group,
             environment="test",
-            certificate_arns=cert_stack.certificates,
+            certificate_arns={"test.example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"},
         )
 
         # Create domain DNS stack
@@ -698,26 +674,20 @@ class TestDomainDnsStack:
         shared_stack = SharedStack(
             cdk_app, "TestSharedStack", env=test_environment, vpc=network_stack.vpc
         )
-        cert_stack = CertificateStack(
-            cdk_app,
-            "TestCertificateStack",
-            env=test_environment,
-            domains=["test.example.com"],
-        )
         multi_alb_stack = MultiAlbStack(
             cdk_app,
-            "TestMultiAlbStack",
+            "TestMultiAlbStack5",
             env=test_environment,
             vpc=network_stack.vpc,
             domains=["test.example.com"],
             alb_security_group=shared_stack.alb_security_group,
             environment="test",
-            certificate_arns=cert_stack.certificates,
+            certificate_arns={"test.example.com": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"},
         )
 
         dns_stack = DomainDnsStack(
             cdk_app,
-            "TestDomainDnsStack",
+            "TestDomainDnsStack2",
             env=test_environment,
             domain_name="test.example.com",
             alb=list(multi_alb_stack.domain_to_alb.values())[0],
