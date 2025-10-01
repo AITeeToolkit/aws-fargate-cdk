@@ -226,20 +226,39 @@ jobs:
           EXIT_CODE=$?
           set -e  # Re-enable exit on error
           
-          # If tag already exists, try to delete it and retry once
+          # If tag already exists, force increment to next version
           if [ $EXIT_CODE -eq 128 ] && echo "$OUTPUT" | grep -q "already exists"; then
-            echo "Tag conflict detected, attempting to resolve..."
+            echo "Tag conflict detected, forcing version increment..."
             # Extract tag name from error message
             TAG_NAME=$(echo "$OUTPUT" | grep -o "tag '[^']*'" | sed "s/tag '\(.*\)'/\1/")
             if [ -n "$TAG_NAME" ]; then
-              echo "Attempting to delete existing tag: $TAG_NAME"
-              git tag -d "$TAG_NAME" 2>/dev/null || true
-              git push origin ":refs/tags/$TAG_NAME" 2>/dev/null || true
+              echo "Conflicting tag: $TAG_NAME"
               
-              # Retry semantic-release
-              echo "Retrying semantic-release..."
-              OUTPUT=$(npx semantic-release --no-ci 2>&1)
-              EXIT_CODE=$?
+              # Calculate next version (increment patch)
+              CURRENT_VERSION=$(echo "$TAG_NAME" | sed 's/v//')
+              MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+              MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
+              PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
+              NEXT_PATCH=$((PATCH + 1))
+              NEXT_VERSION="v${MAJOR}.${MINOR}.${NEXT_PATCH}"
+              
+              echo "Forcing next version: $NEXT_VERSION"
+              
+              # Create the next version tag manually
+              git tag -a "$NEXT_VERSION" -m "chore(release): $NEXT_VERSION [skip ci]"
+              git push origin "$NEXT_VERSION"
+              
+              # Update CHANGELOG
+              echo "Updating CHANGELOG..."
+              CURRENT_DATE=$(date +%Y-%m-%d)
+              sed -i "1a\\\\n## [$NEXT_VERSION](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/$TAG_NAME...$NEXT_VERSION) ($CURRENT_DATE)\\n\\n### 🐛 Bug Fixes\\n\\n* resolve version conflict and force increment\\n" CHANGELOG.md
+              
+              git add CHANGELOG.md
+              git commit -m "chore(release): $NEXT_VERSION [skip ci]" || true
+              git push origin main || true
+              
+              EXIT_CODE=0
+              echo "new_release=true" >> $GITHUB_OUTPUT
             fi
           fi
           
