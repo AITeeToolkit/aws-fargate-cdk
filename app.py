@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import json
 import os
+
 import aws_cdk as cdk
+
 from scripts.tag_resolver import resolve_tag
 from stacks.api_service_stack import APIServiceStack
 from stacks.certificate_stack import CertificateStack
