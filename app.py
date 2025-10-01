@@ -256,7 +256,7 @@ for current_env in environments_to_deploy:
     )
 
     # Attach web service to ALB with host-based routing
-    multi_alb_stack.attach_web_service(
+    multi_alb_stack.attach_service(
         service=web_service.service,
         port=3000,
     )

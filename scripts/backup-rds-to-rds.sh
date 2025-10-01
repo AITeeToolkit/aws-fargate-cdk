@@ -277,6 +277,10 @@ main() {
                 SOURCE_PASSWORD=$(echo "$SOURCE_CREDS" | jq -r .password)
                 SOURCE_HOST=$(echo "$SOURCE_CREDS" | jq -r .host)
                 SOURCE_PORT=$(echo "$SOURCE_CREDS" | jq -r .port)
+                # Only override SOURCE_DB if it's still the default value
+                if [ "$SOURCE_DB" = "storefront" ]; then
+                    SOURCE_DB=$(echo "$SOURCE_CREDS" | jq -r '.dbname // "postgres"')
+                fi
             fi
             
             if [ -n "$TARGET_SECRET_ARN" ]; then
@@ -286,6 +290,10 @@ main() {
                 TARGET_PASSWORD=$(echo "$TARGET_CREDS" | jq -r .password)
                 TARGET_HOST=$(echo "$TARGET_CREDS" | jq -r .host)
                 TARGET_PORT=$(echo "$TARGET_CREDS" | jq -r .port)
+                # Only override TARGET_DB if it's still the default value
+                if [ "$TARGET_DB" = "storefront" ]; then
+                    TARGET_DB=$(echo "$TARGET_CREDS" | jq -r '.dbname // "postgres"')
+                fi
             fi
             
             # Validate required parameters (after fetching from Secrets Manager)
