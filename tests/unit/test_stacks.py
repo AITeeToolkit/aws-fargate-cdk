@@ -610,8 +610,8 @@ class TestMultiAlbStack:
             {"Port": 443, "Protocol": "HTTPS"},
         )
 
-    def test_target_groups(self, cdk_app, test_environment):
-        """Test target groups are created"""
+    def test_listener_certificates(self, cdk_app, test_environment):
+        """Test listener has certificates attached"""
         network_stack = NetworkStack(cdk_app, "TestNetworkStack", env=test_environment)
         shared_stack = SharedStack(
             cdk_app, "TestSharedStack", env=test_environment, vpc=network_stack.vpc
@@ -631,8 +631,21 @@ class TestMultiAlbStack:
         )
         template = assertions.Template.from_stack(multi_alb_stack)
 
-        # Verify target group exists
-        template.has_resource("AWS::ElasticLoadBalancingV2::TargetGroup", {})
+        # Verify listener certificate is attached
+        template.has_resource_properties(
+            "AWS::ElasticLoadBalancingV2::Listener",
+            {
+                "Certificates": assertions.Match.array_with(
+                    [
+                        assertions.Match.object_like(
+                            {
+                                "CertificateArn": "arn:aws:acm:us-east-1:123456789012:certificate/test-cert-id"
+                            }
+                        )
+                    ]
+                )
+            },
+        )
 
 
 class TestDomainDnsStack:
