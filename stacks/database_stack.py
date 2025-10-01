@@ -79,7 +79,7 @@ class DatabaseStack(Stack):
             engine=rds.DatabaseInstanceEngine.postgres(
                 version=rds.PostgresEngineVersion.of("17.6", "17")
             ),
-            instance_identifier=f"{environment}-db",
+            instance_identifier=f"rds-{environment}",
             vpc=vpc,
             subnet_group=public_subnet_group,
             publicly_accessible=use_public_access,
@@ -94,7 +94,7 @@ class DatabaseStack(Stack):
             ),
             deletion_protection=deletion_protection,
             delete_automated_backups=not deletion_protection,
-            database_name="postgres",
+            database_name=f"storefront_{environment}",
             security_groups=[self.db_security_group],
             storage_encrypted=True,
         )

@@ -12,7 +12,7 @@ BACKUP_DIR="/var/lib/backup"
 LOCAL_BACKUP_DIR="/tmp"
 RDS_PORT="5432"
 RDS_USER="postgres"
-RDS_DATABASE="postgres"
+RDS_DATABASE="storefront_dev"
 PGPASSWORD=$(aws secretsmanager get-secret-value \
   --secret-id storefront/dev/rds-credentials \
   --query 'SecretString' \
@@ -31,6 +31,10 @@ NC='\033[0m' # No Color
 # Function to print colored output
 print_status() {
     echo -e "${GREEN}[INFO]${NC} $1" >&2
+}
+
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1" >&2
 }
 
 print_warning() {
@@ -215,10 +219,52 @@ restore_to_rds() {
     print_status "Database: $RDS_DATABASE"
     print_status "Clean restore: $clean_restore"
     
+    # Get RDS credentials from Secrets Manager if not provided
     if [ -z "$PGPASSWORD" ]; then
-        print_error "PGPASSWORD environment variable is not set"
-        print_error "Please set it with: export PGPASSWORD='your_rds_password'"
-        exit 1
+        print_status "Fetching RDS credentials from AWS Secrets Manager..."
+        
+        # Determine which environment based on RDS_HOST or use default
+        local env="dev"
+        if [[ "$RDS_HOST" == *"staging"* ]]; then
+            env="staging"
+        elif [[ "$RDS_HOST" == *"prod"* ]]; then
+            env="prod"
+        fi
+        
+        local secret_name="storefront/${env}/rds-credentials"
+        print_status "Using secret: $secret_name"
+        
+        local secret_json=$(aws secretsmanager get-secret-value \
+            --secret-id "$secret_name" \
+            --region us-east-1 \
+            --query SecretString \
+            --output text 2>/dev/null)
+        
+        if [ $? -ne 0 ]; then
+            print_error "Failed to fetch credentials from Secrets Manager"
+            print_error "Please set PGPASSWORD manually: export PGPASSWORD='your_rds_password'"
+            exit 1
+        fi
+        
+        export PGPASSWORD=$(echo "$secret_json" | jq -r .password)
+        export RDS_USER=$(echo "$secret_json" | jq -r .username)
+        
+        if [ -z "$RDS_HOST" ] || [ "$RDS_HOST" = "null" ]; then
+            export RDS_HOST=$(echo "$secret_json" | jq -r .host)
+        fi
+        
+        if [ -z "$RDS_PORT" ] || [ "$RDS_PORT" = "null" ]; then
+            export RDS_PORT=$(echo "$secret_json" | jq -r .port)
+        fi
+        
+        if [ -z "$RDS_DATABASE" ] || [ "$RDS_DATABASE" = "null" ]; then
+            export RDS_DATABASE=$(echo "$secret_json" | jq -r .dbname)
+        fi
+        
+        print_success "Successfully fetched credentials from Secrets Manager"
+        print_status "RDS Host: $RDS_HOST"
+        print_status "RDS User: $RDS_USER"
+        print_status "RDS Database: $RDS_DATABASE"
     fi
     
     # Drop and recreate database if clean restore is requested
@@ -231,6 +277,21 @@ restore_to_rds() {
         print_warning "Some 'already exists' errors are expected when restoring over existing data."
     fi
     print_warning "Some permission-related errors are expected when restoring to RDS and can be ignored."
+    
+    # If target database is not 'postgres', modify the SQL file to use the correct database name
+    if [ "$RDS_DATABASE" != "postgres" ]; then
+        print_status "Modifying SQL to use database: $RDS_DATABASE"
+        local modified_sql="${sql_file}.modified"
+        
+        # Replace database references in the SQL file
+        sed -e "s/DROP DATABASE postgres;/-- DROP DATABASE postgres;/g" \
+            -e "s/CREATE DATABASE postgres/-- CREATE DATABASE postgres/g" \
+            -e "s/\\\\connect postgres/\\\\connect $RDS_DATABASE/g" \
+            -e "s/ALTER DATABASE postgres/ALTER DATABASE $RDS_DATABASE/g" \
+            "$sql_file" > "$modified_sql"
+        
+        sql_file="$modified_sql"
+    fi
     
     psql -h "$RDS_HOST" -p "$RDS_PORT" -U "$RDS_USER" -d "$RDS_DATABASE" -f "$sql_file" || {
         print_warning "Restoration completed with some errors (this is normal for RDS)"

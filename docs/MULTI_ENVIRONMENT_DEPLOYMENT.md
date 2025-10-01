@@ -69,13 +69,20 @@ cdk deploy --all --context deploy-all=true
 ### Method 3: Deploy Specific Stack to Multiple Environments
 
 ```bash
-# Deploy ParametersStack to all environments
-cdk deploy ParametersStack-dev ParametersStack-staging ParametersStack-prod
+# Deploy database stack to staging
+cdk deploy --all --context env=staging
 
-# Or use a loop
+# Deploy database stack to prod
+cdk deploy --all --context env=prod
+
+# Or deploy specific stack with loop
 for env in dev staging prod; do
-  cdk deploy ParametersStack-$env --context env=$env
+  cdk deploy DatabaseStack-$env --context env=$env
 done
+
+# Note: You cannot deploy multiple environment stacks in one command like:
+# cdk deploy DatabaseStack-dev DatabaseStack-staging  # ❌ This won't work
+# You must use --context env=<environment> to create the stacks first
 ```
 
 ### Method 4: Via GitHub Actions (Automated)
