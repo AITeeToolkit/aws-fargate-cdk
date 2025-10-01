@@ -71,7 +71,7 @@ env:
 jobs:
   test-gate:
     name: Test Gate
-    if: github.event_name != 'repository_dispatch' && !contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]') && inputs.skip_tests != true
+    if: github.event_name != 'repository_dispatch' && !contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]') && !contains(github.event.head_commit.message, '[skip tests]') && inputs.skip_tests != true
     uses: ./.github/workflows/test-suite.yml
     with:
       environment: ${{ inputs.environment || github.event.client_payload.environment || 'dev' }}
