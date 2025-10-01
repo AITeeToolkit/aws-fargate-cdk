@@ -31,10 +31,14 @@ jobs:
     name: Deploy to Staging
     needs: [test-gate]
     if: needs.test-gate.outputs.test_results == 'success'
-    uses: ./.github/workflows/semantic-release.yml
+    uses: ./.github/workflows/infra-build.yml
     with:
       environment: staging
-      force_infra: true
+      image_tag: latest
+      listener_tag: latest
+      dns_worker_tag: latest
+      api_tag: ${{ github.event.client_payload.api_tag || 'latest' }}
+      web_tag: ${{ github.event.client_payload.web_tag || 'latest' }}
     secrets: inherit
 
   post-deployment-tests:
@@ -92,7 +96,7 @@ jobs:
           ENVIRONMENT: staging
 
       - name: Upload health check results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: post-deployment-health-checks

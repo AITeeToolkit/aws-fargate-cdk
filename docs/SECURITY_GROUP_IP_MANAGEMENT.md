@@ -177,10 +177,7 @@ Remove the IP from the list and redeploy:
 
 ```bash
 cdk deploy SharedStack --context \
-  allowed_ips='{"70.122.3.208/32": "Nel home", \
-  "192.168.1.100/32": "Raphael home", \
-  "203.0.113.50/32": "Mohamed home", \
-  "203.0.113.51/32": "Jake home"}'
+  allowed_ips='{"70.122.3.208/32": "Nel home", "75.40.190.44/32": "Raphael home"}' --require-approval never
 ```
 
 ### Option 3: Update cdk.json with description for loop
@@ -189,15 +186,13 @@ cdk deploy SharedStack --context \
 for env in dev staging prod; do
   cdk deploy DatabaseStack-$env OpenSearchStack-$env \
     --context env=$env \
-    --context allowed_ips='{"70.122.3.208/32": "Nel home", \
-    "192.168.1.100/32": "Raphael home", \
-    "203.0.113.50/32": "Mohamed home", \
-    "203.0.113.51/32": "Jake home"}'
+    --context allowed_ips='{"70.122.3.208/32": "Nel home", "75.40.190.44/32": "Raphael home"}' \
+    --require-approval never
 done
 ```
 
 ```bash
-cdk deploy --all
+cdk deploy --all --require-approval never
 ```
 
 ### Option 2: Manual Removal via AWS CLI
