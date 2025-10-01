@@ -214,6 +214,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
+          # Configure git user for commits and tags
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
           # Fetch latest tags to ensure semantic-release has fresh state
           git fetch --tags --force
           
