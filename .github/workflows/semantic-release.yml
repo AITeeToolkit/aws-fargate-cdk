@@ -20,6 +20,11 @@ on:
         required: false
         default: true
         type: boolean
+      skip_tests:
+        description: Skip test gate
+        required: false
+        default: false
+        type: boolean
       listener_tag:
         required: false
         type: string
@@ -66,7 +71,7 @@ env:
 jobs:
   test-gate:
     name: Test Gate
-    if: github.event_name != 'repository_dispatch' && !contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')
+    if: github.event_name != 'repository_dispatch' && !contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]') && inputs.skip_tests != true
     uses: ./.github/workflows/test-suite.yml
     with:
       environment: ${{ inputs.environment || github.event.client_payload.environment || 'dev' }}
