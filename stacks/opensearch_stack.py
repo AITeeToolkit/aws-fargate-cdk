@@ -135,24 +135,40 @@ class OpenSearchStack(Stack):
             )
         )
 
-        self.domain.add_access_policies(
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                principals=[iam.AnyPrincipal()],
-                actions=[
-                    "es:ESHttpGet",
-                    "es:ESHttpPost",
-                    "es:ESHttpPut",
-                    "es:ESHttpDelete",
-                ],
-                resources=[f"{self.domain.domain_arn}/*"],
-                conditions={
-                    "IpAddress": {
-                        "aws:SourceIp": ["70.122.3.208/32"]
-                    }  # replace with your IP
-                },
+        # Allow access from specific IPs (for development/testing)
+        allowed_ips = self.node.try_get_context("allowed_ips")
+        if allowed_ips and isinstance(allowed_ips, str):
+            import json
+            allowed_ips = json.loads(allowed_ips)
+        elif not allowed_ips:
+            allowed_ips = []
+        
+        # Extract just IPs (handle both list and dict formats)
+        if isinstance(allowed_ips, dict):
+            ip_list = list(allowed_ips.keys())
+        else:
+            ip_list = allowed_ips
+        
+        if ip_list:
+            self.domain.add_access_policies(
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    principals=[iam.AnyPrincipal()],
+                    actions=[
+                        "es:ESHttpGet",
+                        "es:ESHttpPost",
+                        "es:ESHttpPut",
+                        "es:ESHttpDelete",
+                        "es:ESHttpHead",
+                    ],
+                    resources=[f"{self.domain.domain_arn}/*"],
+                    conditions={
+                        "IpAddress": {
+                            "aws:SourceIp": ip_list
+                        }
+                    },
+                )
             )
-        )
 
         # Store domain endpoint in SSM for easy access
         ssm.StringParameter(

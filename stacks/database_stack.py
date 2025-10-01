@@ -57,12 +57,26 @@ class DatabaseStack(Stack):
             description="Allow internal VPC PostgreSQL access",
         )
 
-        # Optional: Allow your IP if testing publicly
-        self.db_security_group.add_ingress_rule(
-            peer=ec2.Peer.ipv4("70.122.3.208/32"),
-            connection=ec2.Port.tcp(5432),
-            description="Allow public IP PostgreSQL access",
-        )
+        # Allow external IPs from context (for development/testing)
+        allowed_ips = self.node.try_get_context("allowed_ips")
+        if allowed_ips and isinstance(allowed_ips, str):
+            import json
+            allowed_ips = json.loads(allowed_ips)
+        elif not allowed_ips:
+            allowed_ips = []
+        
+        # Handle both list and dict formats
+        if isinstance(allowed_ips, dict):
+            ip_items = allowed_ips.items()
+        else:
+            ip_items = [(ip, ip) for ip in allowed_ips]
+        
+        for ip, description in ip_items:
+            self.db_security_group.add_ingress_rule(
+                peer=ec2.Peer.ipv4(ip),
+                connection=ec2.Port.tcp(5432),
+                description=f"PostgreSQL: {description}",
+            )
 
         # Parse instance class
         instance_class_parts = instance_class.split(".")

@@ -97,6 +97,34 @@ class SharedStack(Stack):
             description="Allow ECS tasks to communicate with each other",
         )
 
+        # Allow direct access to ECS tasks from specific IPs (for debugging)
+        allowed_ips = self.node.try_get_context("allowed_ips")
+        if allowed_ips and isinstance(allowed_ips, str):
+            import json
+            allowed_ips = json.loads(allowed_ips)
+        elif not allowed_ips:
+            allowed_ips = []
+        
+        # Handle both list and dict formats
+        if isinstance(allowed_ips, dict):
+            ip_items = allowed_ips.items()
+        else:
+            ip_items = [(ip, ip) for ip in allowed_ips]
+        
+        for ip, description in ip_items:
+            # Web service port
+            self.ecs_task_sg.add_ingress_rule(
+                peer=ec2.Peer.ipv4(ip),
+                connection=ec2.Port.tcp(3000),
+                description=f"Web service: {description}",
+            )
+            # API service port
+            self.ecs_task_sg.add_ingress_rule(
+                peer=ec2.Peer.ipv4(ip),
+                connection=ec2.Port.tcp(3001),
+                description=f"API service: {description}",
+            )
+
         # Create security group for VPC endpoints
         vpc_endpoint_sg = ec2.SecurityGroup(
             self,
