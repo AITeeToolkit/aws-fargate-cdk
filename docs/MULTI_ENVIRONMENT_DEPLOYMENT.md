@@ -96,10 +96,15 @@ git push origin main
 # Single environment
 gh workflow run semantic-release.yml -f environment=dev
 
-# ALL environments
-gh workflow run semantic-release.yml \
-  -f environment=dev \
-  -f deploy_all_environments=true
+# ALL environments - Use commit message approach (recommended)
+# This triggers ONE workflow that deploys all environments in parallel
+git commit --allow-empty -m "chore: deploy all environments [deploy-all]"
+git push origin main
+
+# Alternative: Trigger each environment separately (NOT recommended - causes collisions)
+# gh workflow run semantic-release.yml -f environment=dev
+# gh workflow run semantic-release.yml -f environment=staging
+# gh workflow run semantic-release.yml -f environment=prod
 ```
 
 ## Container Image Strategy
