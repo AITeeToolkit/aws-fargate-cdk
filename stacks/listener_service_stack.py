@@ -61,7 +61,7 @@ class ListenerServiceStack(Stack):
             desired_count=1,
             sqs_managed_policy=sqs_managed_policy,
             cloud_map_options=ecs.CloudMapOptions(
-                name=f"{service_name}-{environment}",
+                name=service_name,
                 dns_record_type=servicediscovery.DnsRecordType.A,
                 dns_ttl=Duration.seconds(10),
             ),

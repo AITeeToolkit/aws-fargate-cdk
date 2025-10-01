@@ -76,7 +76,7 @@ class MultiAlbStack(Stack):
                     root_zone = ".".join(domain.split(".")[-2:])
                     if root_zone in certificate_arns:
                         cert_arns_for_chunk.add(certificate_arns[root_zone])
-                
+
                 for cert_arn in cert_arns_for_chunk:
                     certs.append(elbv2.ListenerCertificate(cert_arn))
             else:

@@ -201,7 +201,7 @@ for current_env in environments_to_deploy:
         db_secret=database_stack.secret,
         environment=current_env,
         ecs_task_security_group=shared_stack.ecs_task_sg,
-        service_name="listener-service",
+        service_name=f"listener-service-{current_env}",
         sqs_managed_policy=sqs_stack.sqs_managed_policy,
     )
 
@@ -215,7 +215,7 @@ for current_env in environments_to_deploy:
         image_uri=f"{ecr_stack.repositories['dns-worker'].repository_uri}:{dns_worker_tag}",
         environment=current_env,
         ecs_task_security_group=shared_stack.ecs_task_sg,
-        service_name="dns-worker-service",
+        service_name=f"dns-worker-service-{current_env}",
         db_secret=database_stack.secret,
         sqs_managed_policy=sqs_stack.sqs_managed_policy,
         desired_count=current_config["ecs_desired_count"],
@@ -232,7 +232,7 @@ for current_env in environments_to_deploy:
         db_secret=database_stack.secret,
         environment=current_env,
         ecs_task_security_group=shared_stack.ecs_task_sg,
-        service_name="api-service",
+        service_name=f"api-service-{current_env}",
         opensearch_role=opensearch_stack.fargate_opensearch_role,
         desired_count=current_config["ecs_desired_count"],
     )
@@ -248,7 +248,7 @@ for current_env in environments_to_deploy:
         db_secret=database_stack.secret,
         environment=current_env,
         ecs_task_security_group=shared_stack.ecs_task_sg,
-        service_name="web-service",
+        service_name=f"web-service-{current_env}",
         opensearch_role=opensearch_stack.fargate_opensearch_role,
         desired_count=current_config["ecs_desired_count"],
     )

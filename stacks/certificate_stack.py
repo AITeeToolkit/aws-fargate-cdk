@@ -44,9 +44,7 @@ class CertificateStack(Stack):
                 self,
                 f"WildcardCert-{root_zone_name.replace('.', '-')}",
                 domain_name=f"*.{root_zone_name}",
-                subject_alternative_names=[
-                    root_zone_name
-                ],  # Also cover root domain
+                subject_alternative_names=[root_zone_name],  # Also cover root domain
                 validation=acm.CertificateValidation.from_dns(zone),
             )
 

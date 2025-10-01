@@ -102,7 +102,7 @@ class APIServiceStack(Stack):
             opensearch_task_role=opensearch_role,  # Pass the OpenSearch role
             sqs_managed_policy=sqs_managed_policy,  # Pass the SQS managed policy
             cloud_map_options=ecs.CloudMapOptions(
-                name=f"{service_name}-{environment}",
+                name=service_name,
                 dns_record_type=servicediscovery.DnsRecordType.A,
                 dns_ttl=cdk.Duration.seconds(10),
             ),

@@ -83,7 +83,7 @@ class WebServiceStack(Stack):
             service_name=service_name,
             opensearch_task_role=opensearch_role,  # Pass the OpenSearch role
             cloud_map_options=ecs.CloudMapOptions(
-                name=f"{service_name}-{environment}",
+                name=service_name,
                 dns_record_type=servicediscovery.DnsRecordType.A,
                 dns_ttl=Duration.seconds(10),
             ),
