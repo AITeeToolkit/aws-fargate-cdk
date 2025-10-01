@@ -50,17 +50,23 @@ pytest tests/integration/ -v -m "not slow"
 
 ### 4. Performance Tests
 **When**: After integration tests, on staging environment
-**Location**: `/tests/integration/` (marked with `@pytest.mark.performance`)
+**Location**: `/tests/integration/test_performance.py`
 
 ```bash
-pytest tests/integration/ -v -m "performance"
+pytest tests/integration/test_performance.py -v -m "performance"
 ```
 
 **Tests**:
-- Domain processing performance under load
-- Database connection pooling
-- API response times
-- Concurrent request handling
+- **API Service**: Concurrent requests (50 concurrent), sustained load (5 req/s for 30s)
+- **Web Service**: Concurrent page loads (20 users), load time metrics
+- **Domain Processing**: Throughput testing, SQS message processing rate
+- **Route53**: Bulk hosted zone operations (marked slow)
+
+**Performance Targets**:
+- API: 95% success rate, <2s avg response, <5s p95
+- Web: <3s avg page load, <5s p95
+- Domain Processing: >2 domains/sec queuing rate
+- SQS: >10 messages/sec send rate
 
 ## Deployment Pipeline
 
