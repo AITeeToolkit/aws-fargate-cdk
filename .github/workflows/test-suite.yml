@@ -157,7 +157,7 @@ jobs:
     name: Integration Tests
     runs-on: ubuntu-latest
     needs: [unit-tests]
-    if: false  # Disable until environments are set up
+    if: true  # Enabled - all environments are now deployed
     steps:
       - uses: actions/checkout@v4
       
@@ -198,7 +198,7 @@ jobs:
     name: Performance Tests
     runs-on: ubuntu-latest
     needs: [integration-tests]
-    if: false  # Disable until staging environment exists
+    if: true  # Enabled - staging environment is deployed
     steps:
       - uses: actions/checkout@v4
       
@@ -239,7 +239,7 @@ jobs:
   test-summary:
     name: Test Summary
     runs-on: ubuntu-latest
-    needs: [unit-tests, lint-and-security]
+    needs: [unit-tests, lint-and-security, integration-tests, performance-tests]
     if: always()
     outputs:
       results: ${{ steps.summary.outputs.results }}
@@ -273,13 +273,29 @@ jobs:
             LINT_STATUS="❌ FAIL"
           fi
           
-          # Integration Tests (disabled)
-          echo "⏭️ **Integration Tests**: Disabled (no environments)" >> $GITHUB_STEP_SUMMARY
-          INTEGRATION_STATUS="⏭️ DISABLED"
+          # Integration Tests
+          if [ "${{ needs.integration-tests.result }}" = "success" ]; then
+            echo "✅ **Integration Tests**: Passed" >> $GITHUB_STEP_SUMMARY
+            INTEGRATION_STATUS="✅ PASS"
+          elif [ "${{ needs.integration-tests.result }}" = "skipped" ]; then
+            echo "⏭️ **Integration Tests**: Skipped" >> $GITHUB_STEP_SUMMARY
+            INTEGRATION_STATUS="⏭️ SKIP"
+          else
+            echo "❌ **Integration Tests**: Failed" >> $GITHUB_STEP_SUMMARY
+            INTEGRATION_STATUS="❌ FAIL"
+          fi
           
-          # Performance Tests (disabled)
-          echo "⏭️ **Performance Tests**: Disabled (no staging env)" >> $GITHUB_STEP_SUMMARY
-          PERFORMANCE_STATUS="⏭️ DISABLED"
+          # Performance Tests
+          if [ "${{ needs.performance-tests.result }}" = "success" ]; then
+            echo "✅ **Performance Tests**: Passed" >> $GITHUB_STEP_SUMMARY
+            PERFORMANCE_STATUS="✅ PASS"
+          elif [ "${{ needs.performance-tests.result }}" = "skipped" ]; then
+            echo "⏭️ **Performance Tests**: Skipped" >> $GITHUB_STEP_SUMMARY
+            PERFORMANCE_STATUS="⏭️ SKIP"
+          else
+            echo "❌ **Performance Tests**: Failed" >> $GITHUB_STEP_SUMMARY
+            PERFORMANCE_STATUS="❌ FAIL"
+          fi
           
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Summary" >> $GITHUB_STEP_SUMMARY
@@ -290,9 +306,11 @@ jobs:
           echo "| Integration | $INTEGRATION_STATUS | - |" >> $GITHUB_STEP_SUMMARY
           echo "| Performance | $PERFORMANCE_STATUS | - |" >> $GITHUB_STEP_SUMMARY
           
-          # Set overall result (only unit tests and linting for now)
+          # Set overall result (all tests must pass)
           if [[ "${{ needs.unit-tests.result }}" == "success" && 
-                "${{ needs.lint-and-security.result }}" == "success" ]]; then
+                "${{ needs.lint-and-security.result }}" == "success" && 
+                ("${{ needs.integration-tests.result }}" == "success" || "${{ needs.integration-tests.result }}" == "skipped") && 
+                ("${{ needs.performance-tests.result }}" == "success" || "${{ needs.performance-tests.result }}" == "skipped") ]]; then
             echo "results=success" >> $GITHUB_OUTPUT
           else
             echo "results=failure" >> $GITHUB_OUTPUT

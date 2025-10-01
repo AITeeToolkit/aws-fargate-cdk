@@ -7,14 +7,17 @@ import pytest
 from aws_cdk import assertions
 
 from stacks.api_service_stack import APIServiceStack
+from stacks.certificate_stack import CertificateStack
 from stacks.database_stack import DatabaseStack
 from stacks.dns_worker_service_stack import DNSWorkerServiceStack
+from stacks.domain_dns_stack import DomainDnsStack
 from stacks.ecr_stack import ECRStack
 from stacks.listener_service_stack import ListenerServiceStack
 from stacks.network_stack import NetworkStack
 from stacks.opensearch_stack import OpenSearchStack
 from stacks.shared_stack import SharedStack
 from stacks.sqs_stack import SQSStack
+from stacks.web_multialb_stack import MultiAlbStack
 from stacks.web_service_stack import WebServiceStack
 
 
@@ -501,3 +504,252 @@ class TestWebServiceStack:
         # Verify ECS service is created
         template.has_resource("AWS::ECS::Service", {})
         template.has_resource("AWS::ECS::TaskDefinition", {})
+
+
+class TestCertificateStack:
+    """Test Certificate stack for ACM certificates"""
+
+    def test_certificate_creation(self, cdk_app, test_environment):
+        """Test ACM certificates are created for domains"""
+        cert_stack = CertificateStack(
+            cdk_app,
+            "TestCertificateStack",
+            env=test_environment,
+            domains=["test.example.com", "*.test.example.com"],
+        )
+        template = assertions.Template.from_stack(cert_stack)
+
+        # Verify certificates are created
+        template.resource_count_is("AWS::CertificateManager::Certificate", 2)
+
+    def test_wildcard_certificates(self, cdk_app, test_environment):
+        """Test wildcard certificates are created"""
+        cert_stack = CertificateStack(
+            cdk_app,
+            "TestCertificateStack",
+            env=test_environment,
+            domains=["example.com", "*.example.com"],
+        )
+        template = assertions.Template.from_stack(cert_stack)
+
+        # Verify wildcard certificate
+        template.has_resource_properties(
+            "AWS::CertificateManager::Certificate",
+            {"DomainName": "*.example.com"},
+        )
+
+    def test_certificate_validation(self, cdk_app, test_environment):
+        """Test certificates use DNS validation"""
+        cert_stack = CertificateStack(
+            cdk_app,
+            "TestCertificateStack",
+            env=test_environment,
+            domains=["test.example.com"],
+        )
+        template = assertions.Template.from_stack(cert_stack)
+
+        # Verify DNS validation
+        template.has_resource_properties(
+            "AWS::CertificateManager::Certificate",
+            {"ValidationMethod": "DNS"},
+        )
+
+
+class TestMultiAlbStack:
+    """Test Multi-ALB stack for domain-based load balancing"""
+
+    def test_alb_creation(self, cdk_app, test_environment):
+        """Test ALBs are created for domains"""
+        network_stack = NetworkStack(cdk_app, "TestNetworkStack", env=test_environment)
+        shared_stack = SharedStack(
+            cdk_app, "TestSharedStack", env=test_environment, vpc=network_stack.vpc
+        )
+        cert_stack = CertificateStack(
+            cdk_app,
+            "TestCertificateStack",
+            env=test_environment,
+            domains=["test.example.com"],
+        )
+
+        # Create multi-ALB stack
+        multi_alb_stack = MultiAlbStack(
+            cdk_app,
+            "TestMultiAlbStack",
+            env=test_environment,
+            vpc=network_stack.vpc,
+            domains=["test.example.com"],
+            alb_security_group=shared_stack.alb_security_group,
+            environment="test",
+            certificate_arns=cert_stack.certificates,
+        )
+        template = assertions.Template.from_stack(multi_alb_stack)
+
+        # Verify ALB is created
+        template.has_resource("AWS::ElasticLoadBalancingV2::LoadBalancer", {})
+
+    def test_https_listener(self, cdk_app, test_environment):
+        """Test HTTPS listeners are created"""
+        network_stack = NetworkStack(cdk_app, "TestNetworkStack", env=test_environment)
+        shared_stack = SharedStack(
+            cdk_app, "TestSharedStack", env=test_environment, vpc=network_stack.vpc
+        )
+        cert_stack = CertificateStack(
+            cdk_app,
+            "TestCertificateStack",
+            env=test_environment,
+            domains=["test.example.com"],
+        )
+
+        multi_alb_stack = MultiAlbStack(
+            cdk_app,
+            "TestMultiAlbStack",
+            env=test_environment,
+            vpc=network_stack.vpc,
+            domains=["test.example.com"],
+            alb_security_group=shared_stack.alb_security_group,
+            environment="test",
+            certificate_arns=cert_stack.certificates,
+        )
+        template = assertions.Template.from_stack(multi_alb_stack)
+
+        # Verify HTTPS listener
+        template.has_resource_properties(
+            "AWS::ElasticLoadBalancingV2::Listener",
+            {"Port": 443, "Protocol": "HTTPS"},
+        )
+
+    def test_target_groups(self, cdk_app, test_environment):
+        """Test target groups are created"""
+        network_stack = NetworkStack(cdk_app, "TestNetworkStack", env=test_environment)
+        shared_stack = SharedStack(
+            cdk_app, "TestSharedStack", env=test_environment, vpc=network_stack.vpc
+        )
+        cert_stack = CertificateStack(
+            cdk_app,
+            "TestCertificateStack",
+            env=test_environment,
+            domains=["test.example.com"],
+        )
+
+        multi_alb_stack = MultiAlbStack(
+            cdk_app,
+            "TestMultiAlbStack",
+            env=test_environment,
+            vpc=network_stack.vpc,
+            domains=["test.example.com"],
+            alb_security_group=shared_stack.alb_security_group,
+            environment="test",
+            certificate_arns=cert_stack.certificates,
+        )
+        template = assertions.Template.from_stack(multi_alb_stack)
+
+        # Verify target group exists
+        template.has_resource("AWS::ElasticLoadBalancingV2::TargetGroup", {})
+
+
+class TestDomainDnsStack:
+    """Test Domain DNS stack for Route53 records"""
+
+    def test_lambda_creation(self, cdk_app, test_environment):
+        """Test Lambda function for Route53 record management is created"""
+        network_stack = NetworkStack(cdk_app, "TestNetworkStack", env=test_environment)
+        shared_stack = SharedStack(
+            cdk_app, "TestSharedStack", env=test_environment, vpc=network_stack.vpc
+        )
+        cert_stack = CertificateStack(
+            cdk_app,
+            "TestCertificateStack",
+            env=test_environment,
+            domains=["test.example.com"],
+        )
+        multi_alb_stack = MultiAlbStack(
+            cdk_app,
+            "TestMultiAlbStack",
+            env=test_environment,
+            vpc=network_stack.vpc,
+            domains=["test.example.com"],
+            alb_security_group=shared_stack.alb_security_group,
+            environment="test",
+            certificate_arns=cert_stack.certificates,
+        )
+
+        # Create domain DNS stack
+        dns_stack = DomainDnsStack(
+            cdk_app,
+            "TestDomainDnsStack",
+            env=test_environment,
+            domain_name="test.example.com",
+            alb=list(multi_alb_stack.domain_to_alb.values())[0],
+            mail_server="mail.example.com",
+            dkim_selector="default",
+            dkim_public_key="MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDdmsMArxUA48AxvmG2gm26Qr1lbhtt6r59AMhBMK/TgZLNHug0L8uM6nm12SSxY0kxZyp5cLPbtgN832ReoJ0sW6zZfedfPf1Ak1Z6H9Cxd3wB3zI3Gy8c6PsV9Wt0lYEWHALw2ANjf5Ru0otK3slBUz7yb7AgvUEHb1Bt6+aazQIDAQAB",
+            spf_servers=["a:mail.example.com"],
+            dmarc_rua="reports@example.com",
+            dmarc_policy="quarantine",
+        )
+        template = assertions.Template.from_stack(dns_stack)
+
+        # Verify Lambda function is created
+        template.has_resource("AWS::Lambda::Function", {})
+
+    def test_iam_role_for_lambda(self, cdk_app, test_environment):
+        """Test IAM role for Lambda has Route53 permissions"""
+        network_stack = NetworkStack(cdk_app, "TestNetworkStack", env=test_environment)
+        shared_stack = SharedStack(
+            cdk_app, "TestSharedStack", env=test_environment, vpc=network_stack.vpc
+        )
+        cert_stack = CertificateStack(
+            cdk_app,
+            "TestCertificateStack",
+            env=test_environment,
+            domains=["test.example.com"],
+        )
+        multi_alb_stack = MultiAlbStack(
+            cdk_app,
+            "TestMultiAlbStack",
+            env=test_environment,
+            vpc=network_stack.vpc,
+            domains=["test.example.com"],
+            alb_security_group=shared_stack.alb_security_group,
+            environment="test",
+            certificate_arns=cert_stack.certificates,
+        )
+
+        dns_stack = DomainDnsStack(
+            cdk_app,
+            "TestDomainDnsStack",
+            env=test_environment,
+            domain_name="test.example.com",
+            alb=list(multi_alb_stack.domain_to_alb.values())[0],
+            mail_server="mail.example.com",
+            dkim_selector="default",
+            dkim_public_key="test-key",
+        )
+        template = assertions.Template.from_stack(dns_stack)
+
+        # Verify IAM role exists
+        template.has_resource("AWS::IAM::Role", {})
+
+        # Verify Route53 permissions in policy
+        template.has_resource_properties(
+            "AWS::IAM::Policy",
+            {
+                "PolicyDocument": {
+                    "Statement": assertions.Match.array_with(
+                        [
+                            assertions.Match.object_like(
+                                {
+                                    "Action": assertions.Match.array_with(
+                                        [
+                                            assertions.Match.string_like_regexp(
+                                                "route53:.*"
+                                            )
+                                        ]
+                                    )
+                                }
+                            )
+                        ]
+                    )
+                }
+            },
+        )

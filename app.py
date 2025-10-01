@@ -145,7 +145,7 @@ for current_env in environments_to_deploy:
     for domain, alb in multi_alb_stack.domain_to_alb.items():
         DomainDnsStack(
             app,
-            f"DomainDnsStack-{current_env}-{domain.replace('.', '-')}",
+            f"DomainDnsStack-{domain.replace('.', '-')}",
             env=env,
             domain_name=domain,
             alb=alb,

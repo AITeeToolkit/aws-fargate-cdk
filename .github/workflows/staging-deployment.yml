@@ -5,9 +5,8 @@ concurrency:
   cancel-in-progress: false  # Don't cancel deployments in progress
 
 on:
-  # Disabled until staging environment is set up
-  # push:
-  #   branches: [main]
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       force_deploy:
