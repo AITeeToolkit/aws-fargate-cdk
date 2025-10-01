@@ -107,7 +107,7 @@ class MultiAlbStack(Stack):
 
             # Attach all certs for this chunk
             listener.add_certificates(f"Certs-{idx}", certs)
-        
+
         # Export the first ALB's DNS name for testing/monitoring
         if self.domain_to_alb:
             first_alb = list(self.domain_to_alb.values())[0]
@@ -116,7 +116,7 @@ class MultiAlbStack(Stack):
                 "AlbDnsName",
                 value=first_alb.load_balancer_dns_name,
                 description="DNS name of the first Application Load Balancer",
-                export_name=f"{environment}-alb-dns"
+                export_name=f"{environment}-alb-dns",
             )
 
     def attach_service(self, service: ecs.FargateService, port: int = 3000):
