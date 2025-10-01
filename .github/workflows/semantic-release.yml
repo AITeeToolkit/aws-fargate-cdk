@@ -66,7 +66,7 @@ env:
 jobs:
   test-gate:
     name: Test Gate
-    if: github.event_name != 'repository_dispatch' && !contains(github.event.head_commit.message, '[skip ci]')
+    if: github.event_name != 'repository_dispatch' && !contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')
     uses: ./.github/workflows/test-suite.yml
     with:
       environment: ${{ inputs.environment || github.event.client_payload.environment || 'dev' }}
@@ -76,7 +76,7 @@ jobs:
     name: Check What Changed
     runs-on: ubuntu-latest
     needs: [test-gate]
-    if: always() && (needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped') && !contains(github.event.head_commit.message, '[skip ci]')
+    if: always() && (needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped') && !contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')
     outputs:
       has_image_changes: ${{ steps.changes.outputs.images }}
       has_infra_changes: ${{ steps.changes.outputs.infra }}
