@@ -55,7 +55,9 @@ class APIServiceStack(Stack):
             "FORCE_UPDATE": "1",
             "DATABASE_URL": database_url,
             "HEALTH_CHECK_PATH": "/v1/api/health",
+            "ENVIRONMENT": environment,
             "AWS_REGION": "us-east-1",
+            "REDIS_ENABLED": "true",
             "OPENSEARCH_PARAMETER_NAME": opensearch_parameter_name,
             "SQS_MAIN_QUEUE_PARAMETER": main_queue_parameter,
             "SQS_PRIORITY_QUEUE_PARAMETER": priority_queue_parameter,
@@ -81,7 +83,6 @@ class APIServiceStack(Stack):
             "POSTGRES_HOST": f"/storefront-{environment}/database/host",
             "POSTGRES_PORT": f"/storefront-{environment}/database/port",
             "POSTGRES_DB": f"/storefront-{environment}/database/name",
-            "REDIS_URL": f"/storefront-{environment}/redis-url",
         }
 
         # Use the Fargate service construct for consistency

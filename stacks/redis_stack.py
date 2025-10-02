@@ -46,13 +46,13 @@ class RedisStack(Stack):
         if not private_subnet_ids:
             raise ValueError(f"No private or isolated subnets found in VPC for {environment}")
 
-        # Create ElastiCache Serverless for Redis
+        # Create ElastiCache Serverless for Valkey
         self.redis_cache = elasticache.CfnServerlessCache(
             self,
-            "RedisServerless",
-            engine="redis",
+            "ValkeyServerless",
+            engine="valkey",
             serverless_cache_name=f"storefront-cache-{environment}",
-            description=f"Redis Serverless cache for {environment} environment",
+            description=f"Valkey Serverless cache for {environment} environment",
             # Provide subnet IDs directly (ElastiCache Serverless doesn't use subnet groups)
             subnet_ids=private_subnet_ids,
             security_group_ids=[self.redis_security_group.security_group_id],
@@ -74,7 +74,7 @@ class RedisStack(Stack):
         redis_endpoint = ssm.StringParameter(
             self,
             "RedisEndpoint",
-            parameter_name=f"/storefront/{environment}/redis/endpoint",
+            parameter_name=f"/storefront-{environment}/redis/endpoint",
             string_value=self.redis_cache.attr_endpoint_address,
             description=f"Redis Serverless endpoint for {environment}",
         )
@@ -82,7 +82,7 @@ class RedisStack(Stack):
         redis_port = ssm.StringParameter(
             self,
             "RedisPort",
-            parameter_name=f"/storefront/{environment}/redis/port",
+            parameter_name=f"/storefront-{environment}/redis/port",
             string_value=self.redis_cache.attr_endpoint_port,
             description=f"Redis Serverless port for {environment}",
         )
