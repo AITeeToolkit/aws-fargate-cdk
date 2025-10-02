@@ -82,7 +82,6 @@ jobs:
           SHARED_STACKS=(
             "NetworkStack"
             "SharedStack"
-            "StorefrontECRStack"
             "SharedCertificateStack"
           )
           
