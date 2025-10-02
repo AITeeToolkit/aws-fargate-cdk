@@ -78,21 +78,28 @@ jobs:
         run: |
           echo "🔍 Checking CloudFormation stack status..."
           
-          # List of critical stacks to check
           ENV_NAME="${{ inputs.environment || 'dev' }}"
-          STACKS=(
+          
+          # Shared stacks (no environment suffix)
+          SHARED_STACKS=(
             "NetworkStack"
             "SharedStack"
-            "MultiAlbStack-$ENV_NAME"
-            "APIServiceStack-$ENV_NAME"
-            "WebServiceStack-$ENV_NAME"
-            "ListenerServiceStack-$ENV_NAME"
-            "DNSWorkerServiceStack-$ENV_NAME"
+            "StorefrontECRStack"
+            "SharedCertificateStack"
           )
+          
+          # Get environment-specific stacks dynamically
+          ENV_STACKS=$(aws cloudformation list-stacks \
+            --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE UPDATE_ROLLBACK_COMPLETE \
+            --query "StackSummaries[?contains(StackName, '-$ENV_NAME')].StackName" \
+            --output text)
+          
+          # Combine shared and environment-specific stacks
+          ALL_STACKS=("${SHARED_STACKS[@]}" $ENV_STACKS)
           
           BUSY_STACKS=()
           
-          for stack in "${STACKS[@]}"; do
+          for stack in "${ALL_STACKS[@]}"; do
             echo "Checking $stack..."
             STATUS=$(aws cloudformation describe-stacks \
               --stack-name "$stack" \

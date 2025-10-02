@@ -1,7 +1,7 @@
 name: Staging Deployment
 
 concurrency:
-  group: staging-deployment
+  group: infrastructure-deploy-staging
   cancel-in-progress: false  # Don't cancel deployments in progress
 
 on:
