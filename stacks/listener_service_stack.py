@@ -24,6 +24,7 @@ class ListenerServiceStack(Stack):
         ecs_task_security_group: ec2.ISecurityGroup,
         service_name: str,
         sqs_managed_policy: iam.IManagedPolicy = None,
+        desired_count: int = 1,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -58,7 +59,7 @@ class ListenerServiceStack(Stack):
             environment=listener_environment,
             secrets=listener_secrets,
             security_groups=[ecs_task_security_group],
-            desired_count=1,
+            desired_count=desired_count,
             sqs_managed_policy=sqs_managed_policy,
             cloud_map_options=ecs.CloudMapOptions(
                 name=service_name,

@@ -231,6 +231,7 @@ for current_env in environments_to_deploy:
         ecs_task_security_group=shared_stack.ecs_task_sg,
         service_name=f"listener-service-{current_env}",
         sqs_managed_policy=sqs_stack.sqs_managed_policy,
+        desired_count=current_config["ecs_desired_count"],
     )
 
     # Deploy DNS worker service for this environment
