@@ -28,6 +28,8 @@ VPC Private Subnets
 
 ### Environment Configuration
 
+**Current Configuration (200 MB per environment):**
+
 | Environment | Max Storage | Max ECPU | Storage Cost/Month | ECPU Cost/Month (light) | Total Est. Cost |
 |-------------|-------------|----------|-------------------|------------------------|-----------------|
 | **dev**     | 200 MB      | 3,000    | ~$12              | ~$0.07-$0.70          | ~$12-$13       |
@@ -36,16 +38,35 @@ VPC Private Subnets
 
 **Total estimated cost:** ~$36-$39/month for all environments
 
-**Note**: Storage is the primary cost driver. Start with 200 MB and increase based on actual usage metrics.
+### Storage Size Comparison
+
+| Storage Size | Cost per GB-hour | Cost per Month (1 env) | Cost for 3 Envs | Use Case |
+|--------------|------------------|------------------------|-----------------|----------|
+| **100 MB** (min Valkey) | $0.0837 | ~$6 | ~$18/month | Minimal caching, testing |
+| **200 MB** (current) | $0.0837 | ~$12 | ~$36/month | Light caching, session storage |
+| **500 MB** | $0.0837 | ~$31 | ~$93/month | Moderate caching |
+| **1 GB** | $0.0837 | ~$61 | ~$183/month | Standard caching workload |
+| **2 GB** | $0.0837 | ~$122 | ~$366/month | Heavy caching |
+| **3 GB** | $0.0837 | ~$183 | ~$549/month | Large dataset caching |
+| **5 GB** | $0.0837 | ~$305 | ~$915/month | Very large cache |
+
+**Cost Calculation Formula:**
+```
+Monthly Cost = Storage (GB) × $0.0837/GB-hour × 730 hours/month
+```
+
+**Recommendation:** Start with 200 MB and monitor actual usage. Scale up only when metrics show consistent usage above 80% of limit.
+
+**Note**: The CloudFormation error you encountered (`expected type: Integer, found: Float`) means the Redis stack expects storage in whole GB integers, not decimals. You'll need to use `1` (for 1 GB = ~$61/month) as the minimum instead of `0.2`.
 
 ### Pricing Breakdown (ElastiCache Serverless - US East N. Virginia)
 
 **Storage Costs:**
 - **Rate**: $0.0837 per GB-hour
 - **Monthly calculation**: GB-hour * 730 hours/month
-- **Dev (1 GB)**: 1 GB * $0.0837/hr * 730 hrs = ~$61/month
-- **Staging (2 GB)**: 2 GB * $0.0837/hr * 730 hrs = ~$122/month
-- **Prod (5 GB)**: 5 GB * $0.0837/hr * 730 hrs = ~$305/month
+- **Dev (200 MB)**: 0.2 GB * $0.0837/hr * 730 hrs = ~$12/month
+- **Staging (200 MB)**: 0.2 GB * $0.0837/hr * 730 hrs = ~$12/month
+- **Prod (200 MB)**: 0.2 GB * $0.0837/hr * 730 hrs = ~$12/month
 - **Minimum**: 100 MB for Valkey (1 GB for Redis OSS)
 
 **Compute Costs (ECPU):**
@@ -55,6 +76,11 @@ VPC Private Subnets
 - **Example**: GET request transferring 3.2 KB = 3.2 ECPUs
 - **Light usage**: 10M requests/day * 1 ECPU = ~$0.07/month
 - **Heavy usage**: 100M requests/day * 1 ECPU = ~$0.70/month
+
+**Total Monthly Cost (All 3 Environments):**
+- Storage: 3 × $12 = ~$36/month
+- ECPU: ~$0.21-$2.10/month (light to heavy usage)
+- **Grand Total**: ~$36-$38/month
 
 **Data Transfer:**
 - **Within same AZ**: Free
