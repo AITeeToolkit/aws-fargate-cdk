@@ -1,9 +1,7 @@
 name: Infrastructure Build & Deploy
 
-# Prevent multiple infrastructure deployments from running simultaneously
-concurrency:
-  group: infrastructure-deploy-${{ github.event.client_payload.environment || inputs.environment || 'dev' }}
-  cancel-in-progress: false
+# Note: Concurrency control is handled by calling workflows (staging-deployment.yml, production-deployment.yml)
+# This is a reusable workflow and should not have its own concurrency group to avoid deadlocks
 
 on:
   workflow_call:

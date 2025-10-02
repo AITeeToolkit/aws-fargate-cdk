@@ -62,6 +62,7 @@ class WebServiceStack(Stack):
             "STRIPE_WEBHOOK_SECRET": f"/storefront-{environment}/stripe-webhook-secret",
             "AWS_ACCESS_KEY_ID": f"/storefront-{environment}/route53/AWS_ACCESS_KEY_ID",
             "AWS_SECRET_ACCESS_KEY": f"/storefront-{environment}/route53/AWS_SECRET_ACCESS_KEY",
+            "POSTGRES_HOST": f"/storefront-{environment}/database/host",
             "POSTGRES_USER": f"/storefront-{environment}/database/username",
             "POSTGRES_PASSWORD": f"/storefront-{environment}/database/password",
         }
