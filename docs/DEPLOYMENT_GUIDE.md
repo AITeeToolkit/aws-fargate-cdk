@@ -219,24 +219,45 @@ pytest tests/ -v --cov-report=html
 
 #### Deploy to Development
 
+**Option 1: Use Develop Branch (Recommended)**
+
 **In storefront-cdk repository:**
 ```bash
 # Create feature branch
 git checkout -b feature/my-feature
 
 # Make changes to API or Web code
-# Commit and push
 git add .
 git commit -m "feat: add new feature"
 git push origin feature/my-feature
 
+# Merge to develop branch for automatic deployment
+git checkout develop
+git pull origin develop
+git merge feature/my-feature
+git push origin develop
+
 # This automatically:
-# 1. Builds changed images
-# 2. Pushes to ECR with dev-<sha> tags
+# 1. Builds changed images with develop-<sha> tags
+# 2. Pushes to ECR
 # 3. Triggers aws-fargate-cdk dev deployment
 ```
 
 **Result:** Changes deployed to dev environment in ~5-10 minutes
+
+**Option 2: Manual Workflow Dispatch**
+
+For testing feature branches without merging to develop:
+
+1. Go to [storefront-cdk Actions](https://github.com/AITeeToolkit/storefront-cdk/actions/workflows/ecs-build.yml)
+2. Click "Run workflow"
+3. Select your feature branch
+4. Check "Force build all images"
+5. Click "Run workflow"
+
+**Note:** This builds images but does not automatically deploy. You'll need to manually update ECS task definitions or merge to develop for deployment.
+
+**Feature branches do not automatically deploy** - use develop branch or manual dispatch.
 
 ---
 
