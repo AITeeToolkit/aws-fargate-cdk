@@ -28,7 +28,7 @@ app = cdk.App()
 env = cdk.Environment(account="156041439702", region="us-east-1")
 
 # Get environment from context or deploy all environments
-env_name = app.node.try_get_context("env") or os.getenv("ENVIRONMENT", "dev")
+env_name = app.node.try_get_context("env") or "dev"
 deploy_all = app.node.try_get_context("deploy-all") or False
 
 if deploy_all:
