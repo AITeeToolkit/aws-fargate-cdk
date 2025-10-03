@@ -83,8 +83,6 @@ class SQSDNSWorker:
         self.pending_domains = set()
         self.pending_deactivations = set()
         self.last_batch_time = time.time()
-        self.batch_retry_count = 0
-        self.max_batch_retries = 3
 
         # Statistics
         self.stats = {
@@ -94,7 +92,6 @@ class SQSDNSWorker:
             "hosted_zones_created": 0,
             "hosted_zones_deleted": 0,
             "github_triggers": 0,
-            "github_failures": 0,
             "start_time": None,
         }
 
@@ -486,32 +483,51 @@ class SQSDNSWorker:
             domains_content = json.dumps({"domains": domains}, indent=2)
             headers = {"Authorization": f"token {self.github_token}"}
 
-            # Use main branch HEAD for domain-updates to get latest workflow code
-            # Domain updates should use current workflow logic, not old release
-            url = f"https://api.github.com/repos/{self.repo}/git/refs/heads/main"
-            r = requests.get(url, headers=headers)
-            r.raise_for_status()
-            main_sha = r.json()["object"]["sha"]
-            logger.info(f"Using main branch SHA: {main_sha}")
-
-            # Ensure domain-updates branch exists and is up to date with main
-            # Check if branch exists
-            url = f"https://api.github.com/repos/{self.repo}/git/refs/heads/{branch_name}"
+            # Get latest release tag instead of main branch HEAD
+            # This ensures we only use stable, released code
+            url = f"https://api.github.com/repos/{self.repo}/releases/latest"
             r = requests.get(url, headers=headers)
 
-            if r.status_code == 404:
-                # Branch doesn't exist, create it from main
-                url = f"https://api.github.com/repos/{self.repo}/git/refs"
-                payload = {"ref": f"refs/heads/{branch_name}", "sha": main_sha}
-                r = requests.post(url, headers=headers, json=payload)
+            if r.status_code == 200:
+                latest_tag = r.json()["tag_name"]
+                logger.info(f"Latest release tag: {latest_tag}")
+
+                # Get the commit SHA for this tag
+                url = f"https://api.github.com/repos/{self.repo}/git/refs/tags/{latest_tag}"
+                r = requests.get(url, headers=headers)
                 r.raise_for_status()
-                logger.info(f"✅ Created {branch_name} branch from main")
+                tag_sha = r.json()["object"]["sha"]
             else:
-                # Branch exists, update it to main
-                payload = {"sha": main_sha, "force": True}
-                r = requests.patch(url, headers=headers, json=payload)
+                # Fallback to main if no releases exist
+                logger.warning("No releases found, falling back to main branch")
+                url = f"https://api.github.com/repos/{self.repo}/git/refs/heads/main"
+                r = requests.get(url, headers=headers)
                 r.raise_for_status()
-                logger.info(f"✅ Updated {branch_name} branch to main")
+                tag_sha = r.json()["object"]["sha"]
+
+            logger.info(f"Using commit SHA: {tag_sha}")
+
+            # Ensure domain-updates branch exists and is up to date with latest release
+            try:
+                # Check if branch exists
+                url = f"https://api.github.com/repos/{self.repo}/git/refs/heads/{branch_name}"
+                r = requests.get(url, headers=headers)
+
+                if r.status_code == 404:
+                    # Branch doesn't exist, create it from latest release
+                    url = f"https://api.github.com/repos/{self.repo}/git/refs"
+                    payload = {"ref": f"refs/heads/{branch_name}", "sha": tag_sha}
+                    r = requests.post(url, headers=headers, json=payload)
+                    r.raise_for_status()
+                    logger.info(f"✅ Created {branch_name} branch from latest release")
+                else:
+                    # Branch exists, update it to latest release
+                    payload = {"sha": tag_sha, "force": True}
+                    r = requests.patch(url, headers=headers, json=payload)
+                    r.raise_for_status()
+                    logger.info(f"✅ Updated {branch_name} branch to latest release")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to update branch, continuing: {e}")
 
             # Now update domains.json on the updated branch
             # Get domains.json from the now-updated branch
@@ -633,8 +649,6 @@ class SQSDNSWorker:
         )
 
         try:
-            db_failures = []
-
             # Step 1: Handle domain deactivations atomically (database + hosted zones)
             if self.pending_deactivations:
                 for domain in self.pending_deactivations:
@@ -651,7 +665,6 @@ class SQSDNSWorker:
                             )
                     else:
                         logger.error(f"❌ Failed to deactivate domain in database: {domain}")
-                        db_failures.append(domain)
 
             # Step 2: Handle domain activations atomically (database + hosted zones)
             if self.pending_domains:
@@ -669,20 +682,6 @@ class SQSDNSWorker:
                             )
                     else:
                         logger.error(f"❌ Failed to activate domain in database: {domain}")
-                        db_failures.append(domain)
-
-            # If all domains failed at database level, discard batch to prevent infinite loop
-            if db_failures and len(db_failures) == (
-                len(self.pending_domains) + len(self.pending_deactivations)
-            ):
-                logger.error(
-                    f"❌ All domains failed at database level - DISCARDING batch to prevent loop"
-                )
-                logger.error(f"Failed domains: {db_failures}")
-                self.pending_domains.clear()
-                self.pending_deactivations.clear()
-                self.batch_retry_count = 0
-                return False
 
             # Step 3: Fetch ALL active domains from database (reflects current state)
             all_active_domains = self.fetch_active_domains_from_db()
@@ -696,31 +695,14 @@ class SQSDNSWorker:
                     f"✅ Successfully processed batch: {len(all_active_domains)} total active domains"
                 )
 
-                # Clear pending domains and reset retry count (batch complete)
+                # Clear pending domains (batch complete)
                 self.pending_domains.clear()
                 self.pending_deactivations.clear()
                 self.last_batch_time = time.time()
-                self.batch_retry_count = 0
                 return True
             else:
-                self.stats["github_failures"] += 1
-                self.batch_retry_count += 1
-
-                if self.batch_retry_count >= self.max_batch_retries:
-                    logger.error(
-                        f"❌ Failed to process batch after {self.batch_retry_count} retries - DISCARDING batch"
-                    )
-                    logger.error(f"Discarded domains: {all_active_domains}")
-                    # Clear batch to prevent infinite loop
-                    self.pending_domains.clear()
-                    self.pending_deactivations.clear()
-                    self.batch_retry_count = 0
-                    return False
-                else:
-                    logger.warning(
-                        f"⚠️ GitHub workflow failed (retry {self.batch_retry_count}/{self.max_batch_retries}) - will retry"
-                    )
-                    return False
+                logger.error(f"❌ Failed to process batch of {len(all_active_domains)} domains")
+                return False
         except Exception as e:
             logger.error(f"❌ Error processing batch: {e}")
             return False
