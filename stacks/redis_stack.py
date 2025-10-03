@@ -62,7 +62,8 @@ class RedisStack(Stack):
             # Convert GB to MB to support fractional GB values (e.g., 0.2 GB = 200 MB)
             cache_usage_limits=elasticache.CfnServerlessCache.CacheUsageLimitsProperty(
                 data_storage=elasticache.CfnServerlessCache.DataStorageProperty(
-                    maximum=int(max_storage_gb * 1024), unit="MB"  # Use MB to support sub-GB values
+                    maximum=int(max_storage_gb * 1024),
+                    unit="MB",  # Use MB to support sub-GB values
                 ),
                 ecpu_per_second=elasticache.CfnServerlessCache.ECPUPerSecondProperty(
                     maximum=max_ecpu
