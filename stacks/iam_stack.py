@@ -31,9 +31,7 @@ class IAMStack(Stack):
                     sid="CDKBootstrapAccess",
                     effect=iam.Effect.ALLOW,
                     actions=["ssm:GetParameter", "ssm:GetParameters"],
-                    resources=[
-                        f"arn:aws:ssm:*:{self.account}:parameter/cdk-bootstrap/*"
-                    ],
+                    resources=[f"arn:aws:ssm:*:{self.account}:parameter/cdk-bootstrap/*"],
                 ),
                 # CDK Role assumption
                 iam.PolicyStatement(
@@ -107,9 +105,7 @@ class IAMStack(Stack):
                     sid="CodeBuildAccess",
                     effect=iam.Effect.ALLOW,
                     actions=["codebuild:BatchGetBuilds", "codebuild:StartBuild"],
-                    resources=[
-                        f"arn:aws:codebuild:*:{self.account}:project/storefront-*"
-                    ],
+                    resources=[f"arn:aws:codebuild:*:{self.account}:project/storefront-*"],
                 ),
             ],
         )
@@ -118,9 +114,7 @@ class IAMStack(Stack):
         cdk_policy.attach_to_user(self.ci_user)
 
         # Create access key for GitHub Actions
-        self.access_key = iam.AccessKey(
-            self, "FargateApplicationCIAccessKey", user=self.ci_user
-        )
+        self.access_key = iam.AccessKey(self, "FargateApplicationCIAccessKey", user=self.ci_user)
 
         # Output the access key details
         CfnOutput(

@@ -126,9 +126,7 @@ class OpenSearchStack(Stack):
                 effect=iam.Effect.ALLOW,
                 principals=[
                     iam.AccountRootPrincipal(),  # Allow your AWS account root (includes all IAM users/roles)
-                    iam.ArnPrincipal(
-                        self.fargate_opensearch_role.role_arn
-                    ),  # Allow Fargate role
+                    iam.ArnPrincipal(self.fargate_opensearch_role.role_arn),  # Allow Fargate role
                 ],
                 actions=["es:*"],
                 resources=[f"{self.domain.domain_arn}/*"],

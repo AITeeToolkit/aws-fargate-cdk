@@ -41,9 +41,7 @@ class RedisStack(Stack):
         if not private_subnet_ids:
             private_subnet_ids = [subnet.subnet_id for subnet in vpc.isolated_subnets]
         if not private_subnet_ids:
-            raise ValueError(
-                f"No private or isolated subnets found in VPC for {environment}"
-            )
+            raise ValueError(f"No private or isolated subnets found in VPC for {environment}")
 
         # Create ElastiCache Serverless for Valkey
         self.redis_cache = elasticache.CfnServerlessCache(

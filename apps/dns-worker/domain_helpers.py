@@ -36,9 +36,7 @@ def ensure_hosted_zone_and_store(conn, domain_name, region_name="us-east-1"):
 
         if existing_zone:
             aws_zone_id = existing_zone["Id"]
-            logging.info(
-                f"🔍 Hosted zone already exists for {domain_name}: {aws_zone_id}"
-            )
+            logging.info(f"🔍 Hosted zone already exists for {domain_name}: {aws_zone_id}")
         else:
             # Create hosted zone if it doesn't exist
             caller_reference = f"{domain_name}-{int(time.time())}"
@@ -149,9 +147,9 @@ def update_domain_with_tenant(conn, domain_name, hosted_zone_id, zone_id):
                 INSERT INTO domains (full_url, hosted_zone_id, tenant_id, active_status, activation_date)
                 VALUES (%s, %s, %s, 'Y', CURRENT_DATE)
                 ON CONFLICT (full_url) DO UPDATE
-                SET hosted_zone_id = EXCLUDED.hosted_zone_id, 
-                    tenant_id = EXCLUDED.tenant_id, 
-                    active_status = 'Y', 
+                SET hosted_zone_id = EXCLUDED.hosted_zone_id,
+                    tenant_id = EXCLUDED.tenant_id,
+                    active_status = 'Y',
                     activation_date = CURRENT_DATE;
                 """,
                 (domain_name, hosted_zone_id, tenant_id),
@@ -164,9 +162,7 @@ def update_domain_with_tenant(conn, domain_name, hosted_zone_id, zone_id):
         return tenant_id
 
     except Exception as e:
-        logging.error(
-            f"POSTGRES: Error updating domain {domain_name} with tenant info: {e}"
-        )
+        logging.error(f"POSTGRES: Error updating domain {domain_name} with tenant info: {e}")
         conn.rollback()
         raise
 
@@ -192,20 +188,14 @@ def get_tenant_for_domain(conn, domain_name):
 
             if result:
                 tenant_id = result[0]
-                logging.info(
-                    f"POSTGRES: Found tenant_id {tenant_id} for domain {domain_name}."
-                )
+                logging.info(f"POSTGRES: Found tenant_id {tenant_id} for domain {domain_name}.")
                 return tenant_id
             else:
-                logging.warning(
-                    f"POSTGRES: No tenant_id found for domain {domain_name}."
-                )
+                logging.warning(f"POSTGRES: No tenant_id found for domain {domain_name}.")
                 return None
 
     except Exception as e:
-        logging.error(
-            f"POSTGRES: Error retrieving tenant for domain {domain_name}: {e}"
-        )
+        logging.error(f"POSTGRES: Error retrieving tenant for domain {domain_name}: {e}")
         return None
 
 
@@ -225,9 +215,7 @@ def delete_hosted_zone_and_records(conn, domain_name, region_name="us-east-1"):
         zone = next((z for z in hosted_zones if z["Name"] == f"{domain_name}."), None)
 
         if not zone:
-            logging.warning(
-                f"⚠️ No hosted zone found for {domain_name}, nothing to delete."
-            )
+            logging.warning(f"⚠️ No hosted zone found for {domain_name}, nothing to delete.")
             return False
 
         zone_id = zone["Id"].split("/")[-1]  # Clean zone ID
@@ -241,9 +229,7 @@ def delete_hosted_zone_and_records(conn, domain_name, region_name="us-east-1"):
             record_name = record["Name"]
 
             if record_type in ["A", "MX", "TXT", "CNAME"]:
-                logging.info(
-                    f"🗑️ Scheduling deletion for {record_type} record {record_name}"
-                )
+                logging.info(f"🗑️ Scheduling deletion for {record_type} record {record_name}")
                 changes.append({"Action": "DELETE", "ResourceRecordSet": record})
 
         # Batch delete records (skip SOA/NS, they are required for the zone)
@@ -251,9 +237,7 @@ def delete_hosted_zone_and_records(conn, domain_name, region_name="us-east-1"):
             route53_client.change_resource_record_sets(
                 HostedZoneId=zone_id, ChangeBatch={"Changes": changes}
             )
-            logging.info(
-                f"✅ Deleted {len(changes)} records from zone {zone_id} ({domain_name})"
-            )
+            logging.info(f"✅ Deleted {len(changes)} records from zone {zone_id} ({domain_name})")
 
         # Delete the hosted zone itself
         route53_client.delete_hosted_zone(Id=zone_id)

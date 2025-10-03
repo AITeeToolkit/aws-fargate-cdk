@@ -79,9 +79,7 @@ class SQSStack(Stack):
             self,
             "StorefrontImageProcessingQueue",
             queue_name=f"storefront-{environment}-image-processing-queue",
-            visibility_timeout=Duration.minutes(
-                10
-            ),  # Longer timeout for image processing
+            visibility_timeout=Duration.minutes(10),  # Longer timeout for image processing
             retention_period=Duration.days(14),
             dead_letter_queue=sqs.DeadLetterQueue(max_receive_count=2, queue=self.dlq),
             removal_policy=(
@@ -98,9 +96,7 @@ class SQSStack(Stack):
             content_based_deduplication=True,
             visibility_timeout=Duration.minutes(5),
             retention_period=Duration.days(14),
-            dead_letter_queue=sqs.DeadLetterQueue(
-                max_receive_count=3, queue=self.fifo_dlq
-            ),
+            dead_letter_queue=sqs.DeadLetterQueue(max_receive_count=3, queue=self.fifo_dlq),
             removal_policy=(
                 RemovalPolicy.DESTROY if environment == "dev" else RemovalPolicy.RETAIN
             ),
@@ -115,9 +111,7 @@ class SQSStack(Stack):
             content_based_deduplication=False,  # We provide explicit deduplication IDs
             visibility_timeout=Duration.minutes(5),
             retention_period=Duration.days(14),
-            dead_letter_queue=sqs.DeadLetterQueue(
-                max_receive_count=3, queue=self.fifo_dlq
-            ),
+            dead_letter_queue=sqs.DeadLetterQueue(max_receive_count=3, queue=self.fifo_dlq),
             removal_policy=(
                 RemovalPolicy.DESTROY if environment == "dev" else RemovalPolicy.RETAIN
             ),

@@ -76,9 +76,7 @@ def export_elasticsearch_data(es_endpoint):
 
     try:
         # Get all indices
-        response = requests.get(
-            f"{es_endpoint}/_cat/indices?format=json", verify=False, auth=auth
-        )
+        response = requests.get(f"{es_endpoint}/_cat/indices?format=json", verify=False, auth=auth)
         if response.status_code != 200:
             print(f"❌ Could not list indices: {response.text}")
             return None
@@ -115,9 +113,7 @@ def export_elasticsearch_data(es_endpoint):
             )
 
             if scroll_response.status_code != 200:
-                print(
-                    f"⚠️ Could not start scroll for {index_name}: {scroll_response.text}"
-                )
+                print(f"⚠️ Could not start scroll for {index_name}: {scroll_response.text}")
                 continue
 
             scroll_data = scroll_response.json()
@@ -170,10 +166,7 @@ def import_to_opensearch(opensearch_endpoint, data):
         # Create indices first
         indices_created = set()
         for item in data:
-            if (
-                item["action"] == "create_index"
-                and item["index"] not in indices_created
-            ):
+            if item["action"] == "create_index" and item["index"] not in indices_created:
                 index_name = item["index"]
 
                 # Create index with mapping
@@ -235,9 +228,7 @@ def send_bulk_request(opensearch_endpoint, bulk_data, credentials):
     bulk_request.headers["Content-Type"] = "application/x-ndjson"
     SigV4Auth(credentials, "es", "us-east-1").add_auth(bulk_request)
 
-    response = requests.post(
-        bulk_url, data=bulk_request.body, headers=dict(bulk_request.headers)
-    )
+    response = requests.post(bulk_url, data=bulk_request.body, headers=dict(bulk_request.headers))
 
     if response.status_code != 200:
         print(f"⚠️ Bulk request failed: {response.text}")

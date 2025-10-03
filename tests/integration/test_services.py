@@ -41,9 +41,7 @@ class TestServiceHealth:
 
                 # If cluster exists but no services, skip with message
                 if len(services) == 0:
-                    pytest.skip(
-                        f"ECS cluster '{cluster_name}' found but no services deployed yet"
-                    )
+                    pytest.skip(f"ECS cluster '{cluster_name}' found but no services deployed yet")
 
                 # Check service status
                 service_details = self.ecs_client.describe_services(
@@ -67,9 +65,7 @@ class TestServiceHealth:
                     pytest.skip(f"Could not access ECS cluster: {e}")
 
         if not cluster_found:
-            pytest.skip(
-                f"No ECS cluster found. Tried: {', '.join(possible_cluster_names)}"
-            )
+            pytest.skip(f"No ECS cluster found. Tried: {', '.join(possible_cluster_names)}")
 
     def test_database_connectivity(self):
         """Test RDS database is accessible"""
@@ -83,9 +79,7 @@ class TestServiceHealth:
         db_found = False
         for db_identifier in possible_db_identifiers:
             try:
-                response = self.rds_client.describe_db_instances(
-                    DBInstanceIdentifier=db_identifier
-                )
+                response = self.rds_client.describe_db_instances(DBInstanceIdentifier=db_identifier)
 
                 db_instance = response["DBInstances"][0]
                 assert (
@@ -101,9 +95,7 @@ class TestServiceHealth:
                     pytest.skip(f"Could not access RDS instance: {e}")
 
         if not db_found:
-            pytest.skip(
-                f"No RDS instance found. Tried: {', '.join(possible_db_identifiers)}"
-            )
+            pytest.skip(f"No RDS instance found. Tried: {', '.join(possible_db_identifiers)}")
 
     def test_sqs_queues_exist(self):
         """Test SQS queues are created and accessible"""
@@ -151,9 +143,7 @@ class TestDomainProcessing:
             assert "HostedZones" in response
 
             # Test passes if we can access Route53, regardless of hosted zone count
-            print(
-                f"Route53 accessible. Found {len(response['HostedZones'])} hosted zones."
-            )
+            print(f"Route53 accessible. Found {len(response['HostedZones'])} hosted zones.")
 
         except ClientError as e:
             pytest.skip(f"Could not access Route53: {e}")

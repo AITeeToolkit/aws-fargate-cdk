@@ -130,9 +130,7 @@ certificate_stack = CertificateStack(
 # Deploy stacks for each environment
 for current_env in environments_to_deploy:
     current_config = env_config.get(current_env, env_config["dev"])
-    print(
-        f"🛠️ Creating stacks for {current_env} environment with config: {current_config}"
-    )
+    print(f"🛠️ Creating stacks for {current_env} environment with config: {current_config}")
 
     # Get environment-specific domains (dev.domain.com, staging.domain.com, or domain.com for prod)
     env_domains = get_env_domains(base_domains, current_env)
@@ -192,9 +190,7 @@ for current_env in environments_to_deploy:
     )
 
     # SQS queues for message processing for this environment
-    sqs_stack = SQSStack(
-        app, f"SQSStack-{current_env}", env=env, environment=current_env
-    )
+    sqs_stack = SQSStack(app, f"SQSStack-{current_env}", env=env, environment=current_env)
 
     # Redis Serverless for caching for this environment
     redis_stack = RedisStack(

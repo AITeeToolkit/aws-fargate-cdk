@@ -34,12 +34,12 @@ jobs:
       coverage: ${{ steps.coverage.outputs.coverage }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-          
+
       - name: Cache pip dependencies
         uses: actions/cache@v3
         with:
@@ -47,13 +47,13 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('tests/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-            
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r tests/requirements.txt
           pip install -r requirements.txt
-          
+
       - name: Run unit tests
         run: |
           pytest tests/unit/ -v \
@@ -64,7 +64,7 @@ jobs:
             --cov-fail-under=80 \
             --junitxml=junit/unit-test-results.xml \
             --html=junit/unit-test-results.html --self-contained-html
-          
+
       - name: Extract coverage percentage
         id: coverage
         run: |
@@ -76,14 +76,14 @@ jobs:
           print(f'{coverage:.1f}')
           ")
           echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
-          
+
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: unit-test-results
           path: junit/unit-test-results.xml
-          
+
       - name: Upload coverage reports
         uses: actions/upload-artifact@v4
         with:
@@ -97,32 +97,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-          
+
       - name: Install linting tools
         run: |
           python -m pip install --upgrade pip
-          pip install flake8 black isort bandit safety
+          pip install flake8 black==24.10.0 isort==5.13.2 bandit safety
           # Verify installations
           black --version
           isort --version
           flake8 --version
           bandit --version
           safety --version
-          
+
       - name: Run Black formatter check
-        run: black --check --diff .
-        
+        run: black --check --diff --line-length=100 .
+
       - name: Run isort import sorting check
-        run: isort --check-only --diff .
-        
+        run: isort --check-only --diff --profile=black --line-length=100 .
+
       - name: Run flake8 linting
         run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        
+
       - name: Run Bandit security scan
         run: |
           echo "Running Bandit security scan..."
@@ -134,7 +134,7 @@ jobs:
           fi
           ls -la bandit-report.json
         continue-on-error: true
-        
+
       - name: Run Safety dependency scan
         run: |
           echo "Running Safety dependency scan..."
@@ -146,7 +146,7 @@ jobs:
           fi
           ls -la safety-report.json
         continue-on-error: true
-        
+
       - name: Upload security reports
         uses: actions/upload-artifact@v4
         if: always()
@@ -167,25 +167,25 @@ jobs:
       total: ${{ steps.test_results.outputs.total }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-          
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r tests/requirements.txt
           pip install -r requirements.txt
-          
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_CODEBUILD_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-          
+
       - name: Run integration tests
         id: test_results
         run: |
@@ -194,23 +194,23 @@ jobs:
             --html=junit/integration-test-results.html --self-contained-html \
             --tb=short \
             2>&1 | tee integration_output.txt
-          
+
           # Extract test counts
           PASSED=$(grep -oP '\d+(?= passed)' integration_output.txt || echo "0")
           TOTAL=$(grep -oP 'collected \d+' integration_output.txt | grep -oP '\d+' || echo "0")
-          
+
           if [ "$TOTAL" -gt 0 ]; then
             PASS_RATE=$(python3 -c "print(f'{($PASSED/$TOTAL)*100:.1f}')")
           else
             PASS_RATE="0.0"
           fi
-          
+
           echo "passed=$PASSED" >> $GITHUB_OUTPUT
           echo "total=$TOTAL" >> $GITHUB_OUTPUT
           echo "pass_rate=$PASS_RATE" >> $GITHUB_OUTPUT
         env:
           ENVIRONMENT: ${{ env.ENVIRONMENT }}
-          
+
       - name: Upload integration test results
         uses: actions/upload-artifact@v4
         if: always()
@@ -231,35 +231,35 @@ jobs:
       total: ${{ steps.perf_results.outputs.total }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-          
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r tests/requirements.txt
           pip install -r requirements.txt
           pip install locust
-          
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_CODEBUILD_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-          
+
       - name: Get service endpoints
         id: endpoints
         run: |
           # Get web endpoint based on environment
           ENV_NAME="${{ env.ENVIRONMENT }}"
-          
+
           # Get first domain from domains.json (limit to 1-2 domains for testing)
           FIRST_DOMAIN=$(jq -r '.domains[0] // "cidertees.com"' domains.json 2>/dev/null || echo "cidertees.com")
-          
+
           # Use actual domain with environment prefix (host-based routing requires domain)
           if [ "$ENV_NAME" = "prod" ]; then
             # Production uses root domain (e.g., cidertees.com)
@@ -268,10 +268,10 @@ jobs:
             # Dev/Staging use environment prefix (e.g., dev.cidertees.com, staging.cidertees.com)
             WEB_DOMAIN="${ENV_NAME}.${FIRST_DOMAIN}"
           fi
-          
+
           echo "WEB_ENDPOINT=https://${WEB_DOMAIN}" >> $GITHUB_ENV
           echo "✅ Web endpoint configured: https://${WEB_DOMAIN}"
-      
+
       - name: Run performance tests
         id: perf_results
         run: |
@@ -280,12 +280,12 @@ jobs:
             --html=junit/performance-test-results.html --self-contained-html \
             --tb=short \
             2>&1 | tee perf_output.txt
-          
+
           # Extract test counts
           PASSED=$(grep -oP '\d+(?= passed)' perf_output.txt || echo "0")
           SKIPPED=$(grep -oP '\d+(?= skipped)' perf_output.txt || echo "0")
           TOTAL=$(grep -oP 'collected \d+' perf_output.txt | grep -oP '\d+' || echo "0")
-          
+
           # Calculate pass rate (excluding skipped)
           ACTUAL_TOTAL=$((TOTAL - SKIPPED))
           if [ "$ACTUAL_TOTAL" -gt 0 ]; then
@@ -293,11 +293,11 @@ jobs:
           else
             PASS_RATE="0.0"
           fi
-          
+
           echo "passed=$PASSED" >> $GITHUB_OUTPUT
           echo "total=$ACTUAL_TOTAL" >> $GITHUB_OUTPUT
           echo "pass_rate=$PASS_RATE" >> $GITHUB_OUTPUT
-          
+
           # Check if all tests were skipped
           if [ "$PASSED" -eq 0 ] && [ "$SKIPPED" -gt 0 ]; then
             echo "⚠️  All performance tests were skipped - no tests actually ran!"
@@ -306,7 +306,7 @@ jobs:
           fi
         env:
           ENVIRONMENT: ${{ env.ENVIRONMENT }}
-          
+
       - name: Upload performance test results
         uses: actions/upload-artifact@v4
         if: always()
@@ -326,7 +326,7 @@ jobs:
     steps:
       - name: Download all test artifacts
         uses: actions/download-artifact@v4
-        
+
       - name: Generate test summary
         id: summary
         run: |
@@ -334,7 +334,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Test Results Overview" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Unit Tests
           if [ "${{ needs.unit-tests.result }}" = "success" ]; then
             echo "✅ **Unit Tests**: Passed (Coverage: ${{ needs.unit-tests.outputs.coverage }}%)" >> $GITHUB_STEP_SUMMARY
@@ -343,7 +343,7 @@ jobs:
             echo "❌ **Unit Tests**: Failed" >> $GITHUB_STEP_SUMMARY
             UNIT_STATUS="❌ FAIL"
           fi
-          
+
           # Lint & Security
           if [ "${{ needs.lint-and-security.result }}" = "success" ]; then
             echo "✅ **Lint & Security**: Passed" >> $GITHUB_STEP_SUMMARY
@@ -352,7 +352,7 @@ jobs:
             echo "❌ **Lint & Security**: Failed" >> $GITHUB_STEP_SUMMARY
             LINT_STATUS="❌ FAIL"
           fi
-          
+
           # Integration Tests
           if [ "${{ needs.integration-tests.result }}" = "success" ]; then
             echo "✅ **Integration Tests**: Passed (${{ needs.integration-tests.outputs.passed }}/${{ needs.integration-tests.outputs.total }} - ${{ needs.integration-tests.outputs.pass_rate }}%)" >> $GITHUB_STEP_SUMMARY
@@ -365,7 +365,7 @@ jobs:
             echo "❌ **Integration Tests**: Failed" >> $GITHUB_STEP_SUMMARY
             INTEGRATION_STATUS="❌ FAIL"
           fi
-          
+
           # Performance Tests
           if [ "${{ needs.performance-tests.result }}" = "success" ]; then
             echo "✅ **Performance Tests**: Passed (${{ needs.performance-tests.outputs.passed }}/${{ needs.performance-tests.outputs.total }} - ${{ needs.performance-tests.outputs.pass_rate }}%)" >> $GITHUB_STEP_SUMMARY
@@ -380,7 +380,7 @@ jobs:
             PERFORMANCE_STATUS="❌ FAIL"
             PERFORMANCE_COVERAGE="-"
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Summary" >> $GITHUB_STEP_SUMMARY
           echo "| Test Type | Status | Coverage |" >> $GITHUB_STEP_SUMMARY
@@ -389,11 +389,11 @@ jobs:
           echo "| Lint & Security | $LINT_STATUS | - |" >> $GITHUB_STEP_SUMMARY
           echo "| Integration | $INTEGRATION_STATUS | ${INTEGRATION_COVERAGE:-"-"} |" >> $GITHUB_STEP_SUMMARY
           echo "| Performance | $PERFORMANCE_STATUS | ${PERFORMANCE_COVERAGE:-"-"} |" >> $GITHUB_STEP_SUMMARY
-          
+
           # Set overall result (all tests must pass)
-          if [[ "${{ needs.unit-tests.result }}" == "success" && 
-                "${{ needs.lint-and-security.result }}" == "success" && 
-                ("${{ needs.integration-tests.result }}" == "success" || "${{ needs.integration-tests.result }}" == "skipped") && 
+          if [[ "${{ needs.unit-tests.result }}" == "success" &&
+                "${{ needs.lint-and-security.result }}" == "success" &&
+                ("${{ needs.integration-tests.result }}" == "success" || "${{ needs.integration-tests.result }}" == "skipped") &&
                 ("${{ needs.performance-tests.result }}" == "success" || "${{ needs.performance-tests.result }}" == "skipped") ]]; then
             echo "results=success" >> $GITHUB_OUTPUT
           else

@@ -3,9 +3,7 @@ import os
 import subprocess
 
 
-def resolve_tag(
-    context_key: str, env_var: str, app_context, service_name: str = None
-) -> str:
+def resolve_tag(context_key: str, env_var: str, app_context, service_name: str = None) -> str:
     """
     Resolve a tag with clear priorities:
     1. CDK context (from --context)
@@ -30,9 +28,7 @@ def resolve_tag(
         if service_name in ["listener", "dns-worker"]:
             # Local services: use local git tags
             prefix = f"{service_name}-v*"
-            result = subprocess.run(
-                ["git", "tag", "-l", prefix], capture_output=True, text=True
-            )
+            result = subprocess.run(["git", "tag", "-l", prefix], capture_output=True, text=True)
             if result.returncode == 0 and result.stdout.strip():
                 tags = [t.strip() for t in result.stdout.splitlines()]
                 latest_tag = sorted(
@@ -45,9 +41,7 @@ def resolve_tag(
                 return version
         elif service_name in ["api", "web"]:
             # Remote services: fetch from storefront-cdk repository
-            print(
-                f"🔍 Fetching latest {service_name} tag from storefront-cdk repository..."
-            )
+            print(f"🔍 Fetching latest {service_name} tag from storefront-cdk repository...")
             result = subprocess.run(
                 [
                     "git",
@@ -64,9 +58,7 @@ def resolve_tag(
                 remote_tags = []
                 for line in result.stdout.strip().split("\n"):
                     if f"{service_name}-v" in line:
-                        tag = line.split("/")[
-                            -1
-                        ]  # Extract tag name from refs/tags/api-v1.6.1
+                        tag = line.split("/")[-1]  # Extract tag name from refs/tags/api-v1.6.1
                         remote_tags.append(tag)
 
                 if remote_tags:

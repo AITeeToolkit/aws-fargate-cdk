@@ -33,9 +33,7 @@ class DomainDnsStack(Stack):
         root_zone_name = ".".join(domain_name.split(".")[-2:])
 
         # Lookup existing hosted zone for the root domain
-        zone = route53.HostedZone.from_lookup(
-            self, "HostedZone", domain_name=root_zone_name
-        )
+        zone = route53.HostedZone.from_lookup(self, "HostedZone", domain_name=root_zone_name)
 
         # Lambda function for idempotent Route53 record creation
         route53_record_lambda = _lambda.Function(
@@ -107,11 +105,11 @@ def handler(event, context):
             else:
                 # Verify existing record has correct values
                 existing_record = next(
-                    (record for record in existing_records 
-                     if record['Name'] == record_name and record['Type'] == record_type), 
+                    (record for record in existing_records
+                     if record['Name'] == record_name and record['Type'] == record_type),
                     None
                 )
-                
+
                 # Check if values match what we expect
                 needs_update = False
                 if record_type == 'A' and 'AliasTarget' in props:
@@ -126,7 +124,7 @@ def handler(event, context):
                     if set(existing_values) != set(record_values):
                         needs_update = True
                         logger.info(f"Record values mismatch for {record_name}: expected {record_values}, got {existing_values}")
-                
+
                 if needs_update:
                     # Update the record by replacing it
                     change = {
@@ -239,9 +237,7 @@ def handler(event, context):
                             "route53:ListResourceRecordSets",
                             "route53:ChangeResourceRecordSets",
                         ],
-                        resources=[
-                            f"arn:aws:route53:::hostedzone/{zone.hosted_zone_id}"
-                        ],
+                        resources=[f"arn:aws:route53:::hostedzone/{zone.hosted_zone_id}"],
                     ),
                 ]
             )
@@ -258,9 +254,7 @@ def handler(event, context):
                             {"RequestType": "Create", "ResourceProperties": props}
                         ),
                     },
-                    physical_resource_id=cr.PhysicalResourceId.of(
-                        f"{record_name}-{record_type}"
-                    ),
+                    physical_resource_id=cr.PhysicalResourceId.of(f"{record_name}-{record_type}"),
                 ),
                 on_update=cr.AwsSdkCall(
                     service="Lambda",
@@ -271,9 +265,7 @@ def handler(event, context):
                             {"RequestType": "Update", "ResourceProperties": props}
                         ),
                     },
-                    physical_resource_id=cr.PhysicalResourceId.of(
-                        f"{record_name}-{record_type}"
-                    ),
+                    physical_resource_id=cr.PhysicalResourceId.of(f"{record_name}-{record_type}"),
                 ),
                 on_delete=cr.AwsSdkCall(
                     service="Lambda",
@@ -284,9 +276,7 @@ def handler(event, context):
                             {"RequestType": "Delete", "ResourceProperties": props}
                         ),
                     },
-                    physical_resource_id=cr.PhysicalResourceId.of(
-                        f"{record_name}-{record_type}"
-                    ),
+                    physical_resource_id=cr.PhysicalResourceId.of(f"{record_name}-{record_type}"),
                 ),
                 policy=custom_resource_policy,
                 install_latest_aws_sdk=False,  # Use Lambda runtime's built-in SDK
@@ -298,9 +288,7 @@ def handler(event, context):
             "DNSName": alb.load_balancer_dns_name,
             "EvaluateTargetHealth": False,
         }
-        create_route53_record(
-            "DomainAliasRecord", domain_name, "A", [], alias_target=alias_target
-        )
+        create_route53_record("DomainAliasRecord", domain_name, "A", [], alias_target=alias_target)
 
         # SPF record
         spf_value = " ".join(["v=spf1"] + (spf_servers or []) + ["~all"])

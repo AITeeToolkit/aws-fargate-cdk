@@ -117,9 +117,7 @@ class DatabaseStack(Stack):
         # Override CloudFormation to allow replacement of custom-named resource
         cfn_db = self.db_instance.node.default_child
         cfn_db.add_override("UpdateReplacePolicy", "Snapshot")
-        cfn_db.add_override(
-            "DeletionPolicy", "Snapshot" if deletion_protection else "Delete"
-        )
+        cfn_db.add_override("DeletionPolicy", "Snapshot" if deletion_protection else "Delete")
 
         self.secret = self.db_instance.secret
 
@@ -144,9 +142,7 @@ class DatabaseStack(Stack):
             self,
             f"DatabasePassword-{environment}",
             parameter_name=f"/storefront-{environment}/database/password",
-            string_value=self.db_instance.secret.secret_value_from_json(
-                "password"
-            ).unsafe_unwrap(),
+            string_value=self.db_instance.secret.secret_value_from_json("password").unsafe_unwrap(),
             description=f"Database password - {self.db_instance.instance_identifier}",
         )
 
@@ -155,9 +151,7 @@ class DatabaseStack(Stack):
             self,
             f"DatabaseUsername-{environment}",
             parameter_name=f"/storefront-{environment}/database/username",
-            string_value=self.db_instance.secret.secret_value_from_json(
-                "username"
-            ).unsafe_unwrap(),
+            string_value=self.db_instance.secret.secret_value_from_json("username").unsafe_unwrap(),
             description=f"Database username - {self.db_instance.instance_identifier}",
         )
 
@@ -166,9 +160,7 @@ class DatabaseStack(Stack):
             self,
             f"DatabaseName-{environment}",
             parameter_name=f"/storefront-{environment}/database/name",
-            string_value=self.db_instance.secret.secret_value_from_json(
-                "dbname"
-            ).unsafe_unwrap(),
+            string_value=self.db_instance.secret.secret_value_from_json("dbname").unsafe_unwrap(),
             description=f"Database name - {self.db_instance.instance_identifier}",
         )
 

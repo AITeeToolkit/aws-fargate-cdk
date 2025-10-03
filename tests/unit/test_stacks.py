@@ -292,9 +292,7 @@ class TestECRStack:
             "AWS::ECR::Repository",
             {
                 "LifecyclePolicy": {
-                    "LifecyclePolicyText": assertions.Match.string_like_regexp(
-                        r".*tagStatus.*"
-                    )
+                    "LifecyclePolicyText": assertions.Match.string_like_regexp(r".*tagStatus.*")
                 }
             },
         )
@@ -362,9 +360,7 @@ class TestSQSStack:
 
     def test_sqs_queues_creation(self, cdk_app, test_environment):
         """Test SQS queues are created"""
-        sqs_stack = SQSStack(
-            cdk_app, "TestSQSStack", env=test_environment, environment="test"
-        )
+        sqs_stack = SQSStack(cdk_app, "TestSQSStack", env=test_environment, environment="test")
         template = assertions.Template.from_stack(sqs_stack)
 
         # Should create 8 queues: 6 main queues + 2 DLQs
@@ -389,9 +385,7 @@ class TestSQSStack:
 
     def test_sqs_managed_policy(self, cdk_app, test_environment):
         """Test SQS managed policy is created"""
-        sqs_stack = SQSStack(
-            cdk_app, "TestSQSStack", env=test_environment, environment="test"
-        )
+        sqs_stack = SQSStack(cdk_app, "TestSQSStack", env=test_environment, environment="test")
         template = assertions.Template.from_stack(sqs_stack)
 
         # Verify managed policy for SQS access
@@ -427,9 +421,7 @@ class TestAPIServiceStack:
         opensearch_stack = OpenSearchStack(
             cdk_app, "TestOpenSearchStack", env=test_environment, environment="test"
         )
-        sqs_stack = SQSStack(
-            cdk_app, "TestSQSStack", env=test_environment, environment="test"
-        )
+        sqs_stack = SQSStack(cdk_app, "TestSQSStack", env=test_environment, environment="test")
 
         # Create API service
         api_stack = APIServiceStack(
@@ -733,11 +725,7 @@ class TestDomainDnsStack:
                             assertions.Match.object_like(
                                 {
                                     "Action": assertions.Match.array_with(
-                                        [
-                                            assertions.Match.string_like_regexp(
-                                                "route53:.*"
-                                            )
-                                        ]
+                                        [assertions.Match.string_like_regexp("route53:.*")]
                                     )
                                 }
                             )

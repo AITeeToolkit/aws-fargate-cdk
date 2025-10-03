@@ -9,9 +9,7 @@ from constructs import Construct
 
 class SharedStack(Stack):
 
-    def __init__(
-        self, scope: Construct, construct_id: str, vpc: IVpc, **kwargs
-    ) -> None:
+    def __init__(self, scope: Construct, construct_id: str, vpc: IVpc, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         # ECS Cluster shared by all services
@@ -21,9 +19,7 @@ class SharedStack(Stack):
             vpc=vpc,
             container_insights=True,
             cluster_name="storefront-cluster",
-            default_cloud_map_namespace=ecs.CloudMapNamespaceOptions(
-                name="storefront.local"
-            ),
+            default_cloud_map_namespace=ecs.CloudMapNamespaceOptions(name="storefront.local"),
         )
 
         # IAM Role for ECS task execution (pulling from ECR, sending logs)

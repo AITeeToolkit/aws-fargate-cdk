@@ -83,9 +83,7 @@ class FargateServiceConstruct(Construct):
         if opensearch_task_role:
             # Add additional permissions to the provided OpenSearch role
             opensearch_task_role.add_managed_policy(
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AmazonEC2ContainerRegistryReadOnly"
-                )
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2ContainerRegistryReadOnly")
             )
 
             # Add SQS permissions if provided
@@ -140,9 +138,7 @@ class FargateServiceConstruct(Construct):
         else:
             # Use default task role permissions
             task_def.task_role.add_managed_policy(
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AmazonEC2ContainerRegistryReadOnly"
-                )
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2ContainerRegistryReadOnly")
             )
 
             # Add SQS permissions if provided
@@ -201,9 +197,7 @@ class FargateServiceConstruct(Construct):
             if isinstance(value_from, str):
                 # SSM parameter
                 ecs_secrets[name] = ecs.Secret.from_ssm_parameter(
-                    ssm.StringParameter.from_string_parameter_name(
-                        self, f"{name}Param", value_from
-                    )
+                    ssm.StringParameter.from_string_parameter_name(self, f"{name}Param", value_from)
                 )
             else:
                 # Already an ECS Secret object (from Secrets Manager)

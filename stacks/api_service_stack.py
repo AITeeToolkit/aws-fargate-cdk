@@ -96,9 +96,7 @@ class APIServiceStack(Stack):
             environment=api_environment,
             secrets=api_secrets,
             desired_count=desired_count,
-            security_groups=(
-                [ecs_task_security_group] if ecs_task_security_group else []
-            ),
+            security_groups=([ecs_task_security_group] if ecs_task_security_group else []),
             service_name=service_name,
             opensearch_task_role=opensearch_role,  # Pass the OpenSearch role
             sqs_managed_policy=sqs_managed_policy,  # Pass the SQS managed policy

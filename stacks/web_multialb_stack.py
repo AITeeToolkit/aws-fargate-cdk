@@ -126,18 +126,14 @@ class MultiAlbStack(Stack):
         """
         for idx, listener in enumerate(self.listeners, start=1):
             domains_for_this_listener = [
-                d
-                for d, alb in self.domain_to_alb.items()
-                if alb == listener.load_balancer
+                d for d, alb in self.domain_to_alb.items() if alb == listener.load_balancer
             ]
             listener.add_targets(
                 f"WebTargets-{idx}",
                 port=port,
                 protocol=elbv2.ApplicationProtocol.HTTP,
                 targets=[service],
-                conditions=[
-                    elbv2.ListenerCondition.host_headers(domains_for_this_listener)
-                ],
+                conditions=[elbv2.ListenerCondition.host_headers(domains_for_this_listener)],
                 priority=1000 + idx,
                 health_check=elbv2.HealthCheck(
                     enabled=True,

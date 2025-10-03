@@ -37,9 +37,7 @@ logging.info("🔄 SQS Mode: DNS operations will be queued for batch processing"
 # Fetch active domains from database (same as original listener_app.py)
 def fetch_domains():
     cur = conn.cursor()
-    cur.execute(
-        "SELECT DISTINCT full_url FROM purchased_domains WHERE active_domain = 'Y';"
-    )
+    cur.execute("SELECT DISTINCT full_url FROM purchased_domains WHERE active_domain = 'Y';")
     result = [row[0] for row in cur.fetchall()]
     cur.close()
     return result
@@ -72,9 +70,7 @@ def handle_domain_change(domain_name: str, active: str):
         sqs_success = publish_domain_change(domain_name, active)
 
         if sqs_success:
-            logging.info(
-                f"✅ Successfully queued {domain_name} {action} for DNS worker"
-            )
+            logging.info(f"✅ Successfully queued {domain_name} {action} for DNS worker")
             logging.info(
                 f"🔄 DNS Worker will handle database updates, hosted zone operations, and infrastructure updates atomically"
             )

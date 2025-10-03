@@ -53,12 +53,8 @@ class SQSDNSPublisher:
             aws_secret_access_key: AWS secret key (optional, uses IAM role if not provided)
         """
         self.queue_url = queue_url or os.environ.get("SQS_DNS_OPERATIONS_QUEUE_URL")
-        self.region_name = region_name or os.environ.get(
-            "AWS_DEFAULT_REGION", "us-east-1"
-        )
-        self.aws_access_key_id = aws_access_key_id or os.environ.get(
-            "AWS_ACCESS_KEY_ID"
-        )
+        self.region_name = region_name or os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+        self.aws_access_key_id = aws_access_key_id or os.environ.get("AWS_ACCESS_KEY_ID")
         self.aws_secret_access_key = aws_secret_access_key or os.environ.get(
             "AWS_SECRET_ACCESS_KEY"
         )
@@ -95,9 +91,7 @@ class SQSDNSPublisher:
             return True
 
         except NoCredentialsError:
-            logger.error(
-                "AWS credentials not found. Configure IAM role or environment variables."
-            )
+            logger.error("AWS credentials not found. Configure IAM role or environment variables.")
             self._connected = False
             return False
 

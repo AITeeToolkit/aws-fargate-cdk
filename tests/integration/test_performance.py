@@ -99,9 +99,7 @@ class TestAPIPerformance:
             for _ in range(requests_per_second):
                 try:
                     response = requests.get(f"{self.api_endpoint}/health", timeout=5)
-                    results.append(
-                        {"success": response.status_code == 200, "time": time.time()}
-                    )
+                    results.append({"success": response.status_code == 200, "time": time.time()})
                 except Exception:
                     results.append({"success": False, "time": time.time()})
 
@@ -121,9 +119,7 @@ class TestAPIPerformance:
         print(f"  Success Rate: {success_rate:.1%}")
         print(f"  Target Rate: {requests_per_second} req/s")
 
-        assert (
-            success_rate >= 0.90
-        ), f"Sustained load success rate {success_rate:.1%} below 90%"
+        assert success_rate >= 0.90, f"Sustained load success rate {success_rate:.1%} below 90%"
 
 
 @pytest.mark.performance
@@ -145,9 +141,7 @@ class TestWebPerformance:
         def load_page(user_id):
             start = time.time()
             try:
-                response = requests.get(
-                    self.web_endpoint, timeout=10, allow_redirects=True
-                )
+                response = requests.get(self.web_endpoint, timeout=10, allow_redirects=True)
                 elapsed = time.time() - start
                 return {
                     "user": user_id,
@@ -269,9 +263,7 @@ class TestDomainProcessingPerformance:
         for batch_start in range(0, len(entries), 10):
             batch = entries[batch_start : batch_start + 10]
             try:
-                self.sqs_client.send_message_batch(
-                    QueueUrl=self.queue_url, Entries=batch
-                )
+                self.sqs_client.send_message_batch(QueueUrl=self.queue_url, Entries=batch)
             except Exception as e:
                 print(f"Batch send failed: {e}")
 
@@ -325,6 +317,4 @@ class TestDomainProcessingPerformance:
 
         # Should be able to create at least 0.5 zones per second
         if len(created_zones) > 0:
-            assert (
-                len(created_zones) / creation_time >= 0.5
-            ), "Zone creation rate below 0.5/sec"
+            assert len(created_zones) / creation_time >= 0.5, "Zone creation rate below 0.5/sec"

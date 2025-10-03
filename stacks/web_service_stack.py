@@ -78,9 +78,7 @@ class WebServiceStack(Stack):
             environment=web_environment,
             secrets=web_secrets,
             desired_count=desired_count,
-            security_groups=(
-                [ecs_task_security_group] if ecs_task_security_group else []
-            ),
+            security_groups=([ecs_task_security_group] if ecs_task_security_group else []),
             service_name=service_name,
             opensearch_task_role=opensearch_role,  # Pass the OpenSearch role
             cloud_map_options=ecs.CloudMapOptions(
