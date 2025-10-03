@@ -4,7 +4,6 @@ from aws_cdk import aws_elasticache as elasticache
 from aws_cdk import aws_ssm as ssm
 from constructs import Construct
 
-
 class RedisStack(Stack):
     def __init__(
         self,
@@ -36,17 +35,12 @@ class RedisStack(Stack):
             description="Allow Redis traffic from VPC",
         )
 
-        # Get private subnet IDs (use isolated subnets if no private subnets exist)
+        # Get private subnet IDs (fallback to isolated if needed)
         private_subnet_ids = [subnet.subnet_id for subnet in vpc.private_subnets]
-
         if not private_subnet_ids:
-            # Fall back to isolated subnets
             private_subnet_ids = [subnet.subnet_id for subnet in vpc.isolated_subnets]
-
         if not private_subnet_ids:
-            raise ValueError(
-                f"No private or isolated subnets found in VPC for {environment}"
-            )
+            raise ValueError(f"No private or isolated subnets found in VPC for {environment}")
 
         # Create ElastiCache Serverless for Valkey
         self.redis_cache = elasticache.CfnServerlessCache(
@@ -55,22 +49,18 @@ class RedisStack(Stack):
             engine="valkey",
             serverless_cache_name=f"storefront-cache-{environment}",
             description=f"Valkey Serverless cache for {environment} environment",
-            # Provide subnet IDs directly (ElastiCache Serverless doesn't use subnet groups)
             subnet_ids=private_subnet_ids,
             security_group_ids=[self.redis_security_group.security_group_id],
-            # Set usage limits to control costs
-            # Convert GB to MB to support fractional GB values (e.g., 0.2 GB = 200 MB)
             cache_usage_limits=elasticache.CfnServerlessCache.CacheUsageLimitsProperty(
                 data_storage=elasticache.CfnServerlessCache.DataStorageProperty(
-                    maximum=int(max_storage_gb * 1024),
-                    unit="MB",  # Use MB to support sub-GB values
+                    maximum=max_storage_gb,
+                    unit="GB",
                 ),
                 ecpu_per_second=elasticache.CfnServerlessCache.ECPUPerSecondProperty(
                     maximum=max_ecpu
                 ),
             ),
-            # Optional: Configure snapshot retention
-            daily_snapshot_time="03:00",  # 3 AM UTC
+            daily_snapshot_time="03:00",
             snapshot_retention_limit=snapshot_retention,
         )
 
@@ -91,7 +81,7 @@ class RedisStack(Stack):
             description=f"Redis Serverless port for {environment}",
         )
 
-        # Output the Redis endpoint
+        # CloudFormation outputs
         CfnOutput(
             self,
             "RedisEndpointOutput",
@@ -108,6 +98,6 @@ class RedisStack(Stack):
             export_name=f"{environment}-redis-port",
         )
 
-        # Store security group for other stacks to reference
+        # Handy attributes for other stacks
         self.redis_endpoint = self.redis_cache.attr_endpoint_address
         self.redis_port = self.redis_cache.attr_endpoint_port

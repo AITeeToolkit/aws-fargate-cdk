@@ -38,13 +38,11 @@ VPC Private Subnets
 
 **Total estimated cost:** ~$36-$39/month for all environments
 
-**Note**: Storage is specified in MB units in CloudFormation to support sub-GB values (0.2 GB = 200 MB).
-
 ### Storage Size Comparison
 
 | Storage Size | Cost per GB-hour | Cost per Month (1 env) | Cost for 3 Envs | Use Case |
 |--------------|------------------|------------------------|-----------------|----------|
-| **100 MB** (Valkey min) | $0.0837 | ~$6 | ~$18/month | Minimal caching, testing |
+| **100 MB** (min Valkey) | $0.0837 | ~$6 | ~$18/month | Minimal caching, testing |
 | **200 MB** (current) | $0.0837 | ~$12 | ~$36/month | Light caching, session storage |
 | **500 MB** | $0.0837 | ~$31 | ~$93/month | Moderate caching |
 | **1 GB** | $0.0837 | ~$61 | ~$183/month | Standard caching workload |
