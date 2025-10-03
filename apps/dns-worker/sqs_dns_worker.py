@@ -58,9 +58,7 @@ class SQSDNSWorker:
             batch_timeout: Seconds to wait before processing incomplete batch
         """
         self.queue_url = queue_url or os.environ.get("SQS_DNS_OPERATIONS_QUEUE_URL")
-        self.region_name = region_name or os.environ.get(
-            "AWS_DEFAULT_REGION", "us-east-1"
-        )
+        self.region_name = region_name or os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
         # Use IAM role for AWS authentication (no explicit credentials needed)
         self.aws_access_key_id = None
         self.aws_secret_access_key = None
@@ -138,9 +136,7 @@ class SQSDNSWorker:
             return True
 
         except NoCredentialsError:
-            logger.error(
-                "AWS credentials not found. Configure IAM role or environment variables."
-            )
+            logger.error("AWS credentials not found. Configure IAM role or environment variables.")
             return False
 
         except Exception as e:
@@ -240,9 +236,7 @@ class SQSDNSWorker:
             bool: True if message deleted successfully, False otherwise
         """
         try:
-            self.sqs_client.delete_message(
-                QueueUrl=self.queue_url, ReceiptHandle=receipt_handle
-            )
+            self.sqs_client.delete_message(QueueUrl=self.queue_url, ReceiptHandle=receipt_handle)
             logger.debug("Message deleted from SQS queue")
             return True
 
@@ -310,15 +304,11 @@ class SQSDNSWorker:
                 )
                 self.db_connection.commit()
 
-            logger.info(
-                f"✅ Domain {domain_name} marked as active for tenant {tenant_id}"
-            )
+            logger.info(f"✅ Domain {domain_name} marked as active for tenant {tenant_id}")
             return True
 
         except Exception as e:
-            logger.error(
-                f"❌ Failed to update domain activation for {domain_name}: {e}"
-            )
+            logger.error(f"❌ Failed to update domain activation for {domain_name}: {e}")
             self.db_connection.rollback()
             return False
 
@@ -361,9 +351,7 @@ class SQSDNSWorker:
             return True
 
         except Exception as e:
-            logger.error(
-                f"❌ Failed to update domain deactivation for {domain_name}: {e}"
-            )
+            logger.error(f"❌ Failed to update domain deactivation for {domain_name}: {e}")
             try:
                 self.db_connection.rollback()
             except:
@@ -438,22 +426,16 @@ class SQSDNSWorker:
                 # Find the hosted zone
                 response = self.route53_client.list_hosted_zones_by_name(DNSName=domain)
                 hosted_zones = response.get("HostedZones", [])
-                zone = next(
-                    (z for z in hosted_zones if z["Name"] == f"{domain}."), None
-                )
+                zone = next((z for z in hosted_zones if z["Name"] == f"{domain}."), None)
 
                 if not zone:
-                    logger.warning(
-                        f"⚠️ No hosted zone found for {domain}, nothing to delete"
-                    )
+                    logger.warning(f"⚠️ No hosted zone found for {domain}, nothing to delete")
                     continue
 
                 zone_id = zone["Id"].split("/")[-1]  # Clean zone ID
 
                 # Get all record sets
-                record_sets = self.route53_client.list_resource_record_sets(
-                    HostedZoneId=zone_id
-                )
+                record_sets = self.route53_client.list_resource_record_sets(HostedZoneId=zone_id)
 
                 changes = []
                 for record in record_sets["ResourceRecordSets"]:
@@ -461,21 +443,15 @@ class SQSDNSWorker:
                     record_name = record["Name"]
 
                     if record_type in ["A", "MX", "TXT", "CNAME"]:
-                        logger.info(
-                            f"🗑️ Scheduling deletion for {record_type} record {record_name}"
-                        )
-                        changes.append(
-                            {"Action": "DELETE", "ResourceRecordSet": record}
-                        )
+                        logger.info(f"🗑️ Scheduling deletion for {record_type} record {record_name}")
+                        changes.append({"Action": "DELETE", "ResourceRecordSet": record})
 
                 # Batch delete records (skip SOA/NS, they are required for the zone)
                 if changes:
                     self.route53_client.change_resource_record_sets(
                         HostedZoneId=zone_id, ChangeBatch={"Changes": changes}
                     )
-                    logger.info(
-                        f"✅ Deleted {len(changes)} records from zone {zone_id} ({domain})"
-                    )
+                    logger.info(f"✅ Deleted {len(changes)} records from zone {zone_id} ({domain})")
 
                 # Delete the hosted zone itself
                 # TODO: Temporarily disabled - keeping hosted zones but deleting records
@@ -507,32 +483,49 @@ class SQSDNSWorker:
             domains_content = json.dumps({"domains": domains}, indent=2)
             headers = {"Authorization": f"token {self.github_token}"}
 
-            # Get latest commit SHA from main
-            url = f"https://api.github.com/repos/{self.repo}/git/refs/heads/main"
+            # Get latest release tag instead of main branch HEAD
+            # This ensures we only use stable, released code
+            url = f"https://api.github.com/repos/{self.repo}/releases/latest"
             r = requests.get(url, headers=headers)
-            r.raise_for_status()
-            main_sha = r.json()["object"]["sha"]
-            logger.info(f"Latest main SHA: {main_sha}")
 
-            # Ensure domain-updates branch exists and is up to date with main
+            if r.status_code == 200:
+                latest_tag = r.json()["tag_name"]
+                logger.info(f"Latest release tag: {latest_tag}")
+
+                # Get the commit SHA for this tag
+                url = f"https://api.github.com/repos/{self.repo}/git/refs/tags/{latest_tag}"
+                r = requests.get(url, headers=headers)
+                r.raise_for_status()
+                tag_sha = r.json()["object"]["sha"]
+            else:
+                # Fallback to main if no releases exist
+                logger.warning("No releases found, falling back to main branch")
+                url = f"https://api.github.com/repos/{self.repo}/git/refs/heads/main"
+                r = requests.get(url, headers=headers)
+                r.raise_for_status()
+                tag_sha = r.json()["object"]["sha"]
+
+            logger.info(f"Using commit SHA: {tag_sha}")
+
+            # Ensure domain-updates branch exists and is up to date with latest release
             try:
                 # Check if branch exists
                 url = f"https://api.github.com/repos/{self.repo}/git/refs/heads/{branch_name}"
                 r = requests.get(url, headers=headers)
 
                 if r.status_code == 404:
-                    # Branch doesn't exist, create it from main
+                    # Branch doesn't exist, create it from latest release
                     url = f"https://api.github.com/repos/{self.repo}/git/refs"
-                    payload = {"ref": f"refs/heads/{branch_name}", "sha": main_sha}
+                    payload = {"ref": f"refs/heads/{branch_name}", "sha": tag_sha}
                     r = requests.post(url, headers=headers, json=payload)
                     r.raise_for_status()
-                    logger.info(f"✅ Created {branch_name} branch from latest main")
+                    logger.info(f"✅ Created {branch_name} branch from latest release")
                 else:
-                    # Branch exists, update it to latest main
-                    payload = {"sha": main_sha, "force": True}
+                    # Branch exists, update it to latest release
+                    payload = {"sha": tag_sha, "force": True}
                     r = requests.patch(url, headers=headers, json=payload)
                     r.raise_for_status()
-                    logger.info(f"✅ Updated {branch_name} branch to latest main")
+                    logger.info(f"✅ Updated {branch_name} branch to latest release")
             except Exception as e:
                 logger.warning(f"⚠️ Failed to update branch, continuing: {e}")
 
@@ -602,9 +595,7 @@ class SQSDNSWorker:
             }
 
             # Update cdk.context.json with minimal context
-            content_b64 = base64.b64encode(
-                json.dumps(minimal_context, indent=2).encode()
-            ).decode()
+            content_b64 = base64.b64encode(json.dumps(minimal_context, indent=2).encode()).decode()
 
             payload = {
                 "message": "Clear CDK context cache for fresh hosted zone lookups [skip ci]",
@@ -619,9 +610,7 @@ class SQSDNSWorker:
                 try:
                     r = requests.put(url, headers=headers, json=payload)
                     r.raise_for_status()
-                    logger.info(
-                        "✅ Cleared CDK context cache for fresh hosted zone lookups"
-                    )
+                    logger.info("✅ Cleared CDK context cache for fresh hosted zone lookups")
                     return True
 
                 except requests.exceptions.HTTPError as e:
@@ -675,9 +664,7 @@ class SQSDNSWorker:
                                 f"⚠️ Database updated but hosted zone deletion failed for: {domain}"
                             )
                     else:
-                        logger.error(
-                            f"❌ Failed to deactivate domain in database: {domain}"
-                        )
+                        logger.error(f"❌ Failed to deactivate domain in database: {domain}")
 
             # Step 2: Handle domain activations atomically (database + hosted zones)
             if self.pending_domains:
@@ -694,9 +681,7 @@ class SQSDNSWorker:
                                 f"⚠️ Database updated but hosted zone creation failed for: {domain}"
                             )
                     else:
-                        logger.error(
-                            f"❌ Failed to activate domain in database: {domain}"
-                        )
+                        logger.error(f"❌ Failed to activate domain in database: {domain}")
 
             # Step 3: Fetch ALL active domains from database (reflects current state)
             all_active_domains = self.fetch_active_domains_from_db()
@@ -716,9 +701,7 @@ class SQSDNSWorker:
                 self.last_batch_time = time.time()
                 return True
             else:
-                logger.error(
-                    f"❌ Failed to process batch of {len(all_active_domains)} domains"
-                )
+                logger.error(f"❌ Failed to process batch of {len(all_active_domains)} domains")
                 return False
         except Exception as e:
             logger.error(f"❌ Error processing batch: {e}")
@@ -749,9 +732,7 @@ class SQSDNSWorker:
         self.running = True
         self.stats["start_time"] = time.time()
 
-        logger.info(
-            "🚀 SQS DNS Worker started. Processing DNS operations in batches..."
-        )
+        logger.info("🚀 SQS DNS Worker started. Processing DNS operations in batches...")
 
         try:
             while self.running:
