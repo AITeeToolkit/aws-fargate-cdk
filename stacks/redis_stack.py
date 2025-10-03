@@ -64,7 +64,7 @@ class RedisStack(Stack):
             snapshot_retention_limit=snapshot_retention,
         )
 
-        # Store Redis endpoint in SSM Parameter Store
+        # Store Redis endpoint in Parameter Store
         redis_endpoint = ssm.StringParameter(
             self,
             "RedisEndpoint",
