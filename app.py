@@ -46,7 +46,7 @@ env_config = {
         "db_publicly_accessible": True,  # Allow direct access for development
         "ecs_desired_count": 1,
         "enable_deletion_protection": False,
-        "redis_max_storage_gb": 0.2,  # 200 MB
+        "redis_max_storage_gb": 0.2,  # 200 MB (converted to MB in stack)
         "redis_max_ecpu": 3000,
         "redis_snapshot_retention": 1,
     },
@@ -56,7 +56,7 @@ env_config = {
         "db_publicly_accessible": True,  # Private for staging
         "ecs_desired_count": 1,
         "enable_deletion_protection": False,
-        "redis_max_storage_gb": 0.2,  # 200 MB
+        "redis_max_storage_gb": 0.2,  # 200 MB (converted to MB in stack)
         "redis_max_ecpu": 5000,
         "redis_snapshot_retention": 7,
     },
@@ -66,7 +66,7 @@ env_config = {
         "db_publicly_accessible": True,  # Private for production
         "ecs_desired_count": 1,
         "enable_deletion_protection": True,
-        "redis_max_storage_gb": 0.2,  # 200 MB
+        "redis_max_storage_gb": 0.2,  # 200 MB (converted to MB in stack)
         "redis_max_ecpu": 10000,
         "redis_snapshot_retention": 7,
     },
