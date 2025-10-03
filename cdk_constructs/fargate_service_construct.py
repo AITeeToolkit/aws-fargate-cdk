@@ -63,13 +63,13 @@ class FargateServiceConstruct(Construct):
             )
         )
 
-        # Task definition
+        # Task definition with increased resources for better performance
         task_def = ecs.FargateTaskDefinition(
             self,
             f"{id}TaskDef",
             family=f"{id}-taskdef",
-            memory_limit_mib=512,
-            cpu=256,
+            memory_limit_mib=1024,  # Increased from 512 to 1024 MB
+            cpu=512,  # Increased from 256 to 512 CPU units
             execution_role=execution_role,
             task_role=opensearch_task_role
             or iam.Role(
@@ -221,9 +221,9 @@ class FargateServiceConstruct(Construct):
                 stream_prefix=id,
                 log_group=log_group,
             ),
-            # Disable container health check to rely only on ALB health checks
+            # Proper health check using curl to /health endpoint
             health_check=ecs.HealthCheck(
-                command=["CMD-SHELL", "exit 0"],  # Always pass container health check
+                command=["CMD-SHELL", f"curl -f http://localhost:{container_port}/health || exit 1"],
                 interval=Duration.seconds(30),
                 timeout=Duration.seconds(5),
                 retries=3,
