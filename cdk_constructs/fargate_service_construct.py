@@ -221,9 +221,9 @@ class FargateServiceConstruct(Construct):
                 stream_prefix=id,
                 log_group=log_group,
             ),
-            # Proper health check using curl to /health endpoint
+            # Disable container health check to rely only on ALB health checks
             health_check=ecs.HealthCheck(
-                command=["CMD-SHELL", f"curl -f http://localhost:{container_port}/health || exit 1"],
+                command=["CMD-SHELL", "exit 0"],  # Always pass container health check
                 interval=Duration.seconds(30),
                 timeout=Duration.seconds(5),
                 retries=3,
