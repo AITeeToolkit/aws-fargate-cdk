@@ -88,8 +88,8 @@ Always use CIDR notation:
 {
   "context": {
     "allowed_ips": [
-      "70.122.3.208/32",    // Home IP
-      "203.0.113.50/32"     // Office IP
+      "70.122.3.208/32", 
+      "203.0.113.50/32"    
     ]
   }
 }
@@ -101,8 +101,8 @@ Always use CIDR notation:
 {
   "context": {
     "allowed_ips": [
-      "10.0.0.0/8",         // Private network
-      "203.0.113.0/24"      // Office subnet
+      "10.0.0.0/8",          
+      "203.0.113.0/24"       
     ]
   }
 }
@@ -166,7 +166,6 @@ Remove the IP from the list and redeploy:
 {
   "context": {
     "allowed_ips": [
-      // "70.122.3.208/32"  <- Removed
       "192.168.1.100/32"
     ]
   }
@@ -223,18 +222,18 @@ aws ec2 revoke-security-group-ingress \
 ### 1. Use /32 for Single IPs
 Always use `/32` suffix for individual IP addresses:
 ```json
-"allowed_ips": ["70.122.3.208/32"]  // ✅ Correct
-"allowed_ips": ["70.122.3.208"]     // ❌ Wrong
+"allowed_ips": ["70.122.3.208/32"]   ✅ Correct
+"allowed_ips": ["70.122.3.208"]     ❌ Wrong
 ```
 
 ### 2. Limit Production Access
 Only allow necessary IPs in production:
 ```json
-// Dev - more permissive
+Dev - more permissive
 "allowed_ips": ["10.0.0.0/8", "70.122.3.208/32"]
 
-// Prod - restrictive
-"allowed_ips": ["203.0.113.50/32"]  // Only ops team
+Prod - restrictive
+"allowed_ips": ["203.0.113.50/32"]      
 ```
 
 ### 3. Use VPN for Team Access
@@ -363,6 +362,6 @@ Add to your deployment workflow:
 
 ## Additional Resources
 
-- [AWS Security Groups Documentation](https://docs.aws.amazon.com/vpc/latest/userguide/VPC_SecurityGroups.html)
-- [CIDR Notation Guide](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing)
+- [AWS Security Groups Documentation](https:docs.aws.amazon.com/vpc/latest/userguide/VPC_SecurityGroups.html)
+- [CIDR Notation Guide](https:en.wikipedia.org/wiki/Classless_Inter-Domain_Routing)
 - [Database Connection Guide](./DATABASE_CONNECTION_GUIDE.md)
