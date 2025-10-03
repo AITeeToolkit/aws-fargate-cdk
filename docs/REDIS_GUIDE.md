@@ -44,10 +44,10 @@ VPC Private Subnets
 
 | Storage Size | Cost per GB-hour | Cost per Month (1 env) | Cost for 3 Envs | Use Case |
 |--------------|------------------|------------------------|-----------------|----------|
-| **100 MB** (Valkey min) | $0.0837 | ~$6 | ~$18/month | Not supported by CloudFormation |
-| **200 MB** | $0.0837 | ~$12 | ~$36/month | Not supported by CloudFormation |
-| **500 MB** | $0.0837 | ~$31 | ~$93/month | Not supported by CloudFormation |
-| **1 GB** (current, min) | $0.0837 | ~$61 | ~$183/month | Standard caching workload |
+| **100 MB** (Valkey min) | $0.0837 | ~$6 | ~$18/month | Minimal caching, testing |
+| **200 MB** (current) | $0.0837 | ~$12 | ~$36/month | Light caching, session storage |
+| **500 MB** | $0.0837 | ~$31 | ~$93/month | Moderate caching |
+| **1 GB** | $0.0837 | ~$61 | ~$183/month | Standard caching workload |
 | **2 GB** | $0.0837 | ~$122 | ~$366/month | Heavy caching |
 | **3 GB** | $0.0837 | ~$183 | ~$549/month | Large dataset caching |
 | **5 GB** | $0.0837 | ~$305 | ~$915/month | Very large cache |
