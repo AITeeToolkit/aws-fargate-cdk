@@ -4,6 +4,10 @@ SQS DNS Batch Worker for AWS Fargate
 
 Processes DNS operations from SQS in batches for efficiency.
 Handles Route53 operations and GitHub Actions triggers.
+
+Note: SSL certificates are retained on domain deactivation (RemovalPolicy.RETAIN)
+to prevent CloudFormation export dependency issues. Orphaned certificates can be
+manually cleaned up via AWS Console or automated cleanup Lambda.
 """
 
 import base64

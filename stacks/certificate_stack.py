@@ -1,4 +1,4 @@
-from aws_cdk import Stack
+from aws_cdk import RemovalPolicy, Stack
 from aws_cdk import aws_certificatemanager as acm
 from aws_cdk import aws_route53 as route53
 from constructs import Construct
@@ -40,6 +40,7 @@ class CertificateStack(Stack):
             )
 
             # Create wildcard certificate for this zone
+            # Retain certificates on stack deletion to prevent issues with cross-stack references
             cert = acm.Certificate(
                 self,
                 f"WildcardCert-{root_zone_name.replace('.', '-')}",
@@ -47,6 +48,7 @@ class CertificateStack(Stack):
                 subject_alternative_names=[root_zone_name],  # Also cover root domain
                 validation=acm.CertificateValidation.from_dns(zone),
             )
+            cert.apply_removal_policy(RemovalPolicy.RETAIN)
 
             # Store certificate ARN for all domains under this zone
             for domain in zones_map[root_zone_name]:
