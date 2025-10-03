@@ -1,12 +1,20 @@
 name: Infrastructure Build & Deploy
 
+# Note: Concurrency control is handled by calling workflows (staging-deployment.yml, production-deployment.yml)
+# This is a reusable workflow and should not have its own concurrency group to avoid deadlocks
+
 on:
   workflow_call:
     inputs:
       environment:
-        description: "Deployment environment (dev/prod)"
+        description: "Deployment environment (dev/staging/prod)"
         required: true
         type: string
+      deploy_all_environments:
+        description: "Deploy all environments (dev, staging, prod)"
+        required: false
+        type: boolean
+        default: false
       image_tag:
         description: "Image tag"
         required: false
@@ -46,7 +54,7 @@ jobs:
   deploy:
     name: Deploy Infrastructure
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -68,21 +76,27 @@ jobs:
         run: |
           echo "🔍 Checking CloudFormation stack status..."
           
-          # List of critical stacks to check
           ENV_NAME="${{ inputs.environment || 'dev' }}"
-          STACKS=(
+          
+          # Shared stacks (no environment suffix)
+          SHARED_STACKS=(
             "NetworkStack"
             "SharedStack"
-            "MultiAlbStack-$ENV_NAME"
-            "APIServiceStack-$ENV_NAME"
-            "WebServiceStack-$ENV_NAME"
-            "ListenerServiceStack-$ENV_NAME"
-            "DNSWorkerServiceStack-$ENV_NAME"
+            "SharedCertificateStack"
           )
+          
+          # Get environment-specific stacks dynamically
+          ENV_STACKS=$(aws cloudformation list-stacks \
+            --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE UPDATE_ROLLBACK_COMPLETE \
+            --query "StackSummaries[?contains(StackName, '-$ENV_NAME')].StackName" \
+            --output text)
+          
+          # Combine shared and environment-specific stacks
+          ALL_STACKS=("${SHARED_STACKS[@]}" $ENV_STACKS)
           
           BUSY_STACKS=()
           
-          for stack in "${STACKS[@]}"; do
+          for stack in "${ALL_STACKS[@]}"; do
             echo "Checking $stack..."
             STATUS=$(aws cloudformation describe-stacks \
               --stack-name "$stack" \
@@ -187,11 +201,20 @@ jobs:
           echo "  API:        $API_IMAGE_TAG"
           echo "  Web:      $WEB_IMAGE_TAG"
           
-          CONTEXT="--context env=$ENVIRONMENT"
-          CONTEXT="$CONTEXT --context listenerTag=$LISTENER_IMAGE_TAG"
+          # Build context parameters
+          CONTEXT="--context listenerTag=$LISTENER_IMAGE_TAG"
           CONTEXT="$CONTEXT --context dnsWorkerTag=$DNS_WORKER_IMAGE_TAG"
           CONTEXT="$CONTEXT --context apiTag=$API_IMAGE_TAG"
           CONTEXT="$CONTEXT --context webTag=$WEB_IMAGE_TAG"
+          
+          # Add environment context based on deploy mode
+          if [ "${{ inputs.deploy_all_environments }}" = "true" ]; then
+            echo "🌍 Deploying ALL environments: dev, staging, prod"
+            CONTEXT="$CONTEXT --context deploy-all=true"
+          else
+            echo "🎯 Deploying single environment: $ENVIRONMENT"
+            CONTEXT="$CONTEXT --context env=$ENVIRONMENT"
+          fi
 
           cdk deploy --all --require-approval never $CONTEXT
 

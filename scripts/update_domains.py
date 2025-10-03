@@ -1,7 +1,10 @@
-import boto3, json, psycopg2
+import json
 import sys
 
-secret_name = "storefront/dev/rds-credentials"   # whatever CDK created
+import boto3
+import psycopg2
+
+secret_name = "storefront/dev/rds-credentials"  # whatever CDK created
 region_name = "us-east-1"
 
 try:
@@ -9,20 +12,20 @@ try:
     client = boto3.client("secretsmanager", region_name=region_name)
     response = client.get_secret_value(SecretId=secret_name)
     print("✅ Successfully retrieved secret")
-    
+
     creds = json.loads(response["SecretString"])
     print(f"🔍 Connecting to database at {creds['host']}:{creds['port']}")
-    
+
     conn = psycopg2.connect(
         host=creds["host"],
         user=creds["username"],
         password=creds["password"],
         dbname=creds["dbname"],
         port=creds["port"],
-        connect_timeout=10
+        connect_timeout=10,
     )
     print("✅ Database connection successful")
-    
+
 except Exception as e:
     print(f"❌ Database connection failed: {e}")
     sys.exit(1)

@@ -1,7 +1,7 @@
 name: CI/CD Pipeline
 
 concurrency:
-  group: infrastructure-deployment
+  group: ci-cd-pipeline-${{ inputs.environment || github.event.client_payload.environment || 'dev' }}
   cancel-in-progress: false  # Don't cancel, queue instead
 
 on:
@@ -20,6 +20,11 @@ on:
         required: false
         default: true
         type: boolean
+      skip_tests:
+        description: Skip test gate
+        required: false
+        default: false
+        type: boolean
       listener_tag:
         required: false
         type: string
@@ -32,17 +37,51 @@ on:
       web_tag:
         required: false
         type: string
+  workflow_call:
+    inputs:
+      environment:
+        description: Environment to deploy to
+        required: true
+        type: string
+      force_infra:
+        description: Force infra deploy
+        required: false
+        default: true
+        type: boolean
+      deploy_all_environments:
+        description: "Deploy all environments (dev, staging, prod)"
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      AWS_CODEBUILD_ACCESS_KEY_ID:
+        required: true
+      AWS_CODEBUILD_SECRET_ACCESS_KEY:
+        required: true
+      GH_TOKEN:
+        required: true
   repository_dispatch:
     types: [api-web-updated]
 
 env:
   AWS_REGION: us-east-1
   GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+  ENVIRONMENT: ${{ inputs.environment || github.event.client_payload.environment || 'dev' }}
 
 jobs:
+  test-gate:
+    name: Test Gate
+    if: github.event_name != 'repository_dispatch' && !contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]') && !contains(github.event.head_commit.message, '[skip tests]') && inputs.skip_tests != true
+    uses: ./.github/workflows/test-suite.yml
+    with:
+      environment: ${{ inputs.environment || github.event.client_payload.environment || 'dev' }}
+    secrets: inherit
+
   check-changes:
     name: Check What Changed
     runs-on: ubuntu-latest
+    needs: [test-gate]
+    if: always() && (needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped') && !contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')
     outputs:
       has_image_changes: ${{ steps.changes.outputs.images }}
       has_infra_changes: ${{ steps.changes.outputs.infra }}
@@ -55,10 +94,10 @@ jobs:
       - id: changes
         run: |
           set -x  # ✅ Trace all commands
-        
+
           BRANCH_NAME=${GITHUB_REF#refs/heads/}
           echo "🔍 Branch detected: $BRANCH_NAME"
-        
+
           # Handle merge commits differently
           if git show --no-patch --format="%P" HEAD | grep -q " "; then
             echo "🔀 Merge commit detected - checking against merge base"
@@ -69,25 +108,25 @@ jobs:
             echo "📝 Regular commit - checking against previous commit"
             CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
           fi
-          
+
           echo " Changed files:"
           echo "$CHANGED_FILES"
-        
+
           IMAGE_FLAG=false
           INFRA_FLAG=false
           LISTENER_FLAG=false
           DNS_WORKER_FLAG=false
-        
+
           if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
-            echo " Domain updates branch: forcing all flags to true"
-            IMAGE_FLAG=true
+            echo " Domain updates branch: only infrastructure changes needed"
+            IMAGE_FLAG=false
             INFRA_FLAG=true
-            LISTENER_FLAG=true
-            DNS_WORKER_FLAG=true
-            echo "images=true" >> $GITHUB_OUTPUT
+            LISTENER_FLAG=false
+            DNS_WORKER_FLAG=false
+            echo "images=false" >> $GITHUB_OUTPUT
             echo "infra=true" >> $GITHUB_OUTPUT
-            echo "listener=true" >> $GITHUB_OUTPUT
-            echo "dns_worker=true" >> $GITHUB_OUTPUT
+            echo "listener=false" >> $GITHUB_OUTPUT
+            echo "dns_worker=false" >> $GITHUB_OUTPUT
           else
             # Check for listener-specific changes
             if echo "$CHANGED_FILES" | grep -E '^apps/listener/' > /dev/null; then
@@ -95,14 +134,14 @@ jobs:
               LISTENER_FLAG=true
               IMAGE_FLAG=true
             fi
-            
-            # Check for dns-worker-specific changes  
+
+            # Check for dns-worker-specific changes
             if echo "$CHANGED_FILES" | grep -E '^apps/dns-worker/' > /dev/null; then
               echo " Detected changes in dns-worker files"
               DNS_WORKER_FLAG=true
               IMAGE_FLAG=true
             fi
-            
+
             # Check for shared container files (affects both)
             if echo "$CHANGED_FILES" | grep -E '^apps/requirements\.txt$' > /dev/null; then
               echo " Detected changes in shared requirements.txt - building both services"
@@ -110,7 +149,7 @@ jobs:
               DNS_WORKER_FLAG=true
               IMAGE_FLAG=true
             fi
-            
+
             # Check for individual requirements.txt changes (affects both since they should be synced)
             if echo "$CHANGED_FILES" | grep -E '^apps/(listener|dns-worker)/requirements\.txt$' > /dev/null; then
               echo " Detected changes in individual requirements.txt - building both services"
@@ -118,24 +157,24 @@ jobs:
               DNS_WORKER_FLAG=true
               IMAGE_FLAG=true
             fi
-            
+
             if [[ "$IMAGE_FLAG" == "false" ]]; then
               echo " No image-related changes detected"
             fi
-        
+
             INFRA_PATHS="^(stacks/|cdk_constructs/|aspects/|infrastructure/|app\.py|domains\.json|cdk\.json|requirements\.txt|\.github/workflows/)"
 
             if echo "$CHANGED_FILES" | grep -E "$INFRA_PATHS" > /dev/null; then
               echo " Detected changes in infrastructure-related files"
               INFRA_FLAG=true
             fi
-        
+
             echo "images=$IMAGE_FLAG" >> $GITHUB_OUTPUT
             echo "infra=$INFRA_FLAG" >> $GITHUB_OUTPUT
             echo "listener=$LISTENER_FLAG" >> $GITHUB_OUTPUT
             echo "dns_worker=$DNS_WORKER_FLAG" >> $GITHUB_OUTPUT
           fi
-        
+
           # 📝 Write to the GitHub Actions summary UI
           {
             echo "## 🔍 Change Detection Summary"
@@ -160,8 +199,8 @@ jobs:
   semantic-release:
     name: Semantic Release
     runs-on: ubuntu-latest
-    needs: [check-changes]
-    if: github.ref == 'refs/heads/main' && (needs.check-changes.outputs.has_image_changes == 'true' || needs.check-changes.outputs.has_infra_changes == 'true')
+    needs: [test-gate, check-changes]
+    if: github.ref == 'refs/heads/main' && (needs.check-changes.outputs.has_image_changes == 'true' || needs.check-changes.outputs.has_infra_changes == 'true') && (needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped')
     outputs:
       new_release: ${{ steps.release_info.outputs.new_release }}
       latest_tag: ${{ steps.release_info.outputs.latest_tag }}
@@ -175,14 +214,110 @@ jobs:
         with:
           node-version: 18
       - run: npm ci
-      
+
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
+          # Configure git user for commits and tags
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
           # Fetch latest tags to ensure semantic-release has fresh state
           git fetch --tags --force
-          npx semantic-release
+
+          # Check what version semantic-release would create
+          echo "Checking for potential tag conflicts..."
+          # Only get semantic-release version tags (v*.*.*, not service tags like dns-worker-v*)
+          LATEST_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | head -n 1 || echo "v0.0.0")
+          echo "Latest tag: $LATEST_TAG"
+
+          # Pre-emptively check if the tag already exists locally or remotely
+          if git rev-parse "$LATEST_TAG" >/dev/null 2>&1; then
+            echo "Tag $LATEST_TAG exists locally, checking if it's the same commit..."
+            TAG_COMMIT=$(git rev-list -n 1 "$LATEST_TAG")
+            HEAD_COMMIT=$(git rev-parse HEAD)
+
+            if [ "$TAG_COMMIT" != "$HEAD_COMMIT" ]; then
+              echo "Tag points to different commit, forcing version increment..."
+              # Calculate next version
+              CURRENT_VERSION=$(echo "$LATEST_TAG" | sed 's/v//')
+              MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+              MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
+              PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
+              NEXT_PATCH=$((PATCH + 1))
+              NEXT_VERSION="v${MAJOR}.${MINOR}.${NEXT_PATCH}"
+
+              echo "Creating $NEXT_VERSION to resolve conflict..."
+              git tag -a "$NEXT_VERSION" -m "chore(release): $NEXT_VERSION [skip ci]"
+              git push origin "$NEXT_VERSION"
+
+              echo "new_release=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
+
+          # Run semantic-release and capture output
+          set +e  # Don't exit on error
+          OUTPUT=$(npx semantic-release --no-ci 2>&1)
+          EXIT_CODE=$?
+          set -e  # Re-enable exit on error
+
+          # If tag already exists, force increment to next version
+          if [ $EXIT_CODE -eq 128 ] && echo "$OUTPUT" | grep -q "already exists"; then
+            echo "Tag conflict detected, forcing version increment..."
+            # Extract tag name from error message
+            TAG_NAME=$(echo "$OUTPUT" | grep -o "tag '[^']*'" | sed "s/tag '\(.*\)'/\1/")
+            if [ -n "$TAG_NAME" ]; then
+              echo "Conflicting tag: $TAG_NAME"
+
+              # Calculate next version (increment patch)
+              CURRENT_VERSION=$(echo "$TAG_NAME" | sed 's/v//')
+              MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+              MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
+              PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
+              NEXT_PATCH=$((PATCH + 1))
+              NEXT_VERSION="v${MAJOR}.${MINOR}.${NEXT_PATCH}"
+
+              echo "Forcing next version: $NEXT_VERSION"
+
+              # Create the next version tag manually
+              git tag -a "$NEXT_VERSION" -m "chore(release): $NEXT_VERSION [skip ci]"
+              git push origin "$NEXT_VERSION"
+
+              # Update CHANGELOG
+              echo "Updating CHANGELOG..."
+              CURRENT_DATE=$(date +%Y-%m-%d)
+              sed -i "1a\\\\n## [$NEXT_VERSION](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/$TAG_NAME...$NEXT_VERSION) ($CURRENT_DATE)\\n\\n### 🐛 Bug Fixes\\n\\n* resolve version conflict and force increment\\n" CHANGELOG.md
+
+              git add CHANGELOG.md
+              git commit -m "chore(release): $NEXT_VERSION [skip ci]" || true
+              git push origin main || true
+
+              EXIT_CODE=0
+              echo "new_release=true" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+          echo "$OUTPUT"
+
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "Semantic-release completed successfully"
+            echo "new_release=true" >> $GITHUB_OUTPUT
+          elif [ $EXIT_CODE -eq 1 ]; then
+            echo "No release needed (semantic-release exit code 1)"
+            echo "new_release=false" >> $GITHUB_OUTPUT
+          elif [ $EXIT_CODE -eq 128 ] && echo "$OUTPUT" | grep -q "already exists"; then
+            echo "Tag already exists (git exit code 128) - treating as successful (no new release needed)"
+            echo "new_release=false" >> $GITHUB_OUTPUT
+          elif echo "$OUTPUT" | grep -q "already exists"; then
+            echo "Tag already exists - treating as successful (no new release needed)"
+            echo "new_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "Semantic-release failed with exit code $EXIT_CODE"
+            echo "$OUTPUT"
+            exit $EXIT_CODE
+          fi
       - name: Get release info
         id: release_info
         run: |
@@ -199,8 +334,8 @@ jobs:
   generate-tag:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [check-changes, semantic-release]
-    if: always() && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
+    needs: [test-gate, check-changes, semantic-release]
+    if: always() && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped') && (needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped')
     outputs:
       image_tag: ${{ steps.tag.outputs.image_tag }}
       listener_tag: ${{ steps.tag.outputs.listener_tag }}
@@ -218,17 +353,17 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
+
           # Get current service tags (local for listener/dns-worker, remote for api/web)
           LISTENER_TAG=$(git tag -l "listener-v*" --sort=-version:refname | head -n1 | sed 's/listener-//' || echo "v1.0.0")
           DNS_WORKER_TAG=$(git tag -l "dns-worker-v*" --sort=-version:refname | head -n1 | sed 's/dns-worker-//' || echo "v1.0.0")
-          
+
           # Fetch latest API/WEB tags from storefront-cdk repository
           echo "🔍 Fetching latest API/WEB tags from storefront-cdk..."
           API_TAG=$(git ls-remote --tags https://github.com/AITeeToolkit/storefront-cdk.git | grep 'api-v' | sed 's/.*api-//' | sort -V | tail -n1 || echo "v1.0.0")
           WEB_TAG=$(git ls-remote --tags https://github.com/AITeeToolkit/storefront-cdk.git | grep 'web-v' | sed 's/.*web-//' | sort -V | tail -n1 || echo "v1.0.0")
           echo "🏷️ Fetched from storefront-cdk - API: $API_TAG, WEB: $WEB_TAG"
-          
+
           increment_version() {
             local version=$1
             local clean_version=$(echo $version | sed 's/^v//')
@@ -237,39 +372,61 @@ jobs:
             local patch=$(echo $clean_version | cut -d. -f3)
             echo "v$major.$minor.$((patch + 1))"
           }
-          
+
           # REPOSITORY DISPATCH: Use payload tags directly
           echo "🔍 Event name: ${{ github.event_name }}"
           echo "🔍 Payload API tag: ${{ github.event.client_payload.api_tag }}"
           echo "🔍 Payload WEB tag: ${{ github.event.client_payload.web_tag }}"
-          
+
           if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
             echo "🔍 Repository dispatch detected"
             API_TAG="${{ github.event.client_payload.api_tag }}"
             WEB_TAG="${{ github.event.client_payload.web_tag }}"
             echo "🏷️ Using payload - API: $API_TAG, WEB: $WEB_TAG"
             echo "should_deploy=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref_name }}" == "domain-updates" ]]; then
+            echo "🔍 Domain updates branch detected - using latest tags without incrementing"
+            echo "🏷️ Using latest tags - API: $API_TAG, WEB: $WEB_TAG, LISTENER: $LISTENER_TAG, DNS_WORKER: $DNS_WORKER_TAG"
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
           else
             # REGULAR WORKFLOW: Handle local service changes
-            if [[ "${{ needs.check-changes.outputs.listener_changed }}" == "true" ]]; then
-              LISTENER_TAG=$(increment_version "$LISTENER_TAG")
-              git tag "listener-$LISTENER_TAG" && git push origin "listener-$LISTENER_TAG"
-              echo "🏷️ Incremented listener: $LISTENER_TAG"
+            BRANCH_NAME="${{ github.ref_name }}"
+            SHORT_SHA="${{ github.sha }}"
+            SHORT_SHA=${SHORT_SHA:0:7}
+
+            if [[ "$BRANCH_NAME" == "main" ]]; then
+              # Main branch: Create proper version tags
+              if [[ "${{ needs.check-changes.outputs.listener_changed }}" == "true" ]]; then
+                LISTENER_TAG=$(increment_version "$LISTENER_TAG")
+                git tag "listener-$LISTENER_TAG" && git push origin "listener-$LISTENER_TAG"
+                echo "🏷️ Incremented listener: $LISTENER_TAG"
+              fi
+
+              if [[ "${{ needs.check-changes.outputs.dns_worker_changed }}" == "true" ]]; then
+                DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
+                git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"
+                echo "🏷️ Incremented dns-worker: $DNS_WORKER_TAG"
+              fi
+            else
+              # Non-main branch: Create branch-specific tags
+              if [[ "${{ needs.check-changes.outputs.listener_changed }}" == "true" ]]; then
+                LISTENER_TAG="${BRANCH_NAME}-${SHORT_SHA}"
+                echo "🏷️ Branch listener tag: $LISTENER_TAG"
+              fi
+
+              if [[ "${{ needs.check-changes.outputs.dns_worker_changed }}" == "true" ]]; then
+                DNS_WORKER_TAG="${BRANCH_NAME}-${SHORT_SHA}"
+                echo "🏷️ Branch dns-worker tag: $DNS_WORKER_TAG"
+              fi
             fi
-            
-            if [[ "${{ needs.check-changes.outputs.dns_worker_changed }}" == "true" ]]; then
-              DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
-              git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"
-              echo "🏷️ Incremented dns-worker: $DNS_WORKER_TAG"
-            fi
-            
+
             if [[ "${{ needs.check-changes.outputs.has_infra_changes }}" == "true" || "${{ needs.check-changes.outputs.has_image_changes }}" == "true" ]]; then
               echo "should_deploy=true" >> $GITHUB_OUTPUT
             else
               echo "should_deploy=false" >> $GITHUB_OUTPUT
             fi
           fi
-          
+
           # Use latest repository tag as overall deployment version
           REPO_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
           echo "image_tag=$REPO_TAG" >> $GITHUB_OUTPUT
@@ -281,8 +438,8 @@ jobs:
 
   build-listener:
     name: Build & Push Listener Image
-    needs: [generate-tag, check-changes, semantic-release]
-    if: always() && needs.check-changes.outputs.listener_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
+    needs: [test-gate, generate-tag, check-changes, semantic-release]
+    if: always() && github.ref == 'refs/heads/main' && needs.check-changes.outputs.listener_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped') && (needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped')
     uses: ./.github/workflows/listener-build.yml
     with:
       environment: dev
@@ -291,8 +448,8 @@ jobs:
 
   build-dns-worker:
     name: Build & Push DNS Worker Image
-    needs: [generate-tag, check-changes, semantic-release]
-    if: always() && needs.check-changes.outputs.dns_worker_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped')
+    needs: [test-gate, generate-tag, check-changes, semantic-release]
+    if: always() && github.ref == 'refs/heads/main' && needs.check-changes.outputs.dns_worker_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped') && (needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped')
     uses: ./.github/workflows/dns-worker-build.yml
     with:
       environment: dev
@@ -301,22 +458,26 @@ jobs:
 
   deploy-infrastructure:
     name: Deploy Infrastructure
-    needs: [generate-tag, check-changes, build-listener, build-dns-worker, semantic-release]
+    needs: [test-gate, generate-tag, check-changes, semantic-release, build-listener, build-dns-worker]
     if: |
-      always() && (
+      always() && (github.ref == 'refs/heads/main' || github.ref_name == 'domain-updates' || github.event_name == 'workflow_call') && (
         needs.check-changes.outputs.has_infra_changes == 'true' ||
         needs.check-changes.outputs.has_image_changes == 'true' ||
-        github.event_name == 'repository_dispatch'
-      ) && (
-        (needs.build-listener.result == 'success' || needs.build-listener.result == 'skipped') &&
-        (needs.build-dns-worker.result == 'success' || needs.build-dns-worker.result == 'skipped') ||
-        needs.check-changes.outputs.has_image_changes == 'false'
+        github.event_name == 'repository_dispatch' ||
+        inputs.force_infra == true
       ) && (
         needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped'
+      ) && (
+        needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped'
+      ) && (
+        needs.build-listener.result == 'success' || needs.build-listener.result == 'skipped'
+      ) && (
+        needs.build-dns-worker.result == 'success' || needs.build-dns-worker.result == 'skipped'
       )
     uses: ./.github/workflows/infra-build.yml
     with:
-      environment: dev
+      environment: ${{ inputs.environment || github.event.client_payload.environment || 'dev' }}
+      deploy_all_environments: ${{ inputs.deploy_all_environments || contains(github.event.head_commit.message, '[deploy-all]') || false }}
       image_tag: ${{ needs.generate-tag.outputs.image_tag }}
       listener_tag: ${{ needs.generate-tag.outputs.listener_tag }}
       dns_worker_tag: ${{ needs.generate-tag.outputs.dns_worker_tag }}
@@ -324,9 +485,50 @@ jobs:
       web_tag: ${{ needs.generate-tag.outputs.web_tag }}
     secrets: inherit
 
+  auto-merge-domains:
+    name: Auto-merge Domain Updates
+    needs: [deploy-infrastructure]
+    if: always() && github.ref_name == 'domain-updates' && (needs.deploy-infrastructure.result == 'success' || needs.deploy-infrastructure.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GH_TOKEN }}
+          fetch-depth: 0
+
+      - name: Merge domain-updates to main and cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          echo "🔄 Merging domain-updates branch to main..."
+
+          # Fetch the latest domain-updates branch
+          git fetch origin domain-updates
+
+          # Merge only the domains.json file from domain-updates
+          git checkout origin/domain-updates -- domains.json
+
+          # Check if there are any changes to commit
+          if git diff --staged --quiet; then
+            echo "ℹ️ No changes to domains.json, skipping merge"
+          else
+            git add domains.json
+            git commit -m "chore: sync domains.json from domain-updates branch [skip ci]"
+            git push origin main
+            echo "✅ Successfully merged domains.json to main"
+          fi
+
+          # Delete the domain-updates branch to clean up
+          echo "🗑️ Cleaning up domain-updates branch..."
+          git push origin --delete domain-updates
+          echo "✅ Deleted domain-updates branch"
+
   dev-summary:
     name: Deployment Summary
-    needs: [generate-tag, deploy-infrastructure]
+    needs: [generate-tag, deploy-infrastructure, auto-merge-domains]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -335,56 +537,85 @@ jobs:
 
       - name: Generate Dev Summary
         env:
-          IMAGE_TAG: ${{ needs.generate-tag.outputs.image_tag }}
+          LISTENER_TAG: ${{ needs.generate-tag.outputs.listener_tag }}
+          DNS_WORKER_TAG: ${{ needs.generate-tag.outputs.dns_worker_tag }}
+          API_TAG: ${{ needs.generate-tag.outputs.api_tag }}
+          WEB_TAG: ${{ needs.generate-tag.outputs.web_tag }}
           DEV_STATUS: ${{ needs.deploy-infrastructure.result }}
           BRANCH_NAME: ${{ github.ref_name }}
         run: |
-          echo "# 🔧 Development Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          # Determine environment based on input or branch
+          ENV_TARGET="${{ env.ENVIRONMENT }}"
+          if [ "$ENV_TARGET" = "prod" ]; then
+            ENV_NAME="Production"
+            ENV_DESCRIPTION="Production Environment"
+          elif [ "$ENV_TARGET" = "staging" ]; then
+            ENV_NAME="Staging"
+            ENV_DESCRIPTION="Staging Environment"
+          else
+            ENV_NAME="Development"
+            ENV_DESCRIPTION="Development Environment"
+          fi
+
+          echo "# 🔧 $ENV_NAME Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Branch Information" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch:** \`$BRANCH_NAME\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image Tag:** \`$IMAGE_TAG\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Environment:** Development Only" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** $ENV_DESCRIPTION" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+          echo "## Service Versions" >> $GITHUB_STEP_SUMMARY
+          echo "- **Listener:** \`$LISTENER_TAG\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **DNS Worker:** \`$DNS_WORKER_TAG\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **API:** \`$API_TAG\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Web:** \`$WEB_TAG\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
           echo "## Deployment Status" >> $GITHUB_STEP_SUMMARY
           echo "| Environment | Status | Result |" >> $GITHUB_STEP_SUMMARY
           echo "|-------------|--------|--------|" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ "$DEV_STATUS" = "success" ]; then
-            echo "| Development | ✅ Success | Deployed successfully |" >> $GITHUB_STEP_SUMMARY
+            echo "| $ENV_NAME | ✅ Success | Deployed successfully |" >> $GITHUB_STEP_SUMMARY
           elif [ "$DEV_STATUS" = "skipped" ]; then
-            echo "| Development | ⏭️ Skipped | No infrastructure changes detected |" >> $GITHUB_STEP_SUMMARY
+            echo "| $ENV_NAME | ⏭️ Skipped | No infrastructure changes detected |" >> $GITHUB_STEP_SUMMARY
           else
-            echo "| Development | ❌ Failed | Deployment failed |" >> $GITHUB_STEP_SUMMARY
+            echo "| $ENV_NAME | ❌ Failed | Deployment failed |" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 📋 Next Steps" >> $GITHUB_STEP_SUMMARY
           if [ "$DEV_STATUS" = "success" ]; then
-            echo "- Test your changes in the development environment" >> $GITHUB_STEP_SUMMARY
-            echo "- Monitor application logs for any issues" >> $GITHUB_STEP_SUMMARY
+            if [ "$BRANCH_NAME" = "main" ]; then
+              echo "- ✅ Production deployment completed successfully" >> $GITHUB_STEP_SUMMARY
+              echo "- Monitor production application logs for any issues" >> $GITHUB_STEP_SUMMARY
+              echo "- Verify services are running correctly in production" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- Test your changes in the development environment" >> $GITHUB_STEP_SUMMARY
+              echo "- Monitor application logs for any issues" >> $GITHUB_STEP_SUMMARY
+              echo "- Create a pull request to merge into main for production deployment" >> $GITHUB_STEP_SUMMARY
+              echo "- Production deployment will trigger automatically after PR merge" >> $GITHUB_STEP_SUMMARY
+            fi
           elif [ "$DEV_STATUS" = "skipped" ]; then
             echo "- ✅ No deployment needed - only non-infrastructure files changed" >> $GITHUB_STEP_SUMMARY
             echo "- 📝 Changes were documentation, workflow, or other non-deployment files" >> $GITHUB_STEP_SUMMARY
           else
             echo "- Check deployment logs for error details" >> $GITHUB_STEP_SUMMARY
             echo "- Fix issues and re-run deployment" >> $GITHUB_STEP_SUMMARY
+            if [ "$BRANCH_NAME" != "main" ]; then
+              echo "- Production deployment will trigger automatically after PR merge" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
-          echo "- Create a pull request to merge into main for production deployment" >> $GITHUB_STEP_SUMMARY
-          echo "- Production deployment will trigger automatically after PR merge" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           echo "## 🔗 Quick Links" >> $GITHUB_STEP_SUMMARY
           echo "### AWS Console" >> $GITHUB_STEP_SUMMARY
           echo "- [ECS Clusters](https://console.aws.amazon.com/ecs/home?region=us-east-1#/clusters)" >> $GITHUB_STEP_SUMMARY
           echo "- [CloudFormation Stacks](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks)" >> $GITHUB_STEP_SUMMARY
           echo "- [CloudWatch Logs](https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           echo "### Deployment Logs & History" >> $GITHUB_STEP_SUMMARY
           echo "- [This Workflow Run](https://github.com/AITeeToolkit/aws-fargate-cdk/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
           echo "- [All Infrastructure Deployments](https://github.com/AITeeToolkit/aws-fargate-cdk/actions)" >> $GITHUB_STEP_SUMMARY
           echo "- [Infrastructure & Listener Changelog](https://github.com/AITeeToolkit/aws-fargate-cdk/blob/main/CHANGELOG.md)" >> $GITHUB_STEP_SUMMARY
-          

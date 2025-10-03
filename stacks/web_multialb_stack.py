@@ -1,19 +1,16 @@
-from aws_cdk import (
-    Stack,
-    Duration,
-    aws_ec2 as ec2,
-    aws_ecs as ecs,
-    aws_elasticloadbalancingv2 as elbv2,
-    aws_certificatemanager as acm,
-    aws_route53 as route53,
-)
+from aws_cdk import CfnOutput, Duration, Stack
+from aws_cdk import aws_certificatemanager as acm
+from aws_cdk import aws_ec2 as ec2
+from aws_cdk import aws_ecs as ecs
+from aws_cdk import aws_elasticloadbalancingv2 as elbv2
+from aws_cdk import aws_route53 as route53
 from constructs import Construct
 
 
 def chunk_list(data, chunk_size):
     """Yield successive chunk_size-sized chunks from list."""
     for i in range(0, len(data), chunk_size):
-        yield data[i:i + chunk_size]
+        yield data[i : i + chunk_size]
 
 
 class MultiAlbStack(Stack):
@@ -25,7 +22,9 @@ class MultiAlbStack(Stack):
         vpc: ec2.IVpc,
         domains: list[str],  # just a list of domains now
         alb_security_group: ec2.ISecurityGroup,
-        **kwargs
+        environment: str = "dev",
+        certificate_arns: dict[str, str] = None,  # domain -> cert ARN mapping
+        **kwargs,
     ):
         """
         domains: ["foo.com", "bar.net", "sub.example.org", ...]
@@ -44,14 +43,15 @@ class MultiAlbStack(Stack):
                 f"Alb{idx}",
                 vpc=vpc,
                 internet_facing=True,
-                security_group=self.alb_security_group
+                security_group=self.alb_security_group,
+                load_balancer_name=f"web-alb-{environment}-{idx}",
             )
 
             listener = alb.add_listener(
                 f"HttpsListener{idx}",
                 port=443,
                 ssl_policy=elbv2.SslPolicy.RECOMMENDED_TLS,
-                open=True
+                open=True,
             )
             self.listeners.append(listener)
 
@@ -59,35 +59,65 @@ class MultiAlbStack(Stack):
             listener.add_action(
                 f"Default403-{idx}",
                 action=elbv2.ListenerAction.fixed_response(
-                    status_code=403,
-                    message_body="Forbidden"
-                )
+                    status_code=403, message_body="Forbidden"
+                ),
             )
 
-            certs = []
+            # Map domains to ALB
             for domain in domain_chunk:
-                # Get the root zone (strip subdomains if necessary)
-                root_zone_name = ".".join(domain.split(".")[-2:])
-
-                # Look up existing hosted zone
-                zone = route53.HostedZone.from_lookup(
-                    self,
-                    f"Zone-{domain.replace('.', '-')}",
-                    domain_name=root_zone_name
-                )
-
-                cert = acm.Certificate(
-                    self,
-                    f"Cert-{domain.replace('.', '-')}",
-                    domain_name=domain,
-                    validation=acm.CertificateValidation.from_dns(zone)
-                )
-
-                certs.append(elbv2.ListenerCertificate(cert.certificate_arn))
                 self.domain_to_alb[domain] = alb
+
+            # Use provided certificates or create new ones
+            certs = []
+            if certificate_arns:
+                # Use existing shared certificates
+                cert_arns_for_chunk = set()
+                for domain in domain_chunk:
+                    root_zone = ".".join(domain.split(".")[-2:])
+                    if root_zone in certificate_arns:
+                        cert_arns_for_chunk.add(certificate_arns[root_zone])
+
+                for cert_arn in cert_arns_for_chunk:
+                    certs.append(elbv2.ListenerCertificate(cert_arn))
+            else:
+                # Fallback: Create certificates (old behavior)
+                zones_map = {}  # root_zone -> [domains]
+                for domain in domain_chunk:
+                    root_zone_name = ".".join(domain.split(".")[-2:])
+                    if root_zone_name not in zones_map:
+                        zones_map[root_zone_name] = []
+                    zones_map[root_zone_name].append(domain)
+
+                for root_zone_name in zones_map.keys():
+                    zone = route53.HostedZone.from_lookup(
+                        self,
+                        f"Zone-{root_zone_name.replace('.', '-')}-{idx}",
+                        domain_name=root_zone_name,
+                    )
+
+                    cert = acm.Certificate(
+                        self,
+                        f"WildcardCert-{root_zone_name.replace('.', '-')}-{idx}",
+                        domain_name=f"*.{root_zone_name}",
+                        subject_alternative_names=[root_zone_name],
+                        validation=acm.CertificateValidation.from_dns(zone),
+                    )
+
+                    certs.append(elbv2.ListenerCertificate(cert.certificate_arn))
 
             # Attach all certs for this chunk
             listener.add_certificates(f"Certs-{idx}", certs)
+
+        # Export the first ALB's DNS name for testing/monitoring
+        if self.domain_to_alb:
+            first_alb = list(self.domain_to_alb.values())[0]
+            CfnOutput(
+                self,
+                "AlbDnsName",
+                value=first_alb.load_balancer_dns_name,
+                description="DNS name of the first Application Load Balancer",
+                export_name=f"{environment}-alb-dns",
+            )
 
     def attach_service(self, service: ecs.FargateService, port: int = 3000):
         """
@@ -96,8 +126,7 @@ class MultiAlbStack(Stack):
         """
         for idx, listener in enumerate(self.listeners, start=1):
             domains_for_this_listener = [
-                d for d, alb in self.domain_to_alb.items()
-                if alb == listener.load_balancer
+                d for d, alb in self.domain_to_alb.items() if alb == listener.load_balancer
             ]
             listener.add_targets(
                 f"WebTargets-{idx}",
@@ -110,9 +139,9 @@ class MultiAlbStack(Stack):
                     enabled=True,
                     path="/health",
                     healthy_http_codes="200-499",  # Accept any non-5xx response
-                    interval=Duration.seconds(30),   # Normal interval (30 seconds)
-                    timeout=Duration.seconds(5),    # Normal timeout
+                    interval=Duration.seconds(30),  # Normal interval (30 seconds)
+                    timeout=Duration.seconds(5),  # Normal timeout
                     healthy_threshold_count=2,
-                    unhealthy_threshold_count=3     # Normal retry count
-                )
+                    unhealthy_threshold_count=3,  # Normal retry count
+                ),
             )

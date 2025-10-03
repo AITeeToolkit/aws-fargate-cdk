@@ -1,14 +1,13 @@
-from aws_cdk import (
-    Stack,
-    aws_route53 as route53,
-    aws_lambda as _lambda,
-    aws_iam as iam,
-    custom_resources as cr,
-    aws_elasticloadbalancingv2 as elbv2,
-    Duration
-)
-from constructs import Construct
 import json
+
+from aws_cdk import Duration, Stack
+from aws_cdk import aws_elasticloadbalancingv2 as elbv2
+from aws_cdk import aws_iam as iam
+from aws_cdk import aws_lambda as _lambda
+from aws_cdk import aws_route53 as route53
+from aws_cdk import custom_resources as cr
+from constructs import Construct
+
 
 class DomainDnsStack(Stack):
     def __init__(
@@ -25,26 +24,27 @@ class DomainDnsStack(Stack):
         dmarc_rua: str = None,
         dmarc_ruf: str = None,
         dmarc_policy: str = "quarantine",
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # Lookup the existing hosted zone
-        zone = route53.HostedZone.from_lookup(
-            self, "HostedZone",
-            domain_name=domain_name
-        )
+        # Extract root domain (e.g., "cidertees.com" from "dev.cidertees.com")
+        # Get the last two parts of the domain (root zone)
+        root_zone_name = ".".join(domain_name.split(".")[-2:])
+
+        # Lookup existing hosted zone for the root domain
+        zone = route53.HostedZone.from_lookup(self, "HostedZone", domain_name=root_zone_name)
 
         # Lambda function for idempotent Route53 record creation
         route53_record_lambda = _lambda.Function(
-            self, "Route53RecordLambda",
-            runtime=_lambda.Runtime.PYTHON_3_9,
+            self,
+            "Route53RecordLambda",
+            runtime=_lambda.Runtime.PYTHON_3_11,
             handler="index.handler",
             code=_lambda.Code.from_inline(
                 """
 import json
 import boto3
-import cfnresponse
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -82,6 +82,7 @@ def handler(event, context):
         change_batch = {'Changes': []}
 
         if request_type in ['Create', 'Update']:
+            # Always check and create missing records (idempotent)
             if not record_exists:
                 # Create new record
                 change = {
@@ -100,9 +101,51 @@ def handler(event, context):
                     del change['ResourceRecordSet']['TTL']
                     del change['ResourceRecordSet']['ResourceRecords']
                 change_batch['Changes'].append(change)
-                logger.info(f"Creating {record_type} record for {record_name}")
+                logger.info(f"Creating missing {record_type} record for {record_name}")
             else:
-                logger.info(f"Record {record_type} {record_name} already exists, skipping creation")
+                # Verify existing record has correct values
+                existing_record = next(
+                    (record for record in existing_records
+                     if record['Name'] == record_name and record['Type'] == record_type),
+                    None
+                )
+
+                # Check if values match what we expect
+                needs_update = False
+                if record_type == 'A' and 'AliasTarget' in props:
+                    # For alias records, check alias target
+                    expected_dns = props['AliasTarget']['DNSName']
+                    if existing_record.get('AliasTarget', {}).get('DNSName') != expected_dns:
+                        needs_update = True
+                        logger.info(f"Alias target mismatch for {record_name}: expected {expected_dns}")
+                else:
+                    # For regular records, check resource records
+                    existing_values = [rr['Value'] for rr in existing_record.get('ResourceRecords', [])]
+                    if set(existing_values) != set(record_values):
+                        needs_update = True
+                        logger.info(f"Record values mismatch for {record_name}: expected {record_values}, got {existing_values}")
+
+                if needs_update:
+                    # Update the record by replacing it
+                    change = {
+                        'Action': 'UPSERT',
+                        'ResourceRecordSet': {
+                            'Name': record_name,
+                            'Type': record_type,
+                            'TTL': ttl,
+                            'ResourceRecords': [
+                                {'Value': value} for value in record_values
+                            ]
+                        }
+                    }
+                    if record_type == 'A' and 'AliasTarget' in props:
+                        change['ResourceRecordSet']['AliasTarget'] = props['AliasTarget']
+                        del change['ResourceRecordSet']['TTL']
+                        del change['ResourceRecordSet']['ResourceRecords']
+                    change_batch['Changes'].append(change)
+                    logger.info(f"Updating {record_type} record for {record_name}")
+                else:
+                    logger.info(f"Record {record_type} {record_name} exists with correct values, no action needed")
 
         elif request_type == 'Delete':
             if record_exists:
@@ -132,15 +175,21 @@ def handler(event, context):
             )
 
         # Send success response
-        cfnresponse.send(event, context, cfnresponse.SUCCESS, {
-            'HostedZoneId': hosted_zone_id,
-            'RecordName': record_name,
-            'RecordType': record_type
-        })
+        return {
+            'statusCode': 200,
+            'body': json.dumps({
+                'HostedZoneId': hosted_zone_id,
+                'RecordName': record_name,
+                'RecordType': record_type
+            })
+        }
 
     except Exception as e:
         logger.error(f"Error processing {record_name} {record_type}: {str(e)}")
-        cfnresponse.send(event, context, cfnresponse.FAILED, {'Error': str(e)})
+        return {
+            'statusCode': 500,
+            'body': json.dumps({'Error': str(e)})
+        }
 """
             ),
             timeout=Duration.seconds(30),
@@ -151,14 +200,21 @@ def handler(event, context):
             iam.PolicyStatement(
                 actions=[
                     "route53:ListResourceRecordSets",
-                    "route53:ChangeResourceRecordSets"
+                    "route53:ChangeResourceRecordSets",
                 ],
-                resources=[f"arn:aws:route53:::hostedzone/{zone.hosted_zone_id}"]
+                resources=[f"arn:aws:route53:::hostedzone/{zone.hosted_zone_id}"],
             )
         )
 
         # Helper function to create custom resource for Route53 records
-        def create_route53_record(id: str, record_name: str, record_type: str, record_values: list[str], alias_target=None, ttl: int = 300):
+        def create_route53_record(
+            id: str,
+            record_name: str,
+            record_type: str,
+            record_values: list[str],
+            alias_target=None,
+            ttl: int = 300,
+        ):
             props = {
                 "HostedZoneId": zone.hosted_zone_id,
                 "RecordName": record_name,
@@ -168,102 +224,82 @@ def handler(event, context):
             }
             if alias_target:
                 props["AliasTarget"] = alias_target
-            
+
             # Create custom resource policy that includes Lambda invoke permission
-            custom_resource_policy = cr.AwsCustomResourcePolicy.from_statements([
-                iam.PolicyStatement(
-                    actions=["lambda:InvokeFunction"],
-                    resources=[route53_record_lambda.function_arn]
-                ),
-                iam.PolicyStatement(
-                    actions=[
-                        "route53:ListResourceRecordSets",
-                        "route53:ChangeResourceRecordSets"
-                    ],
-                    resources=[f"arn:aws:route53:::hostedzone/{zone.hosted_zone_id}"]
-                )
-            ])
-            
+            custom_resource_policy = cr.AwsCustomResourcePolicy.from_statements(
+                [
+                    iam.PolicyStatement(
+                        actions=["lambda:InvokeFunction"],
+                        resources=[route53_record_lambda.function_arn],
+                    ),
+                    iam.PolicyStatement(
+                        actions=[
+                            "route53:ListResourceRecordSets",
+                            "route53:ChangeResourceRecordSets",
+                        ],
+                        resources=[f"arn:aws:route53:::hostedzone/{zone.hosted_zone_id}"],
+                    ),
+                ]
+            )
+
             cr.AwsCustomResource(
-                self, id,
+                self,
+                id,
                 on_create=cr.AwsSdkCall(
                     service="Lambda",
                     action="invoke",
                     parameters={
                         "FunctionName": route53_record_lambda.function_name,
-                        "Payload": json.dumps({
-                            "RequestType": "Create",
-                            "ResourceProperties": props
-                        })
+                        "Payload": json.dumps(
+                            {"RequestType": "Create", "ResourceProperties": props}
+                        ),
                     },
-                    physical_resource_id=cr.PhysicalResourceId.of(f"{record_name}-{record_type}")
+                    physical_resource_id=cr.PhysicalResourceId.of(f"{record_name}-{record_type}"),
                 ),
                 on_update=cr.AwsSdkCall(
                     service="Lambda",
                     action="invoke",
                     parameters={
                         "FunctionName": route53_record_lambda.function_name,
-                        "Payload": json.dumps({
-                            "RequestType": "Update",
-                            "ResourceProperties": props
-                        })
+                        "Payload": json.dumps(
+                            {"RequestType": "Update", "ResourceProperties": props}
+                        ),
                     },
-                    physical_resource_id=cr.PhysicalResourceId.of(f"{record_name}-{record_type}")
+                    physical_resource_id=cr.PhysicalResourceId.of(f"{record_name}-{record_type}"),
                 ),
                 on_delete=cr.AwsSdkCall(
                     service="Lambda",
                     action="invoke",
                     parameters={
                         "FunctionName": route53_record_lambda.function_name,
-                        "Payload": json.dumps({
-                            "RequestType": "Delete",
-                            "ResourceProperties": props
-                        })
+                        "Payload": json.dumps(
+                            {"RequestType": "Delete", "ResourceProperties": props}
+                        ),
                     },
-                    physical_resource_id=cr.PhysicalResourceId.of(f"{record_name}-{record_type}")
+                    physical_resource_id=cr.PhysicalResourceId.of(f"{record_name}-{record_type}"),
                 ),
                 policy=custom_resource_policy,
-                install_latest_aws_sdk=False  # Use Lambda runtime's built-in SDK
+                install_latest_aws_sdk=False,  # Use Lambda runtime's built-in SDK
             )
 
-        # Root domain ALIAS record to ALB
+        # Domain ALIAS record to ALB (works for both root and subdomains)
         alias_target = {
             "HostedZoneId": alb.load_balancer_canonical_hosted_zone_id,
             "DNSName": alb.load_balancer_dns_name,
-            "EvaluateTargetHealth": False
+            "EvaluateTargetHealth": False,
         }
-        create_route53_record(
-            "RootAliasRecord",
-            domain_name,
-            "A",
-            [],
-            alias_target=alias_target
-        )
-
-        # Dev subdomain ALIAS record to ALB
-        create_route53_record(
-            "DevAliasRecord",
-            f"dev.{domain_name}",
-            "A",
-            [],
-            alias_target=alias_target
-        )
+        create_route53_record("DomainAliasRecord", domain_name, "A", [], alias_target=alias_target)
 
         # SPF record
         spf_value = " ".join(["v=spf1"] + (spf_servers or []) + ["~all"])
-        create_route53_record(
-            "SPF",
-            domain_name,
-            "TXT",
-            [spf_value]
-        )
+        create_route53_record("SPF", domain_name, "TXT", [spf_value])
 
         # DKIM record
         create_route53_record(
             "DKIM",
             f"{dkim_selector}._domainkey.{domain_name}",
             "TXT",
-            [f"v=DKIM1; k=rsa; p={dkim_public_key.strip()}"]
+            [f"v=DKIM1; k=rsa; p={dkim_public_key.strip()}"],
         )
 
         # DMARC record
@@ -272,20 +308,11 @@ def handler(event, context):
             dmarc_value += f"; rua=mailto:{dmarc_rua}"
         if dmarc_ruf:
             dmarc_value += f"; ruf=mailto:{dmarc_ruf}"
-        create_route53_record(
-            "DMARC",
-            f"_dmarc.{domain_name}",
-            "TXT",
-            [dmarc_value]
-        )
+        create_route53_record("DMARC", f"_dmarc.{domain_name}", "TXT", [dmarc_value])
 
-        # MX record
-        create_route53_record(
-            "MX",
-            domain_name,
-            "MX",
-            [f"10 {mail_server}"]
-        )
+        # MX record - only create for root domain, not subdomains
+        if domain_name == root_zone_name:
+            create_route53_record("MX", domain_name, "MX", [f"10 {mail_server}"])
 
         # Expose zone if needed downstream
         self.hosted_zone = zone

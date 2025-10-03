@@ -1,0 +1,263 @@
+{
+    "ResourceRecordSets": [
+        {
+            "Name": "teeworkflow.com.",
+            "Type": "MX",
+            "TTL": 3600,
+            "ResourceRecords": [
+                {
+                    "Value": "10 mail.teeworkflow.com"
+                }
+            ]
+        },
+        {
+            "Name": "teeworkflow.com.",
+            "Type": "NS",
+            "TTL": 172800,
+            "ResourceRecords": [
+                {
+                    "Value": "ns-324.awsdns-40.com."
+                },
+                {
+                    "Value": "ns-1198.awsdns-21.org."
+                },
+                {
+                    "Value": "ns-540.awsdns-03.net."
+                },
+                {
+                    "Value": "ns-2017.awsdns-60.co.uk."
+                }
+            ]
+        },
+        {
+            "Name": "teeworkflow.com.",
+            "Type": "PTR",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "72.14.176.183"
+                }
+            ]
+        },
+        {
+            "Name": "teeworkflow.com.",
+            "Type": "SOA",
+            "TTL": 900,
+            "ResourceRecords": [
+                {
+                    "Value": "ns-324.awsdns-40.com. awsdns-hostmaster.amazon.com. 1 7200 900 1209600 86400"
+                }
+            ]
+        },
+        {
+            "Name": "teeworkflow.com.",
+            "Type": "TXT",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "\"v=spf1 a:mail.teeworkflow.com -all\""
+                }
+            ]
+        },
+        {
+            "Name": "_aa9a7198851e6324919a1b8616b55e95.teeworkflow.com.",
+            "Type": "CNAME",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "_6bc97a1e7b11db40ed5ca7a19fa0a9e6.xlfgrmvvlj.acm-validations.aws."
+                }
+            ]
+        },
+        {
+            "Name": "_dmarc.teeworkflow.com.",
+            "Type": "TXT",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "\"v=DMARC1; p=none; rua=mailto:dmarc-reports@teeworkflow.com\""
+                }
+            ]
+        },
+        {
+            "Name": "default._domainkey.teeworkflow.com.",
+            "Type": "TXT",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "\"v=DKIM1; h=sha256; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDdmsMArxUA48AxvmG2gm26Qr1lbhtt6r59AMhBMK/TgZLNHug0L8uM6nm12SSxY0kxZyp5cLPbtgN832ReoJ0sW6zZfedfPf1Ak1Z6H9Cxd3wB3zI3Gy8c6PsV9Wt0lYEWHALw2ANjf5Ru0otK3slBUz7yb7AgvUEHb1Bt6+aazQIDAQAB\""
+                }
+            ]
+        },
+        {
+            "Name": "external-dns-default._domainkey.teeworkflow.com.",
+            "Type": "TXT",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "\"heritage=external-dns,external-dns/owner=external-dns-,external-dns/resource=crd/external-dns/general-records\""
+                }
+            ]
+        },
+        {
+            "Name": "external-dns-txt-default._domainkey.teeworkflow.com.",
+            "Type": "TXT",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "\"heritage=external-dns,external-dns/owner=external-dns-,external-dns/resource=crd/external-dns/general-records\""
+                }
+            ]
+        },
+        {
+            "Name": "api.teeworkflow.com.",
+            "Type": "A",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "45.79.62.251"
+                }
+            ]
+        },
+        {
+            "Name": "dashboard.teeworkflow.com.",
+            "Type": "A",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "172.237.141.240"
+                }
+            ]
+        },
+        {
+            "Name": "dev-dashboard.teeworkflow.com.",
+            "Type": "A",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "45.79.62.251"
+                }
+            ]
+        },
+        {
+            "Name": "dev-kibana.teeworkflow.com.",
+            "Type": "A",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "45.79.62.251"
+                }
+            ]
+        },
+        {
+            "Name": "dev-rabbitmq.teeworkflow.com.",
+            "Type": "A",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "45.79.62.251"
+                }
+            ]
+        },
+        {
+            "Name": "dev.teeworkflow.com.",
+            "Type": "A",
+            "TTL": 3600,
+            "ResourceRecords": [
+                {
+                    "Value": "45.79.62.251"
+                }
+            ]
+        },
+        {
+            "Name": "elastic.teeworkflow.com.",
+            "Type": "A",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "172.237.141.240"
+                }
+            ]
+        },
+        {
+            "Name": "external-dns-_dmarc.teeworkflow.com.",
+            "Type": "TXT",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "\"heritage=external-dns,external-dns/owner=external-dns-,external-dns/resource=crd/external-dns/general-records\""
+                }
+            ]
+        },
+        {
+            "Name": "external-dns-a-dev.teeworkflow.com.",
+            "Type": "TXT",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "\"heritage=external-dns,external-dns/owner=external-dns-,external-dns/resource=crd/external-dns/general-records\""
+                }
+            ]
+        },
+        {
+            "Name": "external-dns-dev.teeworkflow.com.",
+            "Type": "TXT",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "\"heritage=external-dns,external-dns/owner=external-dns-,external-dns/resource=crd/external-dns/general-records\""
+                }
+            ]
+        },
+        {
+            "Name": "external-dns-txt-_dmarc.teeworkflow.com.",
+            "Type": "TXT",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "\"heritage=external-dns,external-dns/owner=external-dns-,external-dns/resource=crd/external-dns/general-records\""
+                }
+            ]
+        },
+        {
+            "Name": "image-registry.teeworkflow.com.",
+            "Type": "A",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "45.79.62.251"
+                }
+            ]
+        },
+        {
+            "Name": "kibana.teeworkflow.com.",
+            "Type": "A",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "172.237.141.240"
+                }
+            ]
+        },
+        {
+            "Name": "mail.teeworkflow.com.",
+            "Type": "A",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "72.14.176.183"
+                }
+            ]
+        },
+        {
+            "Name": "rabbitmq.teeworkflow.com.",
+            "Type": "A",
+            "TTL": 300,
+            "ResourceRecords": [
+                {
+                    "Value": "172.237.141.240"
+                }
+            ]
+        }
+    ]
+}

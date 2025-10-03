@@ -1,14 +1,12 @@
-from aws_cdk import (
-    Stack,
-    aws_ecs as ecs,
-    aws_ec2 as ec2,
-    aws_iam as iam,
-    aws_secretsmanager as secretsmanager,
-    aws_servicediscovery as servicediscovery,
-    aws_ssm as ssm,
-    Duration,
-)
+from aws_cdk import Duration, Stack
+from aws_cdk import aws_ec2 as ec2
+from aws_cdk import aws_ecs as ecs
+from aws_cdk import aws_iam as iam
+from aws_cdk import aws_secretsmanager as secretsmanager
+from aws_cdk import aws_servicediscovery as servicediscovery
+from aws_cdk import aws_ssm as ssm
 from constructs import Construct
+
 from cdk_constructs.fargate_service_construct import FargateServiceConstruct
 
 
@@ -26,14 +24,10 @@ class WebServiceStack(Stack):
         service_name: str,
         ecs_task_security_group: ec2.ISecurityGroup = None,
         opensearch_role: iam.IRole = None,
-        **kwargs
+        desired_count: int = 1,
+        **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
-
-        # Get OpenSearch endpoint from SSM Parameter
-        opensearch_endpoint = ssm.StringParameter.value_for_string_parameter(
-            self, f"/storefront-{environment}/opensearch/endpoint"
-        )
 
         # Environment variables for web service
         web_environment = {
@@ -49,13 +43,12 @@ class WebServiceStack(Stack):
             "SKIP_TENANT_RESOLUTION_FOR_HEALTH": "true",
             "HEALTH_CHECK_BYPASS_TENANT": "true",
             "AWS_REGION": "us-east-1",
-            "OPENSEARCH_ENDPOINT": opensearch_endpoint
         }
 
         # Secrets (extend this if you want to pass db_secret, etc.)
         web_secrets = {
             "API_URL": f"/storefront-{environment}/api/url",
-            "API_BASE_URL": f"/storefront-{environment}/api/base-url", 
+            "API_BASE_URL": f"/storefront-{environment}/api/base-url",
             "NEXT_PUBLIC_API_BASE_URL": f"/storefront-{environment}/api/base-url",
             "STRIPE_SECRET_KEY": f"/storefront-{environment}/stripe-secret-key",
             "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY": f"/storefront-{environment}/next-public-google-maps-api-key",
@@ -69,8 +62,9 @@ class WebServiceStack(Stack):
             "STRIPE_WEBHOOK_SECRET": f"/storefront-{environment}/stripe-webhook-secret",
             "AWS_ACCESS_KEY_ID": f"/storefront-{environment}/route53/AWS_ACCESS_KEY_ID",
             "AWS_SECRET_ACCESS_KEY": f"/storefront-{environment}/route53/AWS_SECRET_ACCESS_KEY",
+            "POSTGRES_HOST": f"/storefront-{environment}/database/host",
             "POSTGRES_USER": f"/storefront-{environment}/database/username",
-            "POSTGRES_PASSWORD": f"/storefront-{environment}/database/password"
+            "POSTGRES_PASSWORD": f"/storefront-{environment}/database/password",
         }
 
         # Define Fargate service (no ALB attachment here)
@@ -83,8 +77,8 @@ class WebServiceStack(Stack):
             container_port=3000,
             environment=web_environment,
             secrets=web_secrets,
-            desired_count=1,
-            security_groups=[ecs_task_security_group] if ecs_task_security_group else [],
+            desired_count=desired_count,
+            security_groups=([ecs_task_security_group] if ecs_task_security_group else []),
             service_name=service_name,
             opensearch_task_role=opensearch_role,  # Pass the OpenSearch role
             cloud_map_options=ecs.CloudMapOptions(

@@ -1,11 +1,19 @@
 parameters_stack.py
 parameter-backup.json
-cert_stack.py
-web_alb_stack.py
-latest-postgres-backup.gz
 cdk.out/
 **/__pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.cover
+.hypothesis/
 
 # AWS
 .aws/

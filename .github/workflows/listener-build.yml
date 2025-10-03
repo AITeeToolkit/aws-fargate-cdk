@@ -34,7 +34,7 @@ jobs:
 
       - name: Login to ECR
         run: |
-          ECR_REGISTRY=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/storefront/${{ inputs.environment }}
+          ECR_REGISTRY=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/storefront
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_REGISTRY
           echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
 
@@ -53,10 +53,29 @@ jobs:
             docker push $ECR_REGISTRY/listener:latest
           fi
 
-      - name: Tag Git after successful build
-        if: success()
+      - name: Tag Release
+        if: github.ref == 'refs/heads/main'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag "listener-${{ inputs.image_tag }}"
           git push origin "listener-${{ inputs.image_tag }}"
+
+      - name: Cleanup on Failure
+        if: failure() && github.ref == 'refs/heads/main'
+        run: |
+          echo "❌ Build or push failed - cleaning up git tag"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Delete local tag if it exists
+          if git rev-parse "listener-${{ inputs.image_tag }}" >/dev/null 2>&1; then
+            git tag -d "listener-${{ inputs.image_tag }}"
+            echo "Deleted local tag: listener-${{ inputs.image_tag }}"
+          fi
+
+          # Delete remote tag if it exists
+          if git ls-remote --tags origin | grep -q "listener-${{ inputs.image_tag }}"; then
+            git push --delete origin "listener-${{ inputs.image_tag }}" || true
+            echo "Deleted remote tag: listener-${{ inputs.image_tag }}"
+          fi
