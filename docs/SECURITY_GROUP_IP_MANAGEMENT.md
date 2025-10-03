@@ -222,8 +222,8 @@ aws ec2 revoke-security-group-ingress \
 ### 1. Use /32 for Single IPs
 Always use `/32` suffix for individual IP addresses:
 ```json
-"allowed_ips": ["70.122.3.208/32"]   ✅ Correct
-"allowed_ips": ["70.122.3.208"]     ❌ Wrong
+"allowed_ips": ["70.122.3.208/32"] 
+"allowed_ips": ["70.122.3.208"] 
 ```
 
 ### 2. Limit Production Access
