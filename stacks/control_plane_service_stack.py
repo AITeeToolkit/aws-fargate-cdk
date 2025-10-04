@@ -29,6 +29,7 @@ class ControlPlaneServiceStack(Stack):
 
         # Environment variables for the control plane service (3 worker queues)
         control_plane_environment = {
+            "ENVIRONMENT": environment,
             "REPO": "AITeeToolkit/aws-fargate-cdk",
             "DATABASE_OPERATIONS_QUEUE_URL": ssm.StringParameter.value_for_string_parameter(
                 self, f"/storefront-{environment}/sqs/database-operations-queue-url"
