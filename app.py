@@ -85,11 +85,17 @@ def load_domains_for_env(environment: str):
 
     try:
         # Read database connection parameters from SSM
-        db_host = ssm.get_parameter(Name=f"/{environment}/database/host")["Parameter"]["Value"]
-        db_name = ssm.get_parameter(Name=f"/{environment}/database/name")["Parameter"]["Value"]
-        db_user = ssm.get_parameter(Name=f"/{environment}/database/user")["Parameter"]["Value"]
+        db_host = ssm.get_parameter(Name=f"/storefront-{environment}/database/host")["Parameter"][
+            "Value"
+        ]
+        db_name = ssm.get_parameter(Name=f"/storefront-{environment}/database/name")["Parameter"][
+            "Value"
+        ]
+        db_user = ssm.get_parameter(Name=f"/storefront-{environment}/database/username")[
+            "Parameter"
+        ]["Value"]
         db_password = ssm.get_parameter(
-            Name=f"/{environment}/database/password", WithDecryption=True
+            Name=f"/storefront-{environment}/database/password", WithDecryption=True
         )["Parameter"]["Value"]
 
         # Connect to database
@@ -191,19 +197,21 @@ for current_env in environments_to_deploy:
 
     # Create per-domain certificate stacks for this environment
     # Only create for active + draining domains (not deleted)
+    # Each environment gets its own certificate (no wildcards)
     certificate_arns = {}
     for domain in cert_domains:
-        stack_name = f"CertificateStack-{domain.replace('.', '-')}"
+        stack_name = f"CertificateStack-{current_env}-{domain.replace('.', '-')}"
         cert_stack = CertificateStack(
             app,
             stack_name,
             env=env,
             domain=domain,
+            environment=current_env,
         )
         # Store ARN for active domains only
         if domain in active_domains:
             certificate_arns[domain] = cert_stack.certificate_arn
-        print(f"  📜 Created certificate stack for {domain}")
+        print(f"  📜 Created certificate stack for {domain} in {current_env}")
 
     multi_alb_stack = MultiAlbStack(
         app,

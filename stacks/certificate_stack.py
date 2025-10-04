@@ -6,8 +6,9 @@ from constructs import Construct
 
 class CertificateStack(Stack):
     """
-    Per-domain certificate stack that creates a wildcard certificate for a single domain.
-    This allows independent lifecycle management and avoids CloudFormation export dependency issues.
+    Per-domain certificate stack that creates an exact domain certificate.
+    This allows independent lifecycle management per environment and avoids CloudFormation export dependency issues.
+    No wildcards - each environment gets its own certificate for its specific domain.
     """
 
     def __init__(
@@ -16,6 +17,7 @@ class CertificateStack(Stack):
         construct_id: str,
         *,
         domain: str,
+        environment: str,
         **kwargs,
     ):
         super().__init__(scope, construct_id, **kwargs)
@@ -30,13 +32,13 @@ class CertificateStack(Stack):
             domain_name=root_zone_name,
         )
 
-        # Create wildcard certificate for this domain
+        # Create exact domain certificate (no wildcard)
+        # Each environment gets its own certificate for its specific domain
         # Retain certificates on stack deletion to prevent accidental deletion
         cert = acm.Certificate(
             self,
-            "WildcardCert",
-            domain_name=f"*.{root_zone_name}",
-            subject_alternative_names=[root_zone_name],  # Also cover root domain
+            "DomainCert",
+            domain_name=domain,  # Exact domain, no wildcard
             validation=acm.CertificateValidation.from_dns(zone),
         )
         cert.apply_removal_policy(RemovalPolicy.RETAIN)
@@ -45,11 +47,11 @@ class CertificateStack(Stack):
         self.certificate_arn = cert.certificate_arn
 
         # Export certificate ARN for cross-stack reference
-        # Export name is based on domain, allowing consumers to import it
+        # Export name includes environment to distinguish between dev/staging/prod
         CfnOutput(
             self,
             "CertArn",
             value=cert.certificate_arn,
-            export_name=f"CertArn-{domain.replace('.', '-')}",
-            description=f"Wildcard certificate ARN for *.{root_zone_name}",
+            export_name=f"CertArn-{environment}-{domain.replace('.', '-')}",
+            description=f"Certificate ARN for {domain} in {environment}",
         )
