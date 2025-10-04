@@ -11,7 +11,6 @@ from stacks.control_plane_service_stack import ControlPlaneServiceStack
 from stacks.database_stack import DatabaseStack
 from stacks.domain_dns_stack import DomainDnsStack
 from stacks.ecr_stack import ECRStack
-from stacks.github_runner_stack import GitHubRunnerStack
 
 # Listener service removed - external systems publish directly to SNS
 from stacks.network_stack import NetworkStack
@@ -21,6 +20,9 @@ from stacks.shared_stack import SharedStack
 from stacks.sqs_stack import SQSStack
 from stacks.web_multialb_stack import MultiAlbStack
 from stacks.web_service_stack import WebServiceStack
+
+# from stacks.github_runner_stack import GitHubRunnerStack
+
 
 # from stacks.parameters_stack import ParametersStack
 
@@ -140,12 +142,12 @@ network_stack = NetworkStack(app, "NetworkStack", env=env)
 # network_stack.add_dependency(iam_stack)
 
 # GitHub Actions self-hosted runner (shared across all environments for database access)
-github_runner_stack = GitHubRunnerStack(
-    app,
-    "GitHubRunnerStack",
-    vpc=network_stack.vpc,
-    env=env,
-)
+# github_runner_stack = GitHubRunnerStack(
+#     app,
+#     "GitHubRunnerStack",
+#     vpc=network_stack.vpc,
+#     env=env,
+# )
 
 shared_stack = SharedStack(app, "SharedStack", env=env, vpc=network_stack.vpc)
 
