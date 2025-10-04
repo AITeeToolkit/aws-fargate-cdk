@@ -223,9 +223,6 @@ class TestServiceStacks:
         template.has_resource("AWS::ECS::TaskDefinition", {})
 
 
-{{...}}
-
-
 class TestECRStack:
     """Test ECR repository creation"""
 
@@ -236,7 +233,7 @@ class TestECRStack:
             cdk_app,
             "TestECRStack",
             env=test_environment,
-            repository_names=["api", "web", "dns-worker"],
+            repository_names=["api", "web", "control-plane"],
         )
         template = assertions.Template.from_stack(ecr_stack)
 
@@ -260,13 +257,13 @@ class TestECRStack:
             cdk_app,
             "TestECRStack",
             env=test_environment,
-            repository_names=["api", "web", "dns-worker"],
+            repository_names=["api", "web", "control-plane"],
         )
 
         # Verify all repositories are accessible
         assert "api" in ecr_stack.repositories
         assert "web" in ecr_stack.repositories
-        assert "dns-worker" in ecr_stack.repositories
+        assert "control-plane" in ecr_stack.repositories
 
 
 class TestOpenSearchStack:
@@ -362,7 +359,7 @@ class TestAPIServiceStack:
             cdk_app,
             "TestECRStack",
             env=test_environment,
-            repository_names=["api", "web", "dns-worker"],
+            repository_names=["api", "web", "control-plane"],
         )
         db_stack = DatabaseStack(
             cdk_app,
@@ -416,7 +413,7 @@ class TestWebServiceStack:
             cdk_app,
             "TestECRStack",
             env=test_environment,
-            repository_names=["api", "web", "dns-worker"],
+            repository_names=["api", "web", "control-plane"],
         )
         db_stack = DatabaseStack(
             cdk_app,
