@@ -210,7 +210,7 @@ class SQSDNSWorker:
                 domain_data = message_data
 
             # Validate required fields
-            required_fields = ["full_url", "tenant_id", "active_status"]
+            required_fields = ["full_url", "tenant_id", "active_status", "hosted_zone_id"]
             missing_fields = [f for f in required_fields if f not in domain_data]
 
             if missing_fields:
@@ -224,7 +224,7 @@ class SQSDNSWorker:
             domain_name = domain_data["full_url"]
             tenant_id = domain_data["tenant_id"]
             active = domain_data["active_status"]
-            hosted_zone_id = domain_data.get("hosted_zone_id")
+            hosted_zone_id = domain_data["hosted_zone_id"]
 
             if active not in ("Y", "N"):
                 logger.error(f"❌ Invalid active_status: {active}. Must be 'Y' or 'N'")

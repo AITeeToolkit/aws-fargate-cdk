@@ -57,30 +57,12 @@ class DatabaseStack(Stack):
             description="Allow internal VPC PostgreSQL access",
         )
 
-        # Allow GitHub Actions runners for CDK synth (if publicly accessible)
-        # GitHub Actions IP ranges: https://api.github.com/meta
-        if publicly_accessible:
-            github_ip_ranges = [
-                "4.175.114.51/32",  # GitHub Actions runner IP range
-                "20.102.39.0/24",
-                "20.119.28.0/23",
-                "20.207.0.0/16",
-                "20.248.0.0/15",
-                "20.250.0.0/15",
-            ]
-            for ip_range in github_ip_ranges:
-                self.db_security_group.add_ingress_rule(
-                    peer=ec2.Peer.ipv4(ip_range),
-                    connection=ec2.Port.tcp(5432),
-                    description=f"Allow GitHub Actions runners: {ip_range}",
-                )
-
         # Allow external IPs from context (for development/testing)
         allowed_ips = self.node.try_get_context("allowed_ips")
         if allowed_ips and isinstance(allowed_ips, str):
             import json
 
-            allowed_ips = json.loads(allowed_ips)
+            allowed_ips = json.loads(allowed_ips) if allowed_ips else []
         elif not allowed_ips:
             allowed_ips = []
 
@@ -106,8 +88,6 @@ class DatabaseStack(Stack):
         db_size = getattr(ec2.InstanceSize, instance_class_parts[2].upper())
 
         # RDS instance
-        # Dev environment: No security group (allow all) for GitHub Actions access
-        # Other environments: Use security group with IP restrictions
         self.db_instance = rds.DatabaseInstance(
             self,
             f"DB",
@@ -118,7 +98,7 @@ class DatabaseStack(Stack):
             vpc=vpc,
             subnet_group=public_subnet_group,
             publicly_accessible=publicly_accessible,
-            security_groups=[] if environment == "dev" else [self.db_security_group],
+            security_groups=[self.db_security_group],
             credentials=credentials,
             instance_type=ec2.InstanceType.of(db_class, db_size),
             multi_az=multi_az,
