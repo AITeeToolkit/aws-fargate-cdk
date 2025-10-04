@@ -7,8 +7,8 @@ import aws_cdk as cdk
 from scripts.tag_resolver import resolve_tag
 from stacks.api_service_stack import APIServiceStack
 from stacks.certificate_stack import CertificateStack
+from stacks.control_plane_service_stack import ControlPlaneServiceStack
 from stacks.database_stack import DatabaseStack
-from stacks.dns_worker_service_stack import DNSWorkerServiceStack
 from stacks.domain_dns_stack import DomainDnsStack
 from stacks.ecr_stack import ECRStack
 from stacks.github_runner_stack import GitHubRunnerStack
@@ -127,7 +127,7 @@ def load_domains_for_env(environment: str):
 
 
 # Listener service removed - no longer needed
-dns_worker_tag = resolve_tag("dnsWorkerTag", "DNS_WORKER_IMAGE_TAG", app, "dns-worker")
+control_plane_tag = resolve_tag("controlPlaneTag", "CONTROL_PLANE_IMAGE_TAG", app, "control-plane")
 api_tag = resolve_tag("apiTag", "API_IMAGE_TAG", app, "api")
 web_tag = resolve_tag("webTag", "WEB_IMAGE_TAG", app, "web")
 
@@ -154,7 +154,7 @@ ecr_stack = ECRStack(
     app,
     "StorefrontECRStack",
     env=env,
-    repository_names=["api", "web", "dns-worker"],
+    repository_names=["api", "web", "control-plane"],
 )
 
 # Deploy stacks for each environment
@@ -172,7 +172,7 @@ for current_env in environments_to_deploy:
     )
 
     # Create per-domain certificate stacks for this environment
-    # Only create for domains that have hosted zones (DNS worker creates these first)
+    # Only create for domains that have hosted zones (Control Plane worker creates these first)
     # Each environment gets its own certificate (no wildcards)
     certificate_arns = {}
 
@@ -193,7 +193,9 @@ for current_env in environments_to_deploy:
                     zone_exists = True
 
             if not zone_exists:
-                print(f"  ⏭️  Skipping {domain} - hosted zone not found (DNS worker will create it)")
+                print(
+                    f"  ⏭️  Skipping {domain} - hosted zone not found (Control Plane will create it)"
+                )
                 continue
 
         except Exception as e:
@@ -308,19 +310,19 @@ for current_env in environments_to_deploy:
     # )
 
     # Listener service removed - external systems publish directly to SNS topic
-    # SNS topic → SQS queue → DNS worker handles everything
+    # SNS topic → SQS queues → Control plane workers handle everything
 
-    # Deploy DNS worker service for this environment
-    dns_worker_service = DNSWorkerServiceStack(
+    # Deploy control plane service for this environment
+    control_plane_service = ControlPlaneServiceStack(
         app,
-        f"DNSWorkerServiceStack-{current_env}",
+        f"ControlPlaneServiceStack-{current_env}",
         env=env,
         vpc=network_stack.vpc,
         cluster=shared_stack.cluster,
-        image_uri=f"{ecr_stack.repositories['dns-worker'].repository_uri}:{dns_worker_tag}",
+        image_uri=f"{ecr_stack.repositories['control-plane'].repository_uri}:{control_plane_tag}",
         environment=current_env,
         ecs_task_security_group=shared_stack.ecs_task_sg,
-        service_name=f"dns-worker-service-{current_env}",
+        service_name=f"control-plane-service-{current_env}",
         db_secret=database_stack.secret,
         sqs_managed_policy=sqs_stack.sqs_managed_policy,
         desired_count=current_config["ecs_desired_count"],

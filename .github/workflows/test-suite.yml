@@ -5,11 +5,7 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  pull_request:
-    branches: [main, develop]
-  # Removed push trigger to prevent duplicate runs with semantic-release
-  # push:
-  #   branches: [main, develop]
+  # Only run via workflow_call from semantic-release workflow
   workflow_call:
     inputs:
       environment:
@@ -258,7 +254,7 @@ jobs:
           ENV_NAME="${{ env.ENVIRONMENT }}"
 
           # Get first domain from domains.json (limit to 1-2 domains for testing)
-          FIRST_DOMAIN=$(jq -r '.domains[0] // "cidertees.com"' domains.json 2>/dev/null || echo "cidertees.com")
+          FIRST_DOMAIN=$(jq -r '.domains[0].name // .domains[0] // "cidertees.com"' domains.json 2>/dev/null || echo "cidertees.com")
 
           # Use actual domain with environment prefix (host-based routing requires domain)
           if [ "$ENV_NAME" = "prod" ]; then

@@ -10,6 +10,10 @@ on:
       - main
       - develop
       - domain-updates
+  pull_request:
+    branches:
+      - main
+      - develop
   workflow_dispatch:
     inputs:
       environment:
@@ -23,8 +27,8 @@ on:
         required: false
         default: true
         type: boolean
-      force_dns_worker:
-        description: Force DNS worker build
+      force_control_plane:
+        description: Force Control Plane build
         required: false
         default: false
         type: boolean
@@ -33,10 +37,7 @@ on:
         required: false
         default: false
         type: boolean
-      listener_tag:
-        required: false
-        type: string
-      dns_worker_tag:
+      control_plane_tag:
         required: false
         type: string
       api_tag:
@@ -93,8 +94,7 @@ jobs:
     outputs:
       has_image_changes: ${{ steps.changes.outputs.images }}
       has_infra_changes: ${{ steps.changes.outputs.infra }}
-      listener_changed: ${{ steps.changes.outputs.listener }}
-      dns_worker_changed: ${{ steps.changes.outputs.dns_worker }}
+      control_plane_changed: ${{ steps.changes.outputs.control_plane }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -116,53 +116,40 @@ jobs:
             echo "📝 Regular commit - checking against previous commit"
             CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
           fi
-
           echo " Changed files:"
           echo "$CHANGED_FILES"
 
           IMAGE_FLAG=false
           INFRA_FLAG=false
-          LISTENER_FLAG=false
-          DNS_WORKER_FLAG=false
+          CONTROL_PLANE_FLAG=false
 
           if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
             echo " Domain updates branch: only infrastructure changes needed"
             IMAGE_FLAG=false
             INFRA_FLAG=true
-            LISTENER_FLAG=false
-            DNS_WORKER_FLAG=false
+            CONTROL_PLANE_FLAG=false
             echo "images=false" >> $GITHUB_OUTPUT
             echo "infra=true" >> $GITHUB_OUTPUT
-            echo "listener=false" >> $GITHUB_OUTPUT
-            echo "dns_worker=false" >> $GITHUB_OUTPUT
+            echo "control_plane=false" >> $GITHUB_OUTPUT
           else
-            # Check for listener-specific changes
-            if echo "$CHANGED_FILES" | grep -E '^apps/listener/' > /dev/null; then
-              echo " Detected changes in listener files"
-              LISTENER_FLAG=true
+            # Check for Control Plane-specific changes
+            if echo "$CHANGED_FILES" | grep -E '^apps/control-plane/' > /dev/null; then
+              echo " Detected changes in control-plane files"
+              CONTROL_PLANE_FLAG=true
               IMAGE_FLAG=true
             fi
 
-            # Check for dns-worker-specific changes
-            if echo "$CHANGED_FILES" | grep -E '^apps/dns-worker/' > /dev/null; then
-              echo " Detected changes in dns-worker files"
-              DNS_WORKER_FLAG=true
-              IMAGE_FLAG=true
-            fi
-
-            # Check for shared container files (affects both)
+            # Check for shared container files
             if echo "$CHANGED_FILES" | grep -E '^apps/requirements\.txt$' > /dev/null; then
-              echo " Detected changes in shared requirements.txt - building both services"
-              LISTENER_FLAG=true
-              DNS_WORKER_FLAG=true
+              echo " Detected changes in shared requirements.txt"
+              CONTROL_PLANE_FLAG=true
               IMAGE_FLAG=true
             fi
 
-            # Check for individual requirements.txt changes (affects both since they should be synced)
-            if echo "$CHANGED_FILES" | grep -E '^apps/(listener|dns-worker)/requirements\.txt$' > /dev/null; then
-              echo " Detected changes in individual requirements.txt - building both services"
-              LISTENER_FLAG=true
-              DNS_WORKER_FLAG=true
+            # Check for individual requirements.txt changes
+            if echo "$CHANGED_FILES" | grep -E '^apps/control-plane/requirements\.txt$' > /dev/null; then
+              echo " Detected changes in control-plane requirements.txt"
+              CONTROL_PLANE_FLAG=true
               IMAGE_FLAG=true
             fi
 
@@ -179,8 +166,7 @@ jobs:
 
             echo "images=$IMAGE_FLAG" >> $GITHUB_OUTPUT
             echo "infra=$INFRA_FLAG" >> $GITHUB_OUTPUT
-            echo "listener=$LISTENER_FLAG" >> $GITHUB_OUTPUT
-            echo "dns_worker=$DNS_WORKER_FLAG" >> $GITHUB_OUTPUT
+            echo "control_plane=$CONTROL_PLANE_FLAG" >> $GITHUB_OUTPUT
           fi
 
           # 📝 Write to the GitHub Actions summary UI
@@ -346,8 +332,7 @@ jobs:
     if: always() && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped') && (needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped')
     outputs:
       image_tag: ${{ steps.tag.outputs.image_tag }}
-      listener_tag: ${{ steps.tag.outputs.listener_tag }}
-      dns_worker_tag: ${{ steps.tag.outputs.dns_worker_tag }}
+      control_plane_tag: ${{ steps.tag.outputs.control_plane_tag }}
       api_tag: ${{ steps.tag.outputs.api_tag }}
       web_tag: ${{ steps.tag.outputs.web_tag }}
       should_deploy: ${{ steps.tag.outputs.should_deploy }}
@@ -365,19 +350,15 @@ jobs:
           # WORKFLOW DISPATCH: Use provided tags if available
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "🔍 Workflow dispatch detected - using provided tags"
-            LISTENER_TAG="${{ inputs.listener_tag }}"
-            DNS_WORKER_TAG="${{ inputs.dns_worker_tag }}"
+            CONTROL_PLANE_TAG="${{ inputs.control_plane_tag }}"
             API_TAG="${{ inputs.api_tag }}"
             WEB_TAG="${{ inputs.web_tag }}"
             echo "should_deploy=true" >> $GITHUB_OUTPUT
           fi
 
-          # Get current service tags (local for listener/dns-worker, remote for api/web)
-          if [[ -z "$LISTENER_TAG" ]]; then
-            LISTENER_TAG=$(git tag -l "listener-v*" --sort=-version:refname | head -n1 | sed 's/listener-//' || echo "v1.0.0")
-          fi
-          if [[ -z "$DNS_WORKER_TAG" ]]; then
-            DNS_WORKER_TAG=$(git tag -l "dns-worker-v*" --sort=-version:refname | head -n1 | sed 's/dns-worker-//' || echo "v1.0.0")
+          # Get current service tags (local for control-plane, remote for api/web)
+          if [[ -z "$CONTROL_PLANE_TAG" ]]; then
+            CONTROL_PLANE_TAG=$(git tag -l "control-plane-v*" --sort=-version:refname | head -n1 | sed 's/control-plane-//' || echo "v1.0.0")
           fi
 
           # Fetch latest API/WEB tags from storefront-cdk repository if not provided
@@ -410,7 +391,7 @@ jobs:
             echo "should_deploy=true" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref_name }}" == "domain-updates" ]]; then
             echo "🔍 Domain updates branch detected - using latest tags without incrementing"
-            echo "🏷️ Using latest tags - API: $API_TAG, WEB: $WEB_TAG, LISTENER: $LISTENER_TAG, DNS_WORKER: $DNS_WORKER_TAG"
+            echo "🏷️ Using latest tags - API: $API_TAG, WEB: $WEB_TAG, CONTROL_PLANE: $CONTROL_PLANE_TAG"
             echo "should_deploy=true" >> $GITHUB_OUTPUT
           else
             # REGULAR WORKFLOW: Handle local service changes
@@ -420,29 +401,18 @@ jobs:
 
             if [[ "$BRANCH_NAME" == "main" ]]; then
               # Main branch: Create proper version tags
-              if [[ "${{ needs.check-changes.outputs.listener_changed }}" == "true" ]]; then
-                LISTENER_TAG=$(increment_version "$LISTENER_TAG")
-                git tag "listener-$LISTENER_TAG" && git push origin "listener-$LISTENER_TAG"
-                echo "🏷️ Incremented listener: $LISTENER_TAG"
-              fi
-
-              if [[ "${{ needs.check-changes.outputs.dns_worker_changed }}" == "true" && -z "${{ inputs.dns_worker_tag }}" ]]; then
-                DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
-                git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"
-                echo "🏷️ Incremented dns-worker: $DNS_WORKER_TAG"
-              elif [[ -n "${{ inputs.dns_worker_tag }}" ]]; then
-                echo "🏷️ Using provided dns-worker tag: $DNS_WORKER_TAG"
+              if [[ "${{ needs.check-changes.outputs.control_plane_changed }}" == "true" && -z "${{ inputs.control_plane_tag }}" ]]; then
+                CONTROL_PLANE_TAG=$(increment_version "$CONTROL_PLANE_TAG")
+                git tag "control-plane-$CONTROL_PLANE_TAG" && git push origin "control-plane-$CONTROL_PLANE_TAG"
+                echo "🏷️ Incremented control-plane: $CONTROL_PLANE_TAG"
+              elif [[ -n "${{ inputs.control_plane_tag }}" ]]; then
+                echo "🏷️ Using provided control-plane tag: $CONTROL_PLANE_TAG"
               fi
             else
               # Non-main branch: Create branch-specific tags
-              if [[ "${{ needs.check-changes.outputs.listener_changed }}" == "true" ]]; then
-                LISTENER_TAG="${BRANCH_NAME}-${SHORT_SHA}"
-                echo "🏷️ Branch listener tag: $LISTENER_TAG"
-              fi
-
-              if [[ "${{ needs.check-changes.outputs.dns_worker_changed }}" == "true" ]]; then
-                DNS_WORKER_TAG="${BRANCH_NAME}-${SHORT_SHA}"
-                echo "🏷️ Branch dns-worker tag: $DNS_WORKER_TAG"
+              if [[ "${{ needs.check-changes.outputs.control_plane_changed }}" == "true" ]]; then
+                CONTROL_PLANE_TAG="${BRANCH_NAME}-${SHORT_SHA}"
+                echo "🏷️ Branch control-plane tag: $CONTROL_PLANE_TAG"
               fi
             fi
 
@@ -456,33 +426,32 @@ jobs:
           # Use latest repository tag as overall deployment version
           REPO_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
           echo "image_tag=$REPO_TAG" >> $GITHUB_OUTPUT
-          echo "listener_tag=$LISTENER_TAG" >> $GITHUB_OUTPUT
-          echo "dns_worker_tag=$DNS_WORKER_TAG" >> $GITHUB_OUTPUT
+          echo "control_plane_tag=$CONTROL_PLANE_TAG" >> $GITHUB_OUTPUT
           echo "api_tag=$API_TAG" >> $GITHUB_OUTPUT
           echo "web_tag=$WEB_TAG" >> $GITHUB_OUTPUT
 
-  build-dns-worker:
-    name: Build & Push DNS Worker Image
+  build-control-plane:
+    name: Build & Push Control Plane Image
     needs: [test-gate, generate-tag, check-changes, semantic-release]
     if: |
       always() && (
-        (inputs.dns_worker_tag != null && inputs.dns_worker_tag != '') ||
-        inputs.force_dns_worker == true ||
-        ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref_name == 'domain-updates') && needs.check-changes.outputs.dns_worker_changed == 'true')
+        (inputs.control_plane_tag != null && inputs.control_plane_tag != '') ||
+        inputs.force_control_plane == true ||
+        ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref_name == 'domain-updates') && needs.check-changes.outputs.control_plane_changed == 'true')
       ) && (
         needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped'
       ) && (
         needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped'
       )
-    uses: ./.github/workflows/dns-worker-build.yml
+    uses: ./.github/workflows/control-plane-build.yml
     with:
       environment: dev
-      image_tag: ${{ needs.generate-tag.outputs.dns_worker_tag }}
+      image_tag: ${{ needs.generate-tag.outputs.control_plane_tag }}
     secrets: inherit
 
   deploy-infrastructure:
     name: Deploy Infrastructure
-    needs: [test-gate, generate-tag, check-changes, semantic-release, build-listener, build-dns-worker]
+    needs: [test-gate, generate-tag, check-changes, semantic-release, build-control-plane]
     if: |
       always() && (
         inputs.force_infra == true ||
@@ -498,65 +467,21 @@ jobs:
       ) && (
         needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped'
       ) && (
-        needs.build-listener.result == 'success' || needs.build-listener.result == 'skipped'
-      ) && (
-        needs.build-dns-worker.result == 'success' || needs.build-dns-worker.result == 'skipped'
+        needs.build-control-plane.result == 'success' || needs.build-control-plane.result == 'skipped'
       )
     uses: ./.github/workflows/infra-build.yml
     with:
       environment: ${{ inputs.environment || github.event.client_payload.environment || 'dev' }}
       deploy_all_environments: ${{ inputs.deploy_all_environments || contains(github.event.head_commit.message, '[deploy-all]') || false }}
       image_tag: ${{ needs.generate-tag.outputs.image_tag }}
-      listener_tag: ${{ needs.generate-tag.outputs.listener_tag }}
-      dns_worker_tag: ${{ needs.generate-tag.outputs.dns_worker_tag }}
+      control_plane_tag: ${{ needs.generate-tag.outputs.control_plane_tag }}
       api_tag: ${{ needs.generate-tag.outputs.api_tag }}
       web_tag: ${{ needs.generate-tag.outputs.web_tag }}
     secrets: inherit
 
-  auto-merge-domains:
-    name: Auto-merge Domain Updates
-    needs: [deploy-infrastructure]
-    if: always() && github.ref_name == 'domain-updates' && (needs.deploy-infrastructure.result == 'success' || needs.deploy-infrastructure.result == 'skipped')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout main branch
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          token: ${{ secrets.GH_TOKEN }}
-          fetch-depth: 0
-
-      - name: Merge domain-updates to main and cleanup
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          echo "🔄 Merging domain-updates branch to main..."
-
-          # Fetch the latest domain-updates branch
-          git fetch origin domain-updates
-
-          # Merge only the domains.json file from domain-updates
-          git checkout origin/domain-updates -- domains.json
-
-          # Check if there are any changes to commit
-          if git diff --staged --quiet; then
-            echo "ℹ️ No changes to domains.json, skipping merge"
-          else
-            git add domains.json
-            git commit -m "chore: sync domains.json from domain-updates branch [skip ci]"
-            git push origin main
-            echo "✅ Successfully merged domains.json to main"
-          fi
-
-          # Delete the domain-updates branch to clean up
-          echo "🗑️ Cleaning up domain-updates branch..."
-          git push origin --delete domain-updates
-          echo "✅ Deleted domain-updates branch"
-
   dev-summary:
     name: Deployment Summary
-    needs: [generate-tag, deploy-infrastructure, auto-merge-domains]
+    needs: [generate-tag, deploy-infrastructure]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -565,8 +490,7 @@ jobs:
 
       - name: Generate Dev Summary
         env:
-          LISTENER_TAG: ${{ needs.generate-tag.outputs.listener_tag }}
-          DNS_WORKER_TAG: ${{ needs.generate-tag.outputs.dns_worker_tag }}
+          CONTROL_PLANE_TAG: ${{ needs.generate-tag.outputs.control_plane_tag }}
           API_TAG: ${{ needs.generate-tag.outputs.api_tag }}
           WEB_TAG: ${{ needs.generate-tag.outputs.web_tag }}
           DEV_STATUS: ${{ needs.deploy-infrastructure.result }}
@@ -593,8 +517,7 @@ jobs:
           echo "- **Environment:** $ENV_DESCRIPTION" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Service Versions" >> $GITHUB_STEP_SUMMARY
-          echo "- **Listener:** \`$LISTENER_TAG\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **DNS Worker:** \`$DNS_WORKER_TAG\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Control Plane:** \`$CONTROL_PLANE_TAG\`" >> $GITHUB_STEP_SUMMARY
           echo "- **API:** \`$API_TAG\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Web:** \`$WEB_TAG\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -646,4 +569,4 @@ jobs:
           echo "### Deployment Logs & History" >> $GITHUB_STEP_SUMMARY
           echo "- [This Workflow Run](https://github.com/AITeeToolkit/aws-fargate-cdk/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
           echo "- [All Infrastructure Deployments](https://github.com/AITeeToolkit/aws-fargate-cdk/actions)" >> $GITHUB_STEP_SUMMARY
-          echo "- [Infrastructure & Listener Changelog](https://github.com/AITeeToolkit/aws-fargate-cdk/blob/main/CHANGELOG.md)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Infrastructure Changelog](https://github.com/AITeeToolkit/aws-fargate-cdk/blob/main/CHANGELOG.md)" >> $GITHUB_STEP_SUMMARY

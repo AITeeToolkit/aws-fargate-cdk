@@ -52,8 +52,7 @@ def test_domains():
 def test_tags():
     """Test image tags"""
     return {
-        "listener": "v1.0.0-test",
-        "dns_worker": "v1.0.0-test",
+        "control-plane": "v1.0.0-test",
         "api": "v1.0.0-test",
         "web": "v1.0.0-test",
     }
