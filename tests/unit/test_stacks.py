@@ -317,9 +317,9 @@ class TestSQSStack:
         sqs_stack = SQSStack(cdk_app, "TestSQSStack", env=test_environment, environment="test")
         template = assertions.Template.from_stack(sqs_stack)
 
-        # Should create 10 queues: 8 main queues + 2 DLQs
-        # (main, priority, email, image_processing, order_processing, database_operations, route53_operations, github_workflow, dlq, fifo_dlq)
-        template.resource_count_is("AWS::SQS::Queue", 10)
+        # Should create 4 queues: 3 control plane queues + 1 FIFO DLQ
+        # (database_operations, route53_operations, github_workflow, fifo_dlq)
+        template.resource_count_is("AWS::SQS::Queue", 4)
 
         # Verify queue has dead letter queue configuration
         template.has_resource_properties(
@@ -332,9 +332,9 @@ class TestSQSStack:
             },
         )
 
-        # Verify FIFO queues are created
+        # Verify FIFO queues are created (control plane queues use explicit deduplication IDs)
         template.has_resource_properties(
-            "AWS::SQS::Queue", {"FifoQueue": True, "ContentBasedDeduplication": True}
+            "AWS::SQS::Queue", {"FifoQueue": True, "ContentBasedDeduplication": False}
         )
 
     def test_sqs_managed_policy(self, cdk_app, test_environment):
