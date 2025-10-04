@@ -100,62 +100,33 @@ def load_domains_for_env(environment: str):
 
         # Connect to database
         conn = psycopg2.connect(
-            host=db_host, database=db_name, user=db_user, password=db_password, connect_timeout=10
+            host=db_host,
+            database=db_name,
+            user=db_user,
+            password=db_password,
+            connect_timeout=10,
         )
 
         cursor = conn.cursor()
-        cursor.execute("SELECT full_url, active_status FROM domains")
+        # Only load active domains (active_status = 'Y')
+        cursor.execute("SELECT full_url FROM domains WHERE active_status = 'Y'")
 
-        cert_domains = []
-        active_domains = []
-
-        for full_url, active_status in cursor.fetchall():
-            if active_status == "Y":
-                active_domains.append(full_url)
-                cert_domains.append(full_url)
-            else:  # Draining (active_status = 'N')
-                cert_domains.append(full_url)
+        active_domains = [row[0] for row in cursor.fetchall()]
 
         cursor.close()
         conn.close()
 
-        print(
-            f"  📊 Loaded {len(active_domains)} active, {len(cert_domains) - len(active_domains)} draining domains from database"
-        )
-        return cert_domains, active_domains
+        print(f"  📊 Loaded {len(active_domains)} active domains from database")
+        return active_domains, active_domains
 
     except Exception as e:
-        print(f"⚠️ Could not read domains from database for {environment}: {e}")
-        print(f"  Falling back to {environment}-domains.json file")
-
-        # Fallback to file-based approach
-        domains_file = f"{environment}-domains.json"
-        try:
-            with open(domains_file, "r") as f:
-                domains_data = json.load(f)
-                domains_config = domains_data["domains"]
-
-                cert_domains = []
-                active_domains = []
-
-                for d in domains_config:
-                    if isinstance(d, dict):
-                        name = d["name"]
-                        state = d.get("state", "active")
-                        if state == "active":
-                            active_domains.append(name)
-                            cert_domains.append(name)
-                        else:  # draining
-                            cert_domains.append(name)
-                    else:
-                        active_domains.append(d)
-                        cert_domains.append(d)
-
-                return cert_domains, active_domains
-
-        except (FileNotFoundError, json.JSONDecodeError, KeyError) as fallback_error:
-            print(f"⚠️ Fallback also failed: {fallback_error}")
-            return [], []
+        print(f"❌ Failed to read domains from database for {environment}: {e}")
+        print(f"   Database connection is required. No file fallback.")
+        raise RuntimeError(
+            f"Cannot deploy without database connection. "
+            f"Ensure database is deployed and SSM parameters exist: "
+            f"/storefront-{environment}/database/{{host,name,username,password}}"
+        )
 
 
 # Listener service removed - no longer needed
