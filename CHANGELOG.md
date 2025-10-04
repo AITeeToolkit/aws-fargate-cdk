@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.79.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.79.0...v1.79.1) (2025-10-04)
+
+
+### 🐛 Bug Fixes
+
+* update SQL query to use domains table and active_status column [skip tests] [deploy-all] ([d72ddfa](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/d72ddfa7a1fec4441b5405cb73682effbc15f98e))
+
 ## [1.79.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.78.13...v1.79.0) (2025-10-04)
 
 
