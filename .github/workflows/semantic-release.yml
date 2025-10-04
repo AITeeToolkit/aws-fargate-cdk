@@ -356,15 +356,31 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Get current service tags (local for listener/dns-worker, remote for api/web)
-          LISTENER_TAG=$(git tag -l "listener-v*" --sort=-version:refname | head -n1 | sed 's/listener-//' || echo "v1.0.0")
-          DNS_WORKER_TAG=$(git tag -l "dns-worker-v*" --sort=-version:refname | head -n1 | sed 's/dns-worker-//' || echo "v1.0.0")
+          # WORKFLOW DISPATCH: Use provided tags if available
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "🔍 Workflow dispatch detected - using provided tags"
+            LISTENER_TAG="${{ inputs.listener_tag }}"
+            DNS_WORKER_TAG="${{ inputs.dns_worker_tag }}"
+            API_TAG="${{ inputs.api_tag }}"
+            WEB_TAG="${{ inputs.web_tag }}"
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
+          fi
 
-          # Fetch latest API/WEB tags from storefront-cdk repository
-          echo "🔍 Fetching latest API/WEB tags from storefront-cdk..."
-          API_TAG=$(git ls-remote --tags https://github.com/AITeeToolkit/storefront-cdk.git | grep 'api-v' | sed 's/.*api-//' | sort -V | tail -n1 || echo "v1.0.0")
-          WEB_TAG=$(git ls-remote --tags https://github.com/AITeeToolkit/storefront-cdk.git | grep 'web-v' | sed 's/.*web-//' | sort -V | tail -n1 || echo "v1.0.0")
-          echo "🏷️ Fetched from storefront-cdk - API: $API_TAG, WEB: $WEB_TAG"
+          # Get current service tags (local for listener/dns-worker, remote for api/web)
+          if [[ -z "$LISTENER_TAG" ]]; then
+            LISTENER_TAG=$(git tag -l "listener-v*" --sort=-version:refname | head -n1 | sed 's/listener-//' || echo "v1.0.0")
+          fi
+          if [[ -z "$DNS_WORKER_TAG" ]]; then
+            DNS_WORKER_TAG=$(git tag -l "dns-worker-v*" --sort=-version:refname | head -n1 | sed 's/dns-worker-//' || echo "v1.0.0")
+          fi
+
+          # Fetch latest API/WEB tags from storefront-cdk repository if not provided
+          if [[ -z "$API_TAG" || -z "$WEB_TAG" ]]; then
+            echo "🔍 Fetching latest API/WEB tags from storefront-cdk..."
+            API_TAG=$(git ls-remote --tags https://github.com/AITeeToolkit/storefront-cdk.git | grep 'api-v' | sed 's/.*api-//' | sort -V | tail -n1 || echo "v1.0.0")
+            WEB_TAG=$(git ls-remote --tags https://github.com/AITeeToolkit/storefront-cdk.git | grep 'web-v' | sed 's/.*web-//' | sort -V | tail -n1 || echo "v1.0.0")
+            echo "🏷️ Fetched from storefront-cdk - API: $API_TAG, WEB: $WEB_TAG"
+          fi
 
           increment_version() {
             local version=$1
@@ -451,7 +467,15 @@ jobs:
   build-dns-worker:
     name: Build & Push DNS Worker Image
     needs: [test-gate, generate-tag, check-changes, semantic-release]
-    if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && needs.check-changes.outputs.dns_worker_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped') && (needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped')
+    if: |
+      always() && (
+        (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && needs.check-changes.outputs.dns_worker_changed == 'true'
+        || inputs.dns_worker_tag != ''
+      ) && (
+        needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped'
+      ) && (
+        needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped'
+      )
     uses: ./.github/workflows/dns-worker-build.yml
     with:
       environment: dev
@@ -462,11 +486,15 @@ jobs:
     name: Deploy Infrastructure
     needs: [test-gate, generate-tag, check-changes, semantic-release, build-listener, build-dns-worker]
     if: |
-      always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref_name == 'domain-updates' || github.event_name == 'workflow_call') && (
-        needs.check-changes.outputs.has_infra_changes == 'true' ||
-        needs.check-changes.outputs.has_image_changes == 'true' ||
-        github.event_name == 'repository_dispatch' ||
-        inputs.force_infra == true
+      always() && (
+        inputs.force_infra == true ||
+        (
+          (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref_name == 'domain-updates' || github.event_name == 'workflow_call') && (
+            needs.check-changes.outputs.has_infra_changes == 'true' ||
+            needs.check-changes.outputs.has_image_changes == 'true' ||
+            github.event_name == 'repository_dispatch'
+          )
+        )
       ) && (
         needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped'
       ) && (
