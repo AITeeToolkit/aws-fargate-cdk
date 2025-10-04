@@ -255,12 +255,14 @@ jobs:
 
               if [ "$IN_USE" = "None" ] || [ -z "$IN_USE" ]; then
                 echo "  🗑️  Deleting unused certificate stack"
-                aws cloudformation delete-stack --stack-name "$stack"
+                aws cloudformation delete-stack --stack-name "$stack" || echo "  ⚠️  Failed to delete stack"
               else
                 echo "  ✅ Certificate in use"
               fi
             else
-              echo "  ⚠️  No certificate ARN found"
+              echo "  ⚠️  No certificate ARN found in outputs (old stack format)"
+              echo "  🗑️  Deleting old-format certificate stack"
+              aws cloudformation delete-stack --stack-name "$stack" || echo "  ⚠️  Failed to delete stack"
             fi
           done
 
