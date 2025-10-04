@@ -89,10 +89,10 @@ jobs:
             "SharedCertificateStack"
           )
 
-          # Get environment-specific stacks dynamically
+          # Get environment-specific stacks dynamically (exclude Certificate and DomainDns stacks)
           ENV_STACKS=$(aws cloudformation list-stacks \
             --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE UPDATE_ROLLBACK_COMPLETE \
-            --query "StackSummaries[?contains(StackName, '-$ENV_NAME')].StackName" \
+            --query "StackSummaries[?contains(StackName, '-$ENV_NAME') && !contains(StackName, 'CertificateStack-') && !contains(StackName, 'DomainDnsStack-')].StackName" \
             --output text)
 
           # Combine shared and environment-specific stacks
