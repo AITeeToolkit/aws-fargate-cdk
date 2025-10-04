@@ -111,7 +111,7 @@ class GitHubRunnerStack(Stack):
             self,
             "GitHubRunner",
             instance_type=ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.SMALL),
-            machine_image=ec2.MachineImage.latest_amazon_linux2(),
+            machine_image=ec2.MachineImage.latest_amazon_linux2023(),
             vpc=vpc,
             vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
             security_group=runner_sg,
