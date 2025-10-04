@@ -195,6 +195,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test-gate, check-changes]
     if: github.ref == 'refs/heads/main' && (needs.check-changes.outputs.has_image_changes == 'true' || needs.check-changes.outputs.has_infra_changes == 'true') && (needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped')
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
     outputs:
       new_release: ${{ steps.release_info.outputs.new_release }}
       latest_tag: ${{ steps.release_info.outputs.latest_tag }}
@@ -253,7 +257,7 @@ jobs:
 
           # Run semantic-release and capture output
           set +e  # Don't exit on error
-          OUTPUT=$(npx semantic-release --no-ci 2>&1)
+          OUTPUT=$(npx semantic-release 2>&1)
           EXIT_CODE=$?
           set -e  # Re-enable exit on error
 

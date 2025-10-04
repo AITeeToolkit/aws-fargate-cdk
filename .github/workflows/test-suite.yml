@@ -155,7 +155,7 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
-    needs: [unit-tests]
+    # Run in parallel with unit tests - no dependency needed
     if: true  # Enabled - all environments are now deployed
     outputs:
       pass_rate: ${{ steps.test_results.outputs.pass_rate }}
@@ -219,7 +219,7 @@ jobs:
   performance-tests:
     name: Performance Tests
     runs-on: ubuntu-latest
-    needs: [integration-tests]
+    # Run in parallel with other tests - no dependency needed
     if: true  # Enabled - staging environment is deployed
     outputs:
       pass_rate: ${{ steps.perf_results.outputs.pass_rate }}
