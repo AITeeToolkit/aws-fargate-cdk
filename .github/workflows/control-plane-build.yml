@@ -1,4 +1,4 @@
-name: Build DNS Worker Image
+name: Build Control Plane Image
 
 on:
   workflow_call:
@@ -18,8 +18,8 @@ on:
         required: true
 
 jobs:
-  build-dns-worker:
-    name: Build & Push DNS Worker Image
+  build-control-plane:
+    name: Build & Push Control Plane Image
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -38,28 +38,26 @@ jobs:
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_REGISTRY
           echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
 
-      - name: Build DNS Worker Docker Image
+      - name: Build and push ControlPlane image
         run: |
-          echo "🔧 Building DNS Worker image with tag: ${{ inputs.image_tag }}"
-          docker build -t $ECR_REGISTRY/dns-worker:${{ inputs.image_tag }} ./apps/dns-worker
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            docker tag $ECR_REGISTRY/dns-worker:${{ inputs.image_tag }} $ECR_REGISTRY/dns-worker:latest
-          fi
+          cd apps/control-plane
+          docker build -t storefront/control-plane:${{ inputs.image_tag }} .
+          docker tag storefront/control-plane:${{ inputs.image_tag }} ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/storefront/control-plane:${{ inputs.image_tag }}
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/storefront/control-plane:${{ inputs.image_tag }}
 
-      - name: Push DNS Worker Image
+      - name: Push latest tag
+        if: github.ref == 'refs/heads/main'
         run: |
-          docker push $ECR_REGISTRY/dns-worker:${{ inputs.image_tag }}
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            docker push $ECR_REGISTRY/dns-worker:latest
-          fi
+          docker tag storefront/control-plane:${{ inputs.image_tag }} $ECR_REGISTRY/control-plane:latest
+          docker push $ECR_REGISTRY/control-plane:latest
 
       - name: Tag Release
         if: github.ref == 'refs/heads/main'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "dns-worker-${{ inputs.image_tag }}"
-          git push origin "dns-worker-${{ inputs.image_tag }}"
+          git tag "control-plane-${{ inputs.image_tag }}"
+          git push origin "control-plane-${{ inputs.image_tag }}"
 
       - name: Cleanup on Failure
         if: failure() && github.ref == 'refs/heads/main'
@@ -69,13 +67,13 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           # Delete local tag if it exists
-          if git rev-parse "dns-worker-${{ inputs.image_tag }}" >/dev/null 2>&1; then
-            git tag -d "dns-worker-${{ inputs.image_tag }}"
-            echo "Deleted local tag: dns-worker-${{ inputs.image_tag }}"
+          if git rev-parse "control-plane-${{ inputs.image_tag }}" >/dev/null 2>&1; then
+            git tag -d "control-plane-${{ inputs.image_tag }}"
+            echo "Deleted local tag: control-plane-${{ inputs.image_tag }}"
           fi
 
           # Delete remote tag if it exists
-          if git ls-remote --tags origin | grep -q "dns-worker-${{ inputs.image_tag }}"; then
-            git push --delete origin "dns-worker-${{ inputs.image_tag }}" || true
-            echo "Deleted remote tag: dns-worker-${{ inputs.image_tag }}"
+          if git ls-remote --tags origin | grep -q "control-plane-${{ inputs.image_tag }}"; then
+            git push --delete origin "control-plane-${{ inputs.image_tag }}" || true
+            echo "Deleted remote tag: control-plane-${{ inputs.image_tag }}"
           fi

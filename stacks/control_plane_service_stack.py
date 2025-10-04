@@ -8,7 +8,7 @@ from constructs import Construct
 from cdk_constructs.fargate_service_construct import FargateServiceConstruct
 
 
-class DNSWorkerServiceStack(Stack):
+class ControlPlaneServiceStack(Stack):
     def __init__(
         self,
         scope: Construct,

@@ -12,7 +12,8 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy dns-worker application file
-COPY . ./
+# Copy application code
+COPY . .
 
-CMD ["python", "dns_worker_app.py"]
+# Run the control plane
+CMD ["python", "control_plane_app.py"]

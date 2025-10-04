@@ -115,13 +115,28 @@ class SQSStack(Stack):
             content_based_deduplication=False,  # We provide explicit deduplication IDs
         )
 
-        # DNS operations queue (FIFO for deduplication)
-        self.dns_operations_queue = sqs.Queue(
+        # Database operations queue - handles domain table updates
+        self.database_operations_queue = sqs.Queue(
             self,
-            "StorefrontDnsOperationsQueue",
-            queue_name=f"storefront-{environment}-dns-operations-queue.fifo",
+            "DatabaseOperationsQueue",
+            queue_name=f"storefront-{environment}-database-operations-queue.fifo",
             fifo=True,
-            content_based_deduplication=False,  # We provide explicit deduplication IDs
+            content_based_deduplication=False,
+            visibility_timeout=Duration.minutes(2),
+            retention_period=Duration.days(14),
+            dead_letter_queue=sqs.DeadLetterQueue(max_receive_count=3, queue=self.fifo_dlq),
+            removal_policy=(
+                RemovalPolicy.DESTROY if environment == "dev" else RemovalPolicy.RETAIN
+            ),
+        )
+
+        # Route53 operations queue - handles DNS zone and record management
+        self.route53_operations_queue = sqs.Queue(
+            self,
+            "Route53OperationsQueue",
+            queue_name=f"storefront-{environment}-route53-operations-queue.fifo",
+            fifo=True,
+            content_based_deduplication=False,
             visibility_timeout=Duration.minutes(5),
             retention_period=Duration.days(14),
             dead_letter_queue=sqs.DeadLetterQueue(max_receive_count=3, queue=self.fifo_dlq),
@@ -130,11 +145,38 @@ class SQSStack(Stack):
             ),
         )
 
-        # Subscribe DNS operations queue to domain changes topic
+        # GitHub workflow queue - handles workflow triggers
+        self.github_workflow_queue = sqs.Queue(
+            self,
+            "GitHubWorkflowQueue",
+            queue_name=f"storefront-{environment}-github-workflow-queue.fifo",
+            fifo=True,
+            content_based_deduplication=False,
+            visibility_timeout=Duration.minutes(3),
+            retention_period=Duration.days(14),
+            dead_letter_queue=sqs.DeadLetterQueue(max_receive_count=3, queue=self.fifo_dlq),
+            removal_policy=(
+                RemovalPolicy.DESTROY if environment == "dev" else RemovalPolicy.RETAIN
+            ),
+        )
+
+        # Subscribe all queues to domain changes topic (fan-out pattern)
         self.domain_changes_topic.add_subscription(
             sns_subs.SqsSubscription(
-                self.dns_operations_queue,
-                raw_message_delivery=True,  # Deliver SNS message body directly to SQS
+                self.database_operations_queue,
+                raw_message_delivery=True,
+            )
+        )
+        self.domain_changes_topic.add_subscription(
+            sns_subs.SqsSubscription(
+                self.route53_operations_queue,
+                raw_message_delivery=True,
+            )
+        )
+        self.domain_changes_topic.add_subscription(
+            sns_subs.SqsSubscription(
+                self.github_workflow_queue,
+                raw_message_delivery=True,
             )
         )
 
@@ -181,10 +223,26 @@ class SQSStack(Stack):
 
         ssm.StringParameter(
             self,
-            "DnsOperationsQueueUrlParameter",
-            parameter_name=f"/storefront-{environment}/sqs/dns-operations-queue-url",
-            string_value=self.dns_operations_queue.queue_url,
-            description="DNS operations FIFO SQS queue URL",
+            "DatabaseOperationsQueueUrlParameter",
+            parameter_name=f"/storefront-{environment}/sqs/database-operations-queue-url",
+            string_value=self.database_operations_queue.queue_url,
+            description="Database operations FIFO SQS queue URL",
+        )
+
+        ssm.StringParameter(
+            self,
+            "Route53OperationsQueueUrlParameter",
+            parameter_name=f"/storefront-{environment}/sqs/route53-operations-queue-url",
+            string_value=self.route53_operations_queue.queue_url,
+            description="Route53 operations FIFO SQS queue URL",
+        )
+
+        ssm.StringParameter(
+            self,
+            "GitHubWorkflowQueueUrlParameter",
+            parameter_name=f"/storefront-{environment}/sqs/github-workflow-queue-url",
+            string_value=self.github_workflow_queue.queue_url,
+            description="GitHub workflow trigger FIFO SQS queue URL",
         )
 
         ssm.StringParameter(

@@ -8,8 +8,8 @@ from aws_cdk import assertions
 
 from stacks.api_service_stack import APIServiceStack
 from stacks.certificate_stack import CertificateStack
+from stacks.control_plane_service_stack import ControlPlaneServiceStack
 from stacks.database_stack import DatabaseStack
-from stacks.dns_worker_service_stack import DNSWorkerServiceStack
 from stacks.domain_dns_stack import DomainDnsStack
 from stacks.ecr_stack import ECRStack
 from stacks.network_stack import NetworkStack
@@ -175,10 +175,10 @@ class TestDatabaseStack:
 
 
 class TestServiceStacks:
-    """Test service stacks (DNS Worker)"""
+    """Test service stacks (ControlPlane)"""
 
-    def test_dns_worker_service_creation(self, cdk_app, test_environment, test_tags):
-        """Test DNS Worker service stack creates ECS service"""
+    def test_control_plane_service_creation(self, cdk_app, test_environment, test_tags):
+        """Test ControlPlane service stack creates ECS service"""
         # Create dependencies
         network_stack = NetworkStack(cdk_app, "TestNetworkStack", env=test_environment)
         shared_stack = SharedStack(
@@ -188,7 +188,7 @@ class TestServiceStacks:
             cdk_app,
             "TestECRStack",
             env=test_environment,
-            repository_names=["api", "web", "dns-worker"],
+            repository_names=["api", "web", "control-plane"],
         )
         db_stack = DatabaseStack(
             cdk_app,
@@ -201,26 +201,29 @@ class TestServiceStacks:
             deletion_protection=False,
         )
 
-        # Create DNS worker service
-        dns_worker_stack = DNSWorkerServiceStack(
+        # Create ControlPlane service
+        control_plane_stack = ControlPlaneServiceStack(
             cdk_app,
-            "TestDNSWorkerStack",
+            "TestControlPlaneStack",
             env=test_environment,
             vpc=network_stack.vpc,
             cluster=shared_stack.cluster,
-            image_uri=f"{ecr_stack.repositories['dns-worker'].repository_uri}:{test_tags['dns_worker']}",
+            image_uri=f"{ecr_stack.repositories['control-plane'].repository_uri}:{test_tags['control-plane']}",
+            db_secret=db_stack.secret,
             environment="test",
             ecs_task_security_group=shared_stack.ecs_task_sg,
-            service_name="dns-worker-service",
-            db_secret=db_stack.secret,
+            service_name="control-plane-service",
             sqs_managed_policy=None,  # Mock for test
         )
 
-        template = assertions.Template.from_stack(dns_worker_stack)
+        template = assertions.Template.from_stack(control_plane_stack)
 
         # Verify ECS service is created
         template.has_resource("AWS::ECS::Service", {})
         template.has_resource("AWS::ECS::TaskDefinition", {})
+
+
+{{...}}
 
 
 class TestECRStack:

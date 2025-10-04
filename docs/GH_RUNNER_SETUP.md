@@ -29,181 +29,26 @@ aws cloudformation describe-stacks \
   --output text
 
 # Connect via SSM
-aws ssm start-session --target <INSTANCE_ID>
+aws ssm start-session --target i-0a62a9fa756025ef6
 ```
 
-### 3. Configure Runner
+# Create a folder
+sudo mkdir actions-runner && cd actions-runner
 
-```bash
-# Switch to runner user
-sudo su - runner
+# Download the latest runner package
+sudo curl -o actions-runner-linux-x64-2.328.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.328.0/actions-runner-linux-x64-2.328.0.tar.gz
 
-# Navigate to runner directory
-cd actions-runner
+# Optional: Validate the hash
+sudo echo "01066fad3a2893e63e6ca880ae3a1fad5bf9329d60e77ee15f2b97c148c3cd4e  actions-runner-linux-x64-2.328.0.tar.gz" | shasum -a 256 -c
 
-# Configure runner (replace YOUR_TOKEN with actual token)
-./config.sh \
-  --url https://github.com/AITeeToolkit/aws-fargate-cdk \
-  --token YOUR_TOKEN \
-  --labels dev,staging,prod,self-hosted,linux,x64 \
-  --name aws-vpc-runner
+# Extract the installer
+sudo tar xzf ./actions-runner-linux-x64-2.328.0.tar.gz
 
-# Exit back to ec2-user
-exit
-```
+# Create the runner and start the configuration experience
+sudo dnf install dotnet-sdk-9.0
+./config.sh --url https://github.com/AITeeToolkit/aws-fargate-cdk --token BNL5V4R6KFLYIBY3THVMLTTI4CYUU
 
-### 4. Install and Start Service
+./run.sh
 
-```bash
-# Install as systemd service
-cd /home/runner/actions-runner
-sudo ./svc.sh install runner
-
-# Start the service
-sudo ./svc.sh start
-
-# Verify it's running
-sudo ./svc.sh status
-```
-
-## Verification
-
-### Check Runner Status
-
-```bash
-# On the instance
-sudo ./svc.sh status
-
-# Check logs
-sudo journalctl -u actions.runner.AITeeToolkit-aws-fargate-cdk.aws-vpc-runner.service -f
-```
-
-### Verify in GitHub
-
-1. Go to: https://github.com/AITeeToolkit/aws-fargate-cdk/settings/actions/runners
-2. You should see the runner listed as "Idle" with labels: `dev`, `staging`, `prod`, `self-hosted`, `linux`, `x64`
-
-## Workflow Usage
-
-The runner is automatically used by workflows that specify:
-
-```yaml
-runs-on: [self-hosted, linux, x64]
-```
-
-### Current Workflows Using Runner
-
-- **infra-build.yml**: Infrastructure deployment (needs database access for CDK synth)
-
-## Database Access
-
-The runner can access all RDS databases:
-
-- **Dev**: `rds-dev.cyxas2yo0gpr.us-east-1.rds.amazonaws.com`
-- **Staging**: Via VPC (same security group as ECS tasks)
-- **Prod**: Via VPC (same security group as ECS tasks)
-
-Security groups allow:
-- VPC internal traffic (10.0.0.0/16)
-- Allowed IPs from context (for specific users)
-
-## Maintenance
-
-### Restart Service
-
-```bash
-aws ssm start-session --target <INSTANCE_ID>
-sudo systemctl restart actions.runner.AITeeToolkit-aws-fargate-cdk.aws-vpc-runner.service
-```
-
-### Update Runner
-
-```bash
-aws ssm start-session --target <INSTANCE_ID>
-sudo su - runner
-cd actions-runner
-./svc.sh stop
-./config.sh remove --token YOUR_REMOVAL_TOKEN
-# Download latest version
-curl -o actions-runner-linux-x64-VERSION.tar.gz -L https://github.com/actions/runner/releases/download/vVERSION/actions-runner-linux-x64-VERSION.tar.gz
-tar xzf ./actions-runner-linux-x64-VERSION.tar.gz
-./config.sh --url https://github.com/AITeeToolkit/aws-fargate-cdk --token YOUR_TOKEN --labels dev,staging,prod,self-hosted,linux,x64
-exit
-sudo ./svc.sh install runner
-sudo ./svc.sh start
-```
-
-### View Logs
-
-```bash
-# Real-time logs
-aws ssm start-session --target <INSTANCE_ID>
-sudo journalctl -u actions.runner.AITeeToolkit-aws-fargate-cdk.aws-vpc-runner.service -f
-
-# Last 100 lines
-sudo journalctl -u actions.runner.AITeeToolkit-aws-fargate-cdk.aws-vpc-runner.service -n 100
-```
-
-## Troubleshooting
-
-### Runner Not Appearing in GitHub
-
-1. Check service status: `sudo ./svc.sh status`
-2. Check logs: `sudo journalctl -u actions.runner.* -f`
-3. Verify token hasn't expired (tokens expire after 1 hour)
-4. Reconfigure with new token
-
-### Database Connection Issues
-
-1. Verify security group allows VPC traffic
-2. Test database connection:
-   ```bash
-   aws ssm start-session --target <INSTANCE_ID>
-   psql -h rds-dev.cyxas2yo0gpr.us-east-1.rds.amazonaws.com -U postgres -d storefront_dev
-   ```
-
-### Workflow Not Using Runner
-
-1. Verify runner is online in GitHub settings
-2. Check workflow `runs-on` labels match runner labels
-3. Ensure runner has required labels: `self-hosted`, `linux`, `x64`
-
-## IAM Permissions
-
-The runner has the following permissions:
-- **CloudFormation**: Full access for CDK deployments
-- **ECR**: Full access for Docker images
-- **ECS**: Full access for service deployments
-- **Route53**: Full access for DNS management
-- **RDS**: Read access for database queries
-- **SSM**: Full access for parameter store
-- **Secrets Manager**: Full access for secrets
-
-## Security Notes
-
-- Runner is in **private isolated subnet** (no internet access)
-- Uses **VPC endpoints** for AWS service access
-- **SSM Session Manager** for secure access (no SSH keys)
-- **IAM role** for AWS permissions (no access keys)
-- **Security group** restricts database access to VPC only
-
-## Cost
-
-- **EC2 Instance**: ~$15/month (t3.small, 24/7)
-- **Data Transfer**: Minimal (within VPC)
-- **Total**: ~$15-20/month
-
-## Decommissioning
-
-To remove the runner:
-
-```bash
-# Remove from GitHub
-aws ssm start-session --target <INSTANCE_ID>
-sudo su - runner
-cd actions-runner
-./config.sh remove --token YOUR_REMOVAL_TOKEN
-
-# Delete CloudFormation stack
-cdk destroy GitHubRunnerStack
-```
+# Use this YAML in your workflow file for each job
+runs-on: self-hosted
