@@ -6,7 +6,9 @@ concurrency:
 
 on:
   push:
-    branches: ["**"]
+    branches:
+      - main
+      - develop
   workflow_dispatch:
     inputs:
       environment:
@@ -449,7 +451,7 @@ jobs:
   build-dns-worker:
     name: Build & Push DNS Worker Image
     needs: [test-gate, generate-tag, check-changes, semantic-release]
-    if: always() && github.ref == 'refs/heads/main' && needs.check-changes.outputs.dns_worker_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped') && (needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped')
+    if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && needs.check-changes.outputs.dns_worker_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped') && (needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped')
     uses: ./.github/workflows/dns-worker-build.yml
     with:
       environment: dev
@@ -460,7 +462,7 @@ jobs:
     name: Deploy Infrastructure
     needs: [test-gate, generate-tag, check-changes, semantic-release, build-listener, build-dns-worker]
     if: |
-      always() && (github.ref == 'refs/heads/main' || github.ref_name == 'domain-updates' || github.event_name == 'workflow_call') && (
+      always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref_name == 'domain-updates' || github.event_name == 'workflow_call') && (
         needs.check-changes.outputs.has_infra_changes == 'true' ||
         needs.check-changes.outputs.has_image_changes == 'true' ||
         github.event_name == 'repository_dispatch' ||
