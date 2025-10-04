@@ -337,33 +337,19 @@ class SQSDNSWorker:
             tenant_id = domain_info["tenant_id"]
             hosted_zone_id = domain_info.get("hosted_zone_id")
 
-            # Update domains table to mark as active
+            # Update domains table to mark as active (hosted_zone_id will be NULL initially)
             with self.db_connection.cursor() as cur:
-                if hosted_zone_id:
-                    cur.execute(
-                        """
-                        INSERT INTO domains (full_url, tenant_id, hosted_zone_id, active_status, activation_date)
-                        VALUES (%s, %s, %s, 'Y', CURRENT_DATE)
-                        ON CONFLICT (full_url) DO UPDATE SET
-                            tenant_id = EXCLUDED.tenant_id,
-                            hosted_zone_id = EXCLUDED.hosted_zone_id,
-                            active_status = 'Y',
-                            activation_date = CURRENT_DATE
-                        """,
-                        (domain_name, tenant_id, hosted_zone_id),
-                    )
-                else:
-                    cur.execute(
-                        """
-                        INSERT INTO domains (full_url, tenant_id, active_status, activation_date)
-                        VALUES (%s, %s, 'Y', CURRENT_DATE)
-                        ON CONFLICT (full_url) DO UPDATE SET
-                            tenant_id = EXCLUDED.tenant_id,
-                            active_status = 'Y',
-                            activation_date = CURRENT_DATE
-                        """,
-                        (domain_name, tenant_id),
-                    )
+                cur.execute(
+                    """
+                    INSERT INTO domains (full_url, tenant_id, active_status, activation_date)
+                    VALUES (%s, %s, 'Y', CURRENT_DATE)
+                    ON CONFLICT (full_url) DO UPDATE SET
+                        tenant_id = EXCLUDED.tenant_id,
+                        active_status = 'Y',
+                        activation_date = CURRENT_DATE
+                    """,
+                    (domain_name, tenant_id),
+                )
                 self.db_connection.commit()
 
             logger.info(f"✅ Domain {domain_name} marked as active for tenant {tenant_id}")
