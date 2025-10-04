@@ -225,14 +225,21 @@ jobs:
         run: |
           echo "🧹 Cleaning up certificate stacks for inactive domains..."
 
-          # Get all certificate stacks for this environment
+          # Get ALL certificate stacks (both old and new naming patterns)
           CERT_STACKS=$(aws cloudformation list-stacks \
             --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE \
-            --query "StackSummaries[?starts_with(StackName, 'CertificateStack-$ENVIRONMENT-')].StackName" \
+            --query "StackSummaries[?starts_with(StackName, 'CertificateStack-')].StackName" \
             --output text)
+
+          if [ -z "$CERT_STACKS" ]; then
+            echo "ℹ️  No certificate stacks found"
+            exit 0
+          fi
 
           # Check each certificate stack
           for stack in $CERT_STACKS; do
+            echo "Checking: $stack"
+
             # Get certificate ARN from stack outputs
             CERT_ARN=$(aws cloudformation describe-stacks \
               --stack-name "$stack" \
@@ -247,11 +254,13 @@ jobs:
                 --output text 2>/dev/null)
 
               if [ "$IN_USE" = "None" ] || [ -z "$IN_USE" ]; then
-                echo "🗑️  Deleting unused certificate stack: $stack"
+                echo "  🗑️  Deleting unused certificate stack"
                 aws cloudformation delete-stack --stack-name "$stack"
               else
-                echo "✅ Certificate in use: $stack"
+                echo "  ✅ Certificate in use"
               fi
+            else
+              echo "  ⚠️  No certificate ARN found"
             fi
           done
 
