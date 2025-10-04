@@ -223,46 +223,24 @@ jobs:
 
       - name: Cleanup Orphaned Certificate Stacks
         run: |
-          echo "🧹 Cleaning up certificate stacks for inactive domains..."
+          echo "🧹 Cleaning up unused certificate stacks..."
 
-          # Get ALL certificate stacks (both old and new naming patterns)
-          CERT_STACKS=$(aws cloudformation list-stacks \
+          for stack in $(aws cloudformation list-stacks \
             --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE \
             --query "StackSummaries[?starts_with(StackName, 'CertificateStack-')].StackName" \
-            --output text)
+            --output text); do
 
-          if [ -z "$CERT_STACKS" ]; then
-            echo "ℹ️  No certificate stacks found"
-            exit 0
-          fi
+            CERT_ARN=$(aws cloudformation describe-stacks --stack-name "$stack" \
+              --query 'Stacks[0].Outputs[?OutputKey==`CertArn`].OutputValue' --output text 2>/dev/null)
 
-          # Check each certificate stack
-          for stack in $CERT_STACKS; do
-            echo "Checking: $stack"
-
-            # Get certificate ARN from stack outputs
-            CERT_ARN=$(aws cloudformation describe-stacks \
-              --stack-name "$stack" \
-              --query 'Stacks[0].Outputs[?OutputKey==`CertArn`].OutputValue' \
-              --output text 2>/dev/null)
-
-            if [ -n "$CERT_ARN" ]; then
-              # Check if certificate is in use
-              IN_USE=$(aws acm describe-certificate \
-                --certificate-arn "$CERT_ARN" \
-                --query 'Certificate.InUseBy' \
-                --output text 2>/dev/null)
-
-              if [ "$IN_USE" = "None" ] || [ -z "$IN_USE" ]; then
-                echo "  🗑️  Deleting unused certificate stack"
-                aws cloudformation delete-stack --stack-name "$stack" || echo "  ⚠️  Failed to delete stack"
-              else
-                echo "  ✅ Certificate in use"
-              fi
+            # Delete if: no ARN, cert doesn't exist, or cert not in use
+            if [ -z "$CERT_ARN" ] || \
+               ! aws acm describe-certificate --certificate-arn "$CERT_ARN" >/dev/null 2>&1 || \
+               [ "$(aws acm describe-certificate --certificate-arn "$CERT_ARN" --query 'Certificate.InUseBy' --output text 2>/dev/null)" = "None" ]; then
+              echo "🗑️  Deleting: $stack"
+              aws cloudformation delete-stack --stack-name "$stack" 2>/dev/null || true
             else
-              echo "  ⚠️  No certificate ARN found in outputs (old stack format)"
-              echo "  🗑️  Deleting old-format certificate stack"
-              aws cloudformation delete-stack --stack-name "$stack" || echo "  ⚠️  Failed to delete stack"
+              echo "✅ In use: $stack"
             fi
           done
 
