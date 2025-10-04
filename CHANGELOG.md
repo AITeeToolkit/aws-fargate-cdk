@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.80.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.79.1...v1.80.0) (2025-10-04)
+
+
+### 🚀 Features
+
+* improve certificate stack cleanup with better error handling and logging [skip tests] [deploy-all] ([880ca7e](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/880ca7ed0d7a9e8e260871ca7b62f8b3a70cef49))
+
+
+### 🐛 Bug Fixes
+
+* handle deletion of old-format certificate stacks and gracefully handle stack deletion failures [skip tests] ([9ea6cd7](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/9ea6cd73a1ab6dcc47fe5adc5d69e2b2ed0fac3c))
+* update certificate ARN query to match correct output key CertArn [skip tests] ([35a8095](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/35a8095b95989753e2bf04be8ab675138c086703))
+
+
+### ♻️ Code Refactoring
+
+* delete certificate stacks based on ACM usage status instead of database lookup [skip tests] ([6ba2cf0](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/6ba2cf08dbf70a2e0d24f1bfc71f79325b2ec71b))
+* improve domain deactivation with repository dispatch and certificate cleanup [skip tests] ([47deff6](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/47deff6a0f782b8e3e45e732d39185f5bbb317f5))
+* simplify certificate stack cleanup logic with streamlined error handling [skip tests] ([dd175d7](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/dd175d7cf71f5ad6439d63ee935d0bde4eacda01))
+
 ## [1.79.1](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.79.0...v1.79.1) (2025-10-04)
 
 
