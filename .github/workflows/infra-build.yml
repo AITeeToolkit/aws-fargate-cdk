@@ -79,36 +79,6 @@ jobs:
       - name: Install Python dependencies
         run: pip3 install -r requirements.txt
 
-      - name: Test Database Connectivity
-        id: test-db
-        continue-on-error: true
-        run: |
-          echo "🔍 Testing database connectivity from GitHub Actions..."
-
-          ENV_NAME="${{ inputs.environment || 'dev' }}"
-
-          # Get database connection info from SSM
-          DB_HOST=$(aws ssm get-parameter --name "/storefront-${ENV_NAME}/database/host" --query 'Parameter.Value' --output text 2>/dev/null || echo "")
-
-          if [ -z "$DB_HOST" ]; then
-            echo "⚠️ Database parameters not found in SSM - database may not be deployed yet"
-            exit 0
-          fi
-
-          echo "📍 Database host: $DB_HOST"
-
-          # Test TCP connection to database
-          timeout 5 bash -c "cat < /dev/null > /dev/tcp/${DB_HOST}/5432" 2>/dev/null
-
-          if [ $? -eq 0 ]; then
-            echo "✅ Database is reachable from GitHub Actions"
-          else
-            echo "❌ Cannot connect to database - security group may be blocking GitHub Actions IP"
-            echo "   Current runner IP:"
-            curl -s https://api.ipify.org
-            exit 1
-          fi
-
       - name: Check Stack Status
         id: stack-status
         run: |
