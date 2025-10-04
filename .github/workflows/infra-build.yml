@@ -69,7 +69,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Install CDK
-        run: npm install -g aws-cdk
+        run: sudo npm install -g aws-cdk
 
       - name: Test Database Connectivity
         id: test-db
