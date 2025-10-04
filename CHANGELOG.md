@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.79.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.78.13...v1.79.0) (2025-10-04)
+
+
+### 🚀 Features
+
+* add environment variable to control plane service configuration [deploy-all] [skip tests] ([9ab2f50](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/9ab2f503d1aaa8668a7282ed621485071a5dd5f1))
+
+
+### ♻️ Code Refactoring
+
+* simplify semantic-release workflow by removing manual version handling ([28caba3](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/28caba3fb38e95ba261ab94fe2a7fcd39c207e31))
+
 ## [1.76.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.75.2...v1.76.0) (2025-10-01)
 
 
