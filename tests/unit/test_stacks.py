@@ -12,7 +12,6 @@ from stacks.database_stack import DatabaseStack
 from stacks.dns_worker_service_stack import DNSWorkerServiceStack
 from stacks.domain_dns_stack import DomainDnsStack
 from stacks.ecr_stack import ECRStack
-from stacks.listener_service_stack import ListenerServiceStack
 from stacks.network_stack import NetworkStack
 from stacks.opensearch_stack import OpenSearchStack
 from stacks.shared_stack import SharedStack
@@ -176,52 +175,7 @@ class TestDatabaseStack:
 
 
 class TestServiceStacks:
-    """Test service stacks (Listener and DNS Worker)"""
-
-    def test_listener_service_creation(self, cdk_app, test_environment, test_tags):
-        """Test Listener service stack creates ECS service"""
-        # Create dependencies
-        network_stack = NetworkStack(cdk_app, "TestNetworkStack", env=test_environment)
-        shared_stack = SharedStack(
-            cdk_app, "TestSharedStack", env=test_environment, vpc=network_stack.vpc
-        )
-        ecr_stack = ECRStack(
-            cdk_app,
-            "TestECRStack",
-            env=test_environment,
-            repository_names=["api", "web", "listener", "dns-worker"],
-        )
-        db_stack = DatabaseStack(
-            cdk_app,
-            "TestDatabaseStack",
-            env=test_environment,
-            vpc=network_stack.vpc,
-            environment="test",
-            multi_az=False,
-            instance_class="db.t3.micro",
-            deletion_protection=False,
-        )
-
-        # Create listener service
-        listener_stack = ListenerServiceStack(
-            cdk_app,
-            "TestListenerStack",
-            env=test_environment,
-            vpc=network_stack.vpc,
-            cluster=shared_stack.cluster,
-            image_uri=f"{ecr_stack.repositories['listener'].repository_uri}:{test_tags['listener']}",
-            db_secret=db_stack.secret,
-            environment="test",
-            ecs_task_security_group=shared_stack.ecs_task_sg,
-            service_name="listener-service",
-            sqs_managed_policy=None,  # Mock for test
-        )
-
-        template = assertions.Template.from_stack(listener_stack)
-
-        # Verify ECS service is created
-        template.has_resource("AWS::ECS::Service", {})
-        template.has_resource("AWS::ECS::TaskDefinition", {})
+    """Test service stacks (DNS Worker)"""
 
     def test_dns_worker_service_creation(self, cdk_app, test_environment, test_tags):
         """Test DNS Worker service stack creates ECS service"""
@@ -234,7 +188,7 @@ class TestServiceStacks:
             cdk_app,
             "TestECRStack",
             env=test_environment,
-            repository_names=["api", "web", "listener", "dns-worker"],
+            repository_names=["api", "web", "dns-worker"],
         )
         db_stack = DatabaseStack(
             cdk_app,
@@ -279,7 +233,7 @@ class TestECRStack:
             cdk_app,
             "TestECRStack",
             env=test_environment,
-            repository_names=["api", "web", "listener", "dns-worker"],
+            repository_names=["api", "web", "dns-worker"],
         )
         template = assertions.Template.from_stack(ecr_stack)
 
@@ -303,13 +257,12 @@ class TestECRStack:
             cdk_app,
             "TestECRStack",
             env=test_environment,
-            repository_names=["api", "web", "listener", "dns-worker"],
+            repository_names=["api", "web", "dns-worker"],
         )
 
         # Verify all repositories are accessible
         assert "api" in ecr_stack.repositories
         assert "web" in ecr_stack.repositories
-        assert "listener" in ecr_stack.repositories
         assert "dns-worker" in ecr_stack.repositories
 
 
@@ -406,7 +359,7 @@ class TestAPIServiceStack:
             cdk_app,
             "TestECRStack",
             env=test_environment,
-            repository_names=["api", "web", "listener", "dns-worker"],
+            repository_names=["api", "web", "dns-worker"],
         )
         db_stack = DatabaseStack(
             cdk_app,
@@ -460,7 +413,7 @@ class TestWebServiceStack:
             cdk_app,
             "TestECRStack",
             env=test_environment,
-            repository_names=["api", "web", "listener", "dns-worker"],
+            repository_names=["api", "web", "dns-worker"],
         )
         db_stack = DatabaseStack(
             cdk_app,
