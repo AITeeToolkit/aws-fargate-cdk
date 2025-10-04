@@ -426,10 +426,12 @@ jobs:
                 echo "🏷️ Incremented listener: $LISTENER_TAG"
               fi
 
-              if [[ "${{ needs.check-changes.outputs.dns_worker_changed }}" == "true" ]]; then
+              if [[ "${{ needs.check-changes.outputs.dns_worker_changed }}" == "true" && -z "${{ inputs.dns_worker_tag }}" ]]; then
                 DNS_WORKER_TAG=$(increment_version "$DNS_WORKER_TAG")
                 git tag "dns-worker-$DNS_WORKER_TAG" && git push origin "dns-worker-$DNS_WORKER_TAG"
                 echo "🏷️ Incremented dns-worker: $DNS_WORKER_TAG"
+              elif [[ -n "${{ inputs.dns_worker_tag }}" ]]; then
+                echo "🏷️ Using provided dns-worker tag: $DNS_WORKER_TAG"
               fi
             else
               # Non-main branch: Create branch-specific tags
