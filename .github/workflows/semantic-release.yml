@@ -23,6 +23,11 @@ on:
         required: false
         default: true
         type: boolean
+      force_dns_worker:
+        description: Force DNS worker build
+        required: false
+        default: false
+        type: boolean
       skip_tests:
         description: Skip test gate
         required: false
@@ -471,7 +476,8 @@ jobs:
     if: |
       always() && (
         (inputs.dns_worker_tag != null && inputs.dns_worker_tag != '') ||
-        ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && needs.check-changes.outputs.dns_worker_changed == 'true')
+        inputs.force_dns_worker == true ||
+        ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref_name == 'domain-updates') && needs.check-changes.outputs.dns_worker_changed == 'true')
       ) && (
         needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped'
       ) && (
