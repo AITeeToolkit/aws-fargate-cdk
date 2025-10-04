@@ -33,7 +33,7 @@ aws ssm start-session --target i-0a62a9fa756025ef6
 ```
 
 # Create a folder
-sudo mkdir actions-runner && cd actions-runner
+sudo mkdir /home/actions-runner && cd /home/actions-runner
 
 # Download the latest runner package
 sudo curl -o actions-runner-linux-x64-2.328.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.328.0/actions-runner-linux-x64-2.328.0.tar.gz
@@ -48,7 +48,19 @@ sudo tar xzf ./actions-runner-linux-x64-2.328.0.tar.gz
 sudo dnf install dotnet-sdk-9.0
 ./config.sh --url https://github.com/AITeeToolkit/aws-fargate-cdk --token BNL5V4R6KFLYIBY3THVMLTTI4CYUU
 
-./run.sh
+# Create runner user
+sudo useradd -m -s /bin/bash runner
+sudo groupadd docker
+sudo usermod -aG docker runner
+
+# Set ownership of the actions-runner directory
+sudo chown -R runner:runner /home/actions-runner
+
+# Now install the service
+sudo ./svc.sh install runner
+sudo ./svc.sh start
+sudo ./svc.sh status
+
 
 # Use this YAML in your workflow file for each job
 runs-on: self-hosted

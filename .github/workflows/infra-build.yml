@@ -90,8 +90,9 @@ jobs:
           )
 
           # Get environment-specific stacks dynamically (exclude Certificate and DomainDns stacks)
+          # Include all active stack statuses (including IN_PROGRESS) to detect busy stacks
           ENV_STACKS=$(aws cloudformation list-stacks \
-            --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE UPDATE_ROLLBACK_COMPLETE \
+            --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE UPDATE_ROLLBACK_COMPLETE CREATE_IN_PROGRESS UPDATE_IN_PROGRESS UPDATE_ROLLBACK_IN_PROGRESS \
             --query "StackSummaries[?contains(StackName, '-$ENV_NAME') && !contains(StackName, 'CertificateStack-') && !contains(StackName, 'DomainDnsStack-')].StackName" \
             --output text)
 
@@ -219,6 +220,41 @@ jobs:
           fi
 
           cdk deploy --all --require-approval never $CONTEXT
+
+      - name: Cleanup Orphaned Certificate Stacks
+        run: |
+          echo "🧹 Cleaning up certificate stacks for inactive domains..."
+
+          # Get active domains from database
+          ACTIVE_DOMAINS=$(python3 -c "
+          import psycopg2
+          import os
+          conn = psycopg2.connect(
+              host=os.environ['PGHOST'],
+              user=os.environ['PGUSER'],
+              password=os.environ['PGPASSWORD'],
+              dbname=os.environ['PGDATABASE']
+          )
+          cursor = conn.cursor()
+          cursor.execute(\"SELECT full_url FROM domains WHERE active_status = 'Y'\")
+          domains = [row[0].replace('.', '-') for row in cursor.fetchall()]
+          print(' '.join(domains))
+          ")
+
+          # Get all certificate stacks for this environment
+          CERT_STACKS=$(aws cloudformation list-stacks \
+            --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE \
+            --query "StackSummaries[?starts_with(StackName, 'CertificateStack-$ENVIRONMENT-')].StackName" \
+            --output text)
+
+          # Delete stacks for inactive domains
+          for stack in $CERT_STACKS; do
+            DOMAIN=$(echo $stack | sed "s/CertificateStack-$ENVIRONMENT-//")
+            if ! echo "$ACTIVE_DOMAINS" | grep -q "$DOMAIN"; then
+              echo "🗑️  Deleting certificate stack for inactive domain: $stack"
+              aws cloudformation delete-stack --stack-name "$stack"
+            fi
+          done
 
       - name: Deployment Summary
         if: always()
