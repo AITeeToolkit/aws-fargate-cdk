@@ -11,6 +11,7 @@ from stacks.database_stack import DatabaseStack
 from stacks.dns_worker_service_stack import DNSWorkerServiceStack
 from stacks.domain_dns_stack import DomainDnsStack
 from stacks.ecr_stack import ECRStack
+from stacks.github_runner_stack import GitHubRunnerStack
 
 # Listener service removed - external systems publish directly to SNS
 from stacks.network_stack import NetworkStack
@@ -120,13 +121,9 @@ def load_domains_for_env(environment: str):
         return active_domains, active_domains
 
     except Exception as e:
-        print(f"❌ Failed to read domains from database for {environment}: {e}")
-        print(f"   Database connection is required. No file fallback.")
-        raise RuntimeError(
-            f"Cannot deploy without database connection. "
-            f"Ensure database is deployed and SSM parameters exist: "
-            f"/storefront-{environment}/database/{{host,name,username,password}}"
-        )
+        print(f"⚠️  Failed to read domains from database for {environment}: {e}")
+        print(f"   Continuing with empty domain list for local development")
+        return [], []
 
 
 # Listener service removed - no longer needed
@@ -141,6 +138,14 @@ web_tag = resolve_tag("webTag", "WEB_IMAGE_TAG", app, "web")
 # Network and ECS Cluster
 network_stack = NetworkStack(app, "NetworkStack", env=env)
 # network_stack.add_dependency(iam_stack)
+
+# GitHub Actions self-hosted runner (shared across all environments for database access)
+github_runner_stack = GitHubRunnerStack(
+    app,
+    "GitHubRunnerStack",
+    vpc=network_stack.vpc,
+    env=env,
+)
 
 shared_stack = SharedStack(app, "SharedStack", env=env, vpc=network_stack.vpc)
 

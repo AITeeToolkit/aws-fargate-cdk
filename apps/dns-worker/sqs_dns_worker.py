@@ -532,8 +532,8 @@ class SQSDNSWorker:
 
     def trigger_github_workflow(self, domains: List[str]) -> bool:
         """
-        Trigger GitHub Actions workflow via repository_dispatch.
-        No file commits needed - CDK reads directly from database.
+        Trigger GitHub workflow by committing to domain-updates branch.
+        Workflow will handle auto-merge to main after successful deployment.
 
         Args:
             domains: List of active domains
@@ -542,20 +542,61 @@ class SQSDNSWorker:
             bool: True if triggered successfully
         """
         try:
-            headers = {"Authorization": f"token {self.github_token}"}
+            import base64
+            import json
 
-            # Trigger workflow via repository_dispatch
-            url = f"https://api.github.com/repos/{self.repo}/dispatches"
-            payload = {
-                "event_type": "domain-update",
-                "client_payload": {
-                    "environment": self.environment,
-                    "active_domains": len(domains),
-                    "timestamp": time.time(),
-                },
+            headers = {"Authorization": f"token {self.github_token}"}
+            branch = "domain-updates"
+
+            # Create tracking file content
+            tracking_content = {
+                "environment": self.environment,
+                "active_domains": domains,
+                "domain_count": len(domains),
+                "updated_at": time.time(),
             }
 
-            r = requests.post(url, headers=headers, json=payload)
+            # Get main branch SHA
+            url = f"https://api.github.com/repos/{self.repo}/git/refs/heads/main"
+            r = requests.get(url, headers=headers)
+            r.raise_for_status()
+            main_sha = r.json()["object"]["sha"]
+
+            # Create or update domain-updates branch from main
+            url = f"https://api.github.com/repos/{self.repo}/git/refs/heads/{branch}"
+            r = requests.get(url, headers=headers)
+
+            if r.status_code == 404:
+                # Create branch
+                url = f"https://api.github.com/repos/{self.repo}/git/refs"
+                payload = {"ref": f"refs/heads/{branch}", "sha": main_sha}
+                r = requests.post(url, headers=headers, json=payload)
+                r.raise_for_status()
+            else:
+                # Update branch to main SHA
+                payload = {"sha": main_sha, "force": True}
+                r = requests.patch(url, headers=headers, json=payload)
+                r.raise_for_status()
+
+            # Create/update tracking file
+            file_path = f".domain-tracking-{self.environment}.json"
+            url = f"https://api.github.com/repos/{self.repo}/contents/{file_path}"
+
+            # Check if file exists
+            r = requests.get(url, headers=headers, params={"ref": branch})
+            file_sha = r.json().get("sha") if r.status_code == 200 else None
+
+            # Commit file (this triggers the workflow on domain-updates branch)
+            content_b64 = base64.b64encode(json.dumps(tracking_content, indent=2).encode()).decode()
+            payload = {
+                "message": f"chore: update domain tracking for {self.environment} [{len(domains)} domains]",
+                "content": content_b64,
+                "branch": branch,
+            }
+            if file_sha:
+                payload["sha"] = file_sha
+
+            r = requests.put(url, headers=headers, json=payload)
             r.raise_for_status()
 
             self.stats["github_triggers"] += 1
