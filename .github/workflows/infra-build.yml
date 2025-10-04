@@ -225,34 +225,33 @@ jobs:
         run: |
           echo "🧹 Cleaning up certificate stacks for inactive domains..."
 
-          # Get active domains from database
-          ACTIVE_DOMAINS=$(python3 -c "
-          import psycopg2
-          import os
-          conn = psycopg2.connect(
-              host=os.environ['PGHOST'],
-              user=os.environ['PGUSER'],
-              password=os.environ['PGPASSWORD'],
-              dbname=os.environ['PGDATABASE']
-          )
-          cursor = conn.cursor()
-          cursor.execute(\"SELECT full_url FROM domains WHERE active_status = 'Y'\")
-          domains = [row[0].replace('.', '-') for row in cursor.fetchall()]
-          print(' '.join(domains))
-          ")
-
           # Get all certificate stacks for this environment
           CERT_STACKS=$(aws cloudformation list-stacks \
             --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE \
             --query "StackSummaries[?starts_with(StackName, 'CertificateStack-$ENVIRONMENT-')].StackName" \
             --output text)
 
-          # Delete stacks for inactive domains
+          # Check each certificate stack
           for stack in $CERT_STACKS; do
-            DOMAIN=$(echo $stack | sed "s/CertificateStack-$ENVIRONMENT-//")
-            if ! echo "$ACTIVE_DOMAINS" | grep -q "$DOMAIN"; then
-              echo "🗑️  Deleting certificate stack for inactive domain: $stack"
-              aws cloudformation delete-stack --stack-name "$stack"
+            # Get certificate ARN from stack outputs
+            CERT_ARN=$(aws cloudformation describe-stacks \
+              --stack-name "$stack" \
+              --query 'Stacks[0].Outputs[?OutputKey==`CertificateArn`].OutputValue' \
+              --output text 2>/dev/null)
+
+            if [ -n "$CERT_ARN" ]; then
+              # Check if certificate is in use
+              IN_USE=$(aws acm describe-certificate \
+                --certificate-arn "$CERT_ARN" \
+                --query 'Certificate.InUseBy' \
+                --output text 2>/dev/null)
+
+              if [ "$IN_USE" = "None" ] || [ -z "$IN_USE" ]; then
+                echo "🗑️  Deleting unused certificate stack: $stack"
+                aws cloudformation delete-stack --stack-name "$stack"
+              else
+                echo "✅ Certificate in use: $stack"
+              fi
             fi
           done
 
