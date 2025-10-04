@@ -641,74 +641,6 @@ class SQSDNSWorker:
             logger.error(f"❌ Failed to clear CDK context: {e}")
             return False
 
-    def garbage_collect_certificates(self) -> bool:
-        """
-        Try to delete certificate stacks for domains in 'draining' state.
-        Phase 2 of the drain → GC flow.
-
-        Returns:
-            bool: True if any certificates were successfully deleted
-        """
-        try:
-            # Fetch domains in draining state from database
-            cursor = self.db_connection.cursor()
-            cursor.execute("SELECT full_url FROM domains WHERE active_status = 'N'")
-            draining_domains = [row[0] for row in cursor.fetchall()]
-
-            if not draining_domains:
-                logger.info("No domains in draining state, skipping GC")
-                return True
-
-            logger.info(
-                f"🗑️ Attempting garbage collection for {len(draining_domains)} draining domains"
-            )
-
-            deleted_count = 0
-            for domain in draining_domains:
-                stack_name = f"CertificateStack-{domain.replace('.', '-')}"
-
-                try:
-                    # Try to destroy the certificate stack using AWS CDK CLI
-                    import subprocess
-
-                    result = subprocess.run(
-                        ["cdk", "destroy", stack_name, "--force", "--app", "python app.py"],
-                        capture_output=True,
-                        text=True,
-                        timeout=300,
-                        cwd="/app",  # Assuming DNS worker runs in container with CDK code
-                    )
-
-                    if result.returncode == 0:
-                        logger.info(f"✅ Successfully deleted certificate stack for {domain}")
-                        deleted_count += 1
-
-                        # Remove domain from database entirely
-                        cursor.execute("DELETE FROM domains WHERE full_url = %s", (domain,))
-                        self.db_connection.commit()
-                        logger.info(f"✅ Removed {domain} from database")
-                    else:
-                        # Stack still referenced or other error
-                        logger.warning(
-                            f"⚠️ Certificate stack {stack_name} could not be deleted "
-                            f"(likely still referenced). Will retry on next run."
-                        )
-                        logger.debug(f"CDK output: {result.stderr}")
-
-                except subprocess.TimeoutExpired:
-                    logger.error(f"❌ Timeout while trying to delete {stack_name}")
-                except Exception as e:
-                    logger.error(f"❌ Failed to garbage collect {domain}: {e}")
-
-            if deleted_count > 0:
-                logger.info(f"✅ Garbage collected {deleted_count} certificate stacks")
-
-            return True
-
-        except Exception as e:
-            logger.error(f"❌ Error during garbage collection: {e}")
-            return False
-
     def process_batch(self) -> bool:
         """
         Process the current batch of pending domains.
@@ -764,16 +696,15 @@ class SQSDNSWorker:
             # Step 3: Fetch ALL active domains from database (reflects current state)
             all_active_domains = self.fetch_active_domains_from_db()
 
-            # Step 4: Trigger GitHub workflow (Phase 1: Drain)
+            # Step 4: Trigger GitHub workflow
+            # CDK will read active domains from database and automatically remove stacks
+            # for deactivated domains (CloudFormation handles deletion)
             if self.trigger_github_workflow(all_active_domains):
                 self.stats["batches_processed"] += 1
                 self.stats["domains_processed"] += len(all_active_domains)
                 logger.info(
                     f"✅ Successfully processed batch: {len(all_active_domains)} total active domains"
                 )
-
-                # Step 5: Try garbage collection (Phase 2: Delete cert stacks for drained domains)
-                self.garbage_collect_certificates()
 
                 # Clear pending domains (batch complete)
                 self.pending_domains.clear()

@@ -167,10 +167,35 @@ for current_env in environments_to_deploy:
     )
 
     # Create per-domain certificate stacks for this environment
-    # Only create for active + draining domains (not deleted)
+    # Only create for domains that have hosted zones (DNS worker creates these first)
     # Each environment gets its own certificate (no wildcards)
     certificate_arns = {}
+
+    # Check which domains have hosted zones
+    import boto3
+
+    route53 = boto3.client("route53", region_name="us-east-1")
+
     for domain in cert_domains:
+        # Check if hosted zone exists for this domain
+        try:
+            zones = route53.list_hosted_zones_by_name(DNSName=domain, MaxItems="1")
+            zone_exists = False
+            if zones.get("HostedZones"):
+                zone = zones["HostedZones"][0]
+                # Exact match (not subdomain)
+                if zone["Name"].rstrip(".") == domain:
+                    zone_exists = True
+
+            if not zone_exists:
+                print(f"  ⏭️  Skipping {domain} - hosted zone not found (DNS worker will create it)")
+                continue
+
+        except Exception as e:
+            print(f"  ⚠️  Error checking zone for {domain}: {e}")
+            continue
+
+        # Zone exists, create certificate stack
         stack_name = f"CertificateStack-{current_env}-{domain.replace('.', '-')}"
         cert_stack = CertificateStack(
             app,
@@ -196,10 +221,29 @@ for current_env in environments_to_deploy:
     )
 
     # Add mail DNS records automatically for this environment
+    # Only create for domains with hosted zones
     for domain, alb in multi_alb_stack.domain_to_alb.items():
+        # Check if hosted zone exists
+        try:
+            zones = route53.list_hosted_zones_by_name(DNSName=domain, MaxItems="1")
+            zone_exists = False
+            if zones.get("HostedZones"):
+                zone = zones["HostedZones"][0]
+                if zone["Name"].rstrip(".") == domain:
+                    zone_exists = True
+
+            if not zone_exists:
+                print(f"  ⏭️  Skipping DNS records for {domain} - hosted zone not found")
+                continue
+
+        except Exception as e:
+            print(f"  ⚠️  Error checking zone for {domain}: {e}")
+            continue
+
+        # Zone exists, create DNS stack
         DomainDnsStack(
             app,
-            f"DomainDnsStack-{domain.replace('.', '-')}",
+            f"DomainDnsStack-{current_env}-{domain.replace('.', '-')}",
             env=env,
             domain_name=domain,
             alb=alb,
@@ -210,6 +254,7 @@ for current_env in environments_to_deploy:
             dmarc_rua=f"reports@{domain}",
             dmarc_policy="quarantine",
         )
+        print(f"  📧 Created DNS stack for {domain} in {current_env}")
 
     # RDS instance with Secrets Manager for this environment
     database_stack = DatabaseStack(

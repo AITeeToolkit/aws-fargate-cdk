@@ -307,9 +307,8 @@ def handler(event, context):
             dmarc_value += f"; ruf=mailto:{dmarc_ruf}"
         create_route53_record("DMARC", f"_dmarc.{domain_name}", "TXT", [dmarc_value])
 
-        # MX record - only create for root domain, not subdomains
-        if domain_name == root_zone_name:
-            create_route53_record("MX", domain_name, "MX", [f"10 {mail_server}"])
+        # MX record - create for the domain
+        create_route53_record("MX", domain_name, "MX", [f"10 {mail_server}"])
 
         # Expose zone if needed downstream
         self.hosted_zone = zone
