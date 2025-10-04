@@ -57,6 +57,24 @@ class DatabaseStack(Stack):
             description="Allow internal VPC PostgreSQL access",
         )
 
+        # Allow GitHub Actions runners for CDK synth (if publicly accessible)
+        # GitHub Actions IP ranges: https://api.github.com/meta
+        if publicly_accessible:
+            github_ip_ranges = [
+                "4.175.114.51/32",  # GitHub Actions runner IP range
+                "20.102.39.0/24",
+                "20.119.28.0/23",
+                "20.207.0.0/16",
+                "20.248.0.0/15",
+                "20.250.0.0/15",
+            ]
+            for ip_range in github_ip_ranges:
+                self.db_security_group.add_ingress_rule(
+                    peer=ec2.Peer.ipv4(ip_range),
+                    connection=ec2.Port.tcp(5432),
+                    description=f"Allow GitHub Actions runners: {ip_range}",
+                )
+
         # Allow external IPs from context (for development/testing)
         allowed_ips = self.node.try_get_context("allowed_ips")
         if allowed_ips and isinstance(allowed_ips, str):
