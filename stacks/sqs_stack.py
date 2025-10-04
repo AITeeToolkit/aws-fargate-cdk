@@ -354,9 +354,23 @@ class SQSStack(Stack):
 
         cdk.CfnOutput(
             self,
-            "DnsOperationsQueueUrl",
-            value=self.dns_operations_queue.queue_url,
-            description="DNS Operations FIFO SQS Queue URL",
+            "DatabaseOperationsQueueUrl",
+            value=self.database_operations_queue.queue_url,
+            description="Database Operations FIFO SQS Queue URL",
+        )
+
+        cdk.CfnOutput(
+            self,
+            "Route53OperationsQueueUrl",
+            value=self.route53_operations_queue.queue_url,
+            description="Route53 Operations FIFO SQS Queue URL",
+        )
+
+        cdk.CfnOutput(
+            self,
+            "GitHubWorkflowQueueUrl",
+            value=self.github_workflow_queue.queue_url,
+            description="GitHub Workflow FIFO SQS Queue URL",
         )
 
         cdk.CfnOutput(
