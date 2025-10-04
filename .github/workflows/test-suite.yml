@@ -219,7 +219,7 @@ jobs:
   performance-tests:
     name: Performance Tests
     runs-on: ubuntu-latest
-    # Run in parallel with other tests - no dependency needed
+    needs: [unit-tests, lint-and-security, integration-tests]
     if: true  # Enabled - staging environment is deployed
     outputs:
       pass_rate: ${{ steps.perf_results.outputs.pass_rate }}
