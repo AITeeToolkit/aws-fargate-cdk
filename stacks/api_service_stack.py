@@ -37,16 +37,8 @@ class APIServiceStack(Stack):
         # OpenSearch parameter name (let API service read it directly)
         opensearch_parameter_name = f"/storefront-{environment}/opensearch/endpoint"
 
-        # SQS parameter names (let API service read them directly)
-        main_queue_parameter = f"/storefront-{environment}/sqs/main-queue-url"
-        priority_queue_parameter = f"/storefront-{environment}/sqs/priority-queue-url"
-        email_queue_parameter = f"/storefront-{environment}/sqs/email-queue-url"
-        image_processing_queue_parameter = (
-            f"/storefront-{environment}/sqs/image-processing-queue-url"
-        )
-        order_processing_queue_parameter = (
-            f"/storefront-{environment}/sqs/order-processing-queue-url"
-        )
+        # Control plane SQS parameter names (for reference if needed)
+        # API service doesn't directly use these - control plane handles domain operations
 
         # Environment variables for API service
         api_environment = {
@@ -59,11 +51,6 @@ class APIServiceStack(Stack):
             "AWS_REGION": "us-east-1",
             "REDIS_ENABLED": "true",
             "OPENSEARCH_PARAMETER_NAME": opensearch_parameter_name,
-            "SQS_MAIN_QUEUE_PARAMETER": main_queue_parameter,
-            "SQS_PRIORITY_QUEUE_PARAMETER": priority_queue_parameter,
-            "SQS_EMAIL_QUEUE_PARAMETER": email_queue_parameter,
-            "SQS_IMAGE_PROCESSING_QUEUE_PARAMETER": image_processing_queue_parameter,
-            "SQS_ORDER_PROCESSING_QUEUE_PARAMETER": order_processing_queue_parameter,
         }
 
         # Secrets configuration (from CloudFormation template)

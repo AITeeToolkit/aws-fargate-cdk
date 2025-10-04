@@ -103,16 +103,21 @@ class TestServiceHealth:
             response = self.sqs_client.list_queues()
             queue_urls = response.get("QueueUrls", [])
 
-            # Should have domain processing queue
-            domain_queues = [q for q in queue_urls if "domain" in q.lower()]
+            # Should have control plane queues (database, route53, github)
+            control_plane_queues = [
+                q
+                for q in queue_urls
+                if any(
+                    x in q.lower()
+                    for x in ["database-operations", "route53-operations", "github-workflow"]
+                )
+            ]
 
             # If no queues found, this might be a fresh environment
-            if len(domain_queues) == 0:
-                pytest.skip(
-                    "No domain processing queues found - infrastructure may not be deployed"
-                )
+            if len(control_plane_queues) == 0:
+                pytest.skip("No control plane queues found - infrastructure may not be deployed")
 
-            assert len(domain_queues) > 0, "No domain processing queues found"
+            assert len(control_plane_queues) > 0, "No control plane queues found"
 
         except ClientError as e:
             pytest.skip(f"Could not access SQS queues: {e}")
