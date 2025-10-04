@@ -469,7 +469,7 @@ jobs:
     needs: [test-gate, generate-tag, check-changes, semantic-release]
     if: |
       always() && (
-        github.event_name == 'workflow_dispatch' ||
+        (inputs.dns_worker_tag != null && inputs.dns_worker_tag != '') ||
         ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && needs.check-changes.outputs.dns_worker_changed == 'true')
       ) && (
         needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped'

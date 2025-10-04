@@ -106,6 +106,8 @@ class DatabaseStack(Stack):
         db_size = getattr(ec2.InstanceSize, instance_class_parts[2].upper())
 
         # RDS instance
+        # Dev environment: No security group (allow all) for GitHub Actions access
+        # Other environments: Use security group with IP restrictions
         self.db_instance = rds.DatabaseInstance(
             self,
             f"DB",
@@ -116,6 +118,7 @@ class DatabaseStack(Stack):
             vpc=vpc,
             subnet_group=public_subnet_group,
             publicly_accessible=publicly_accessible,
+            security_groups=[] if environment == "dev" else [self.db_security_group],
             credentials=credentials,
             instance_type=ec2.InstanceType.of(db_class, db_size),
             multi_az=multi_az,
@@ -128,7 +131,6 @@ class DatabaseStack(Stack):
             deletion_protection=deletion_protection,
             delete_automated_backups=not deletion_protection,
             database_name=f"storefront_{environment}",
-            security_groups=[self.db_security_group],
             storage_encrypted=True,
         )
 
