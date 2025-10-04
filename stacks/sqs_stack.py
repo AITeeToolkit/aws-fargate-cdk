@@ -137,14 +137,6 @@ class SQSStack(Stack):
 
         ssm.StringParameter(
             self,
-            "DLQUrlParameter",
-            parameter_name=f"/storefront-{environment}/sqs/dlq-url",
-            string_value=self.dlq.queue_url,
-            description="Dead Letter Queue URL for failed messages",
-        )
-
-        ssm.StringParameter(
-            self,
             "FifoDLQUrlParameter",
             parameter_name=f"/storefront-{environment}/sqs/fifo-dlq-url",
             string_value=self.fifo_dlq.queue_url,
