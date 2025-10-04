@@ -1,6 +1,8 @@
 import aws_cdk as cdk
 from aws_cdk import Duration, RemovalPolicy, Stack
 from aws_cdk import aws_iam as iam
+from aws_cdk import aws_sns as sns
+from aws_cdk import aws_sns_subscriptions as sns_subs
 from aws_cdk import aws_sqs as sqs
 from aws_cdk import aws_ssm as ssm
 from constructs import Construct
@@ -102,6 +104,17 @@ class SQSStack(Stack):
             ),
         )
 
+        # SNS Topic for domain changes (fan-out pattern)
+        # FIFO topic to maintain ordering and deduplication
+        self.domain_changes_topic = sns.Topic(
+            self,
+            "DomainChangesTopic",
+            topic_name=f"storefront-{environment}-domain-changes.fifo",
+            display_name="Domain Changes Notifications",
+            fifo=True,
+            content_based_deduplication=False,  # We provide explicit deduplication IDs
+        )
+
         # DNS operations queue (FIFO for deduplication)
         self.dns_operations_queue = sqs.Queue(
             self,
@@ -115,6 +128,14 @@ class SQSStack(Stack):
             removal_policy=(
                 RemovalPolicy.DESTROY if environment == "dev" else RemovalPolicy.RETAIN
             ),
+        )
+
+        # Subscribe DNS operations queue to domain changes topic
+        self.domain_changes_topic.add_subscription(
+            sns_subs.SqsSubscription(
+                self.dns_operations_queue,
+                raw_message_delivery=True,  # Deliver SNS message body directly to SQS
+            )
         )
 
         # Store queue URLs in SSM Parameter Store for easy access
@@ -168,6 +189,14 @@ class SQSStack(Stack):
 
         ssm.StringParameter(
             self,
+            "DomainChangesTopicArnParameter",
+            parameter_name=f"/storefront-{environment}/sns/domain-changes-topic-arn",
+            string_value=self.domain_changes_topic.topic_arn,
+            description="SNS topic ARN for domain change notifications",
+        )
+
+        ssm.StringParameter(
+            self,
             "DLQUrlParameter",
             parameter_name=f"/storefront-{environment}/sqs/dlq-url",
             string_value=self.dlq.queue_url,
@@ -182,7 +211,7 @@ class SQSStack(Stack):
             description="FIFO Dead Letter Queue URL for failed FIFO messages",
         )
 
-        # Create IAM policy for SQS access
+        # Create IAM policy for SQS and SNS access
         self.sqs_policy = iam.PolicyDocument(
             statements=[
                 iam.PolicyStatement(
@@ -205,7 +234,18 @@ class SQSStack(Stack):
                         self.dlq.queue_arn,
                         self.fifo_dlq.queue_arn,
                     ],
-                )
+                ),
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=[
+                        "sns:Publish",
+                        "sns:Subscribe",
+                        "sns:GetTopicAttributes",
+                    ],
+                    resources=[
+                        self.domain_changes_topic.topic_arn,
+                    ],
+                ),
             ]
         )
 
@@ -259,4 +299,11 @@ class SQSStack(Stack):
             "DnsOperationsQueueUrl",
             value=self.dns_operations_queue.queue_url,
             description="DNS Operations FIFO SQS Queue URL",
+        )
+
+        cdk.CfnOutput(
+            self,
+            "DomainChangesTopicArn",
+            value=self.domain_changes_topic.topic_arn,
+            description="SNS Topic ARN for Domain Changes",
         )

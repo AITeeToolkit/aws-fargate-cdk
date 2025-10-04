@@ -62,7 +62,7 @@ class DatabaseStack(Stack):
         if allowed_ips and isinstance(allowed_ips, str):
             import json
 
-            allowed_ips = json.loads(allowed_ips)
+            allowed_ips = json.loads(allowed_ips) if allowed_ips else []
         elif not allowed_ips:
             allowed_ips = []
 
@@ -98,6 +98,7 @@ class DatabaseStack(Stack):
             vpc=vpc,
             subnet_group=public_subnet_group,
             publicly_accessible=publicly_accessible,
+            security_groups=[self.db_security_group],
             credentials=credentials,
             instance_type=ec2.InstanceType.of(db_class, db_size),
             multi_az=multi_az,
@@ -110,7 +111,6 @@ class DatabaseStack(Stack):
             deletion_protection=deletion_protection,
             delete_automated_backups=not deletion_protection,
             database_name=f"storefront_{environment}",
-            security_groups=[self.db_security_group],
             storage_encrypted=True,
         )
 

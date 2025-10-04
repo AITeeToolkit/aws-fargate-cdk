@@ -106,3 +106,10 @@ Thumbs.db
 # CloudFormation
 *.zip
 packaged-template.yaml
+
+# Domain files (generated from database, kept for fallback only)
+domains.json
+
+# Listener service (removed - external systems publish to SNS directly)
+apps/listener/
+stacks/listener_service_stack.py

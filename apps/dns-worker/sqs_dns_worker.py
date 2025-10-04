@@ -45,6 +45,7 @@ class SQSDNSWorker:
         region_name: str = None,
         github_token: str = None,
         repo: str = None,
+        environment: str = None,
         max_messages: int = 10,
         wait_time_seconds: int = 20,
         batch_timeout: int = 30,
@@ -68,6 +69,7 @@ class SQSDNSWorker:
         self.aws_secret_access_key = None
         self.github_token = github_token or os.environ.get("GH_TOKEN")
         self.repo = repo or os.environ.get("REPO", "AITeeToolkit/aws-fargate-cdk")
+        self.environment = environment or os.environ.get("ENVIRONMENT", "dev")
 
         self.max_messages = min(max_messages, 10)  # SQS limit is 10
         self.wait_time_seconds = min(wait_time_seconds, 20)  # SQS limit is 20
@@ -86,6 +88,7 @@ class SQSDNSWorker:
         # Batch processing state
         self.pending_domains = set()
         self.pending_deactivations = set()
+        self.domain_info_map = {}  # Store full domain info from SNS messages
         self.last_batch_time = time.time()
 
         # Statistics
@@ -173,65 +176,105 @@ class SQSDNSWorker:
             logger.error(f"Error receiving messages from SQS: {error_code} - {e}")
             return []
 
-        except Exception as e:
             logger.error(f"Unexpected error receiving messages: {e}")
             return []
 
     def process_message(self, message: Dict[str, Any]) -> bool:
         """
-        Process a single SQS message and add to batch.
+        Process a single SQS message containing SNS notification with domain data.
+
+        Expected SNS message format:
+        {
+            "full_url": "example.com",
+            "tenant_id": "uuid-here",
+            "active_status": "Y",
+            "hosted_zone_id": 123  // optional
+        }
 
         Args:
-            message: SQS message dictionary
+            message: SQS message dict (containing SNS notification)
 
         Returns:
-            bool: True if message processed successfully, False otherwise
+            bool: True if message should be deleted from queue, False to retry
         """
         try:
-            # Extract message body
-            body = message.get("Body", "{}")
-            message_data = json.loads(body)
+            # Parse SQS message body
+            message_body = message.get("Body", "{}")
+            message_data = json.loads(message_body)
 
-            # Extract message attributes for logging
-            message_id = message.get("MessageId", "unknown")
+            # SNS wraps the actual message in a 'Message' field
+            if "Message" in message_data:
+                domain_data = json.loads(message_data["Message"])
+            else:
+                # Fallback for direct SQS messages (backward compatibility)
+                domain_data = message_data
 
-            domain_name = message_data.get("domain_name")
-            active = message_data.get("active")
+            # Validate required fields
+            required_fields = ["full_url", "tenant_id", "active_status", "hosted_zone_id"]
+            missing_fields = [f for f in required_fields if f not in domain_data]
 
-            if not domain_name or active not in ("Y", "N"):
-                logger.error(f"Invalid message data: {message_data}")
-                return False
+            if missing_fields:
+                logger.error(
+                    f"❌ Invalid SNS message - missing required fields: {missing_fields}. "
+                    f"Message: {domain_data}"
+                )
+                return False  # Delete invalid message, don't retry
 
-            logger.info(f"📨 Processing domain change: {domain_name} (active={active})")
+            # Extract domain data
+            domain_name = domain_data["full_url"]
+            tenant_id = domain_data["tenant_id"]
+            active = domain_data["active_status"]
+            hosted_zone_id = domain_data["hosted_zone_id"]
+
+            if active not in ("Y", "N"):
+                logger.error(f"❌ Invalid active_status: {active}. Must be 'Y' or 'N'")
+                return False  # Delete invalid message
+
+            logger.info(
+                f"📨 Processing domain change: {domain_name} "
+                f"(active={active}, tenant={tenant_id})"
+            )
+
+            # Store domain data for batch processing
+            domain_info = {
+                "full_url": domain_name,
+                "tenant_id": tenant_id,
+                "active_status": active,
+                "hosted_zone_id": hosted_zone_id,
+            }
 
             # Add to appropriate pending batch
             if active == "Y":
                 self.pending_domains.add(domain_name)
+                # Store full domain info for processing
+                if not hasattr(self, "domain_info_map"):
+                    self.domain_info_map = {}
+                self.domain_info_map[domain_name] = domain_info
                 # Remove from deactivations if it was there
                 self.pending_deactivations.discard(domain_name)
             elif active == "N":
                 self.pending_deactivations.add(domain_name)
                 # Remove from activations if it was there
                 self.pending_domains.discard(domain_name)
+                if hasattr(self, "domain_info_map"):
+                    self.domain_info_map.pop(domain_name, None)
 
             self.stats["messages_processed"] += 1
 
-            # Delete message from queue (we've successfully added it to batch)
-            self.delete_message(message.get("ReceiptHandle"))
-
+            # Message processed successfully, can be deleted from queue
             return True
 
         except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON in SQS message: {e}")
-            return False
+            logger.error(f"❌ Failed to parse message JSON: {e}")
+            return False  # Invalid JSON, don't retry
 
         except Exception as e:
-            logger.error(f"Error processing SQS message: {e}")
-            return False
+            logger.error(f"❌ Error processing message: {e}")
+            return True  # Retry on unexpected errors
 
     def delete_message(self, receipt_handle: str) -> bool:
         """
-        Delete a message from the SQS queue.
+        Delete a message from SQS queue.
 
         Args:
             receipt_handle: SQS message receipt handle
@@ -275,7 +318,7 @@ class SQSDNSWorker:
 
     def update_domain_activation(self, domain_name: str) -> bool:
         """
-        Update domains table to mark domain as active with tenant information.
+        Update domains table to mark domain as active with tenant information from SNS message.
 
         Args:
             domain_name: Domain to activate
@@ -284,16 +327,17 @@ class SQSDNSWorker:
             bool: True if updated successfully
         """
         try:
-            # Get tenant information
-            tenant_id = get_tenant_for_domain(self.db_connection, domain_name)
+            # Get domain info from SNS message
+            domain_info = self.domain_info_map.get(domain_name)
 
-            if not tenant_id:
-                logger.warning(
-                    f"⚠️ Domain {domain_name} activation requested but no tenant found in purchased_domains"
-                )
+            if not domain_info:
+                logger.error(f"❌ No domain info found for {domain_name} in SNS message data")
                 return False
 
-            # Update domains table to mark as active
+            tenant_id = domain_info["tenant_id"]
+            hosted_zone_id = domain_info.get("hosted_zone_id")
+
+            # Update domains table to mark as active (hosted_zone_id will be NULL initially)
             with self.db_connection.cursor() as cur:
                 cur.execute(
                     """
@@ -474,7 +518,8 @@ class SQSDNSWorker:
 
     def trigger_github_workflow(self, domains: List[str]) -> bool:
         """
-        Trigger GitHub Actions workflow with domain list.
+        Trigger GitHub workflow by committing to domain-updates branch.
+        Workflow will handle auto-merge to main after successful deployment.
 
         Args:
             domains: List of active domains
@@ -483,79 +528,67 @@ class SQSDNSWorker:
             bool: True if triggered successfully
         """
         try:
-            branch_name = "domain-updates"
-            domains_content = json.dumps({"domains": domains}, indent=2)
-            headers = {"Authorization": f"token {self.github_token}"}
+            import base64
+            import json
 
-            # Get latest release tag instead of main branch HEAD
-            # This ensures we only use stable, released code
-            url = f"https://api.github.com/repos/{self.repo}/releases/latest"
+            headers = {"Authorization": f"token {self.github_token}"}
+            branch = "domain-updates"
+
+            # Create tracking file content
+            tracking_content = {
+                "environment": self.environment,
+                "active_domains": domains,
+                "domain_count": len(domains),
+                "updated_at": time.time(),
+            }
+
+            # Get main branch SHA
+            url = f"https://api.github.com/repos/{self.repo}/git/refs/heads/main"
+            r = requests.get(url, headers=headers)
+            r.raise_for_status()
+            main_sha = r.json()["object"]["sha"]
+
+            # Create or update domain-updates branch from main
+            url = f"https://api.github.com/repos/{self.repo}/git/refs/heads/{branch}"
             r = requests.get(url, headers=headers)
 
-            if r.status_code == 200:
-                latest_tag = r.json()["tag_name"]
-                logger.info(f"Latest release tag: {latest_tag}")
-
-                # Get the commit SHA for this tag
-                url = f"https://api.github.com/repos/{self.repo}/git/refs/tags/{latest_tag}"
-                r = requests.get(url, headers=headers)
+            if r.status_code == 404:
+                # Create branch
+                url = f"https://api.github.com/repos/{self.repo}/git/refs"
+                payload = {"ref": f"refs/heads/{branch}", "sha": main_sha}
+                r = requests.post(url, headers=headers, json=payload)
                 r.raise_for_status()
-                tag_sha = r.json()["object"]["sha"]
             else:
-                # Fallback to main if no releases exist
-                logger.warning("No releases found, falling back to main branch")
-                url = f"https://api.github.com/repos/{self.repo}/git/refs/heads/main"
-                r = requests.get(url, headers=headers)
+                # Update branch to main SHA
+                payload = {"sha": main_sha, "force": True}
+                r = requests.patch(url, headers=headers, json=payload)
                 r.raise_for_status()
-                tag_sha = r.json()["object"]["sha"]
 
-            logger.info(f"Using commit SHA: {tag_sha}")
+            # Create/update tracking file
+            file_path = f".domain-tracking-{self.environment}.json"
+            url = f"https://api.github.com/repos/{self.repo}/contents/{file_path}"
 
-            # Ensure domain-updates branch exists and is up to date with latest release
-            try:
-                # Check if branch exists
-                url = f"https://api.github.com/repos/{self.repo}/git/refs/heads/{branch_name}"
-                r = requests.get(url, headers=headers)
-
-                if r.status_code == 404:
-                    # Branch doesn't exist, create it from latest release
-                    url = f"https://api.github.com/repos/{self.repo}/git/refs"
-                    payload = {"ref": f"refs/heads/{branch_name}", "sha": tag_sha}
-                    r = requests.post(url, headers=headers, json=payload)
-                    r.raise_for_status()
-                    logger.info(f"✅ Created {branch_name} branch from latest release")
-                else:
-                    # Branch exists, update it to latest release
-                    payload = {"sha": tag_sha, "force": True}
-                    r = requests.patch(url, headers=headers, json=payload)
-                    r.raise_for_status()
-                    logger.info(f"✅ Updated {branch_name} branch to latest release")
-            except Exception as e:
-                logger.warning(f"⚠️ Failed to update branch, continuing: {e}")
-
-            # Now update domains.json on the updated branch
-            # Get domains.json from the now-updated branch
-            url = f"https://api.github.com/repos/{self.repo}/contents/domains.json"
-            params = {"ref": branch_name}
-            r = requests.get(url, headers=headers, params=params)
+            # Check if file exists
+            r = requests.get(url, headers=headers, params={"ref": branch})
             file_sha = r.json().get("sha") if r.status_code == 200 else None
 
-            # Update domains.json content
-            content_b64 = base64.b64encode(domains_content.encode()).decode()
+            # Commit file (this triggers the workflow on domain-updates branch)
+            content_b64 = base64.b64encode(json.dumps(tracking_content, indent=2).encode()).decode()
             payload = {
-                "message": f"Update domains.json with {len(domains)} active domains",
+                "message": f"chore: update domain tracking for {self.environment} [{len(domains)} domains]",
                 "content": content_b64,
-                "branch": branch_name,
+                "branch": branch,
             }
             if file_sha:
                 payload["sha"] = file_sha
 
-            url = f"https://api.github.com/repos/{self.repo}/contents/domains.json"
             r = requests.put(url, headers=headers, json=payload)
             r.raise_for_status()
 
             self.stats["github_triggers"] += 1
-            logger.info(f"✅ Triggered GitHub workflow with {len(domains)} domains")
+            logger.info(
+                f"✅ Triggered GitHub workflow for {self.environment} environment with {len(domains)} domains"
+            )
             return True
 
         except Exception as e:
@@ -653,12 +686,15 @@ class SQSDNSWorker:
         )
 
         try:
-            # Step 1: Handle domain deactivations atomically (database + hosted zones)
+            successful_operations = False
+
+            # Step 1: Process deactivations first
             if self.pending_deactivations:
                 for domain in self.pending_deactivations:
                     # Update database first
                     db_success = self.update_domain_deactivation(domain)
                     if db_success:
+                        successful_operations = True
                         # Only delete hosted zone if database update succeeded
                         deleted_zones = self.delete_hosted_zones([domain])
                         if deleted_zones:
@@ -670,12 +706,13 @@ class SQSDNSWorker:
                     else:
                         logger.error(f"❌ Failed to deactivate domain in database: {domain}")
 
-            # Step 2: Handle domain activations atomically (database + hosted zones)
+            # Step 2: Process activations
             if self.pending_domains:
                 for domain in self.pending_domains:
                     # Update database first
                     db_success = self.update_domain_activation(domain)
                     if db_success:
+                        successful_operations = True
                         # Only create hosted zone if database update succeeded
                         created_zones = self.ensure_hosted_zones([domain])
                         if created_zones:
@@ -687,11 +724,20 @@ class SQSDNSWorker:
                     else:
                         logger.error(f"❌ Failed to activate domain in database: {domain}")
 
-            # Step 3: Fetch ALL active domains from database (reflects current state)
+            # Step 3: Only trigger workflow if there were successful database operations
+            if not successful_operations:
+                logger.warning("⚠️ No successful operations in batch - skipping workflow trigger")
+                # Clear pending domains even on failure to avoid retry loops
+                self.pending_domains.clear()
+                self.pending_deactivations.clear()
+                return False
+
+            # Step 4: Fetch ALL active domains from database (reflects current state)
             all_active_domains = self.fetch_active_domains_from_db()
 
-            # Step 4: Clear CDK context cache and trigger GitHub workflow
-            self.clear_cdk_context()
+            # Step 5: Trigger GitHub workflow
+            # CDK will read active domains from database and automatically remove stacks
+            # for deactivated domains (CloudFormation handles deletion)
             if self.trigger_github_workflow(all_active_domains):
                 self.stats["batches_processed"] += 1
                 self.stats["domains_processed"] += len(all_active_domains)

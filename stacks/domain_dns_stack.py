@@ -28,12 +28,9 @@ class DomainDnsStack(Stack):
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # Extract root domain (e.g., "cidertees.com" from "dev.cidertees.com")
-        # Get the last two parts of the domain (root zone)
-        root_zone_name = ".".join(domain_name.split(".")[-2:])
-
-        # Lookup existing hosted zone for the root domain
-        zone = route53.HostedZone.from_lookup(self, "HostedZone", domain_name=root_zone_name)
+        # Look up existing hosted zone for the full domain
+        # DNS worker creates these zones before CDK deployment
+        zone = route53.HostedZone.from_lookup(self, "HostedZone", domain_name=domain_name)
 
         # Lambda function for idempotent Route53 record creation
         route53_record_lambda = _lambda.Function(
@@ -310,9 +307,8 @@ def handler(event, context):
             dmarc_value += f"; ruf=mailto:{dmarc_ruf}"
         create_route53_record("DMARC", f"_dmarc.{domain_name}", "TXT", [dmarc_value])
 
-        # MX record - only create for root domain, not subdomains
-        if domain_name == root_zone_name:
-            create_route53_record("MX", domain_name, "MX", [f"10 {mail_server}"])
+        # MX record - create for the domain
+        create_route53_record("MX", domain_name, "MX", [f"10 {mail_server}"])
 
         # Expose zone if needed downstream
         self.hosted_zone = zone
