@@ -358,7 +358,12 @@ jobs:
 
           # Get current service tags (local for control-plane, remote for api/web)
           if [[ -z "$CONTROL_PLANE_TAG" ]]; then
-            CONTROL_PLANE_TAG=$(git tag -l "control-plane-v*" --sort=-version:refname | head -n1 | sed 's/control-plane-//' || echo "v1.0.0")
+            LATEST_TAG=$(git tag -l "control-plane-v*" --sort=-version:refname | head -n1)
+            if [[ -n "$LATEST_TAG" ]]; then
+              CONTROL_PLANE_TAG=$(echo "$LATEST_TAG" | sed 's/control-plane-//')
+            else
+              CONTROL_PLANE_TAG="v1.0.0"
+            fi
           fi
 
           # Fetch latest API/WEB tags from storefront-cdk repository if not provided
