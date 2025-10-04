@@ -220,89 +220,14 @@ jobs:
           # Fetch latest tags to ensure semantic-release has fresh state
           git fetch --tags --force
 
-          # Check what version semantic-release would create
-          echo "Checking for potential tag conflicts..."
-          # Only get semantic-release version tags (v*.*.*, not service tags like dns-worker-v*)
-          LATEST_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | head -n 1 || echo "v0.0.0")
-          echo "Latest tag: $LATEST_TAG"
+          # Run semantic-release
+          npx semantic-release
 
-          # Pre-emptively check if the tag already exists locally or remotely
-          if git rev-parse "$LATEST_TAG" >/dev/null 2>&1; then
-            echo "Tag $LATEST_TAG exists locally, checking if it's the same commit..."
-            TAG_COMMIT=$(git rev-list -n 1 "$LATEST_TAG")
-            HEAD_COMMIT=$(git rev-parse HEAD)
-
-            if [ "$TAG_COMMIT" != "$HEAD_COMMIT" ]; then
-              echo "Tag points to different commit, forcing version increment..."
-              # Calculate next version
-              CURRENT_VERSION=$(echo "$LATEST_TAG" | sed 's/v//')
-              MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
-              MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
-              PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
-              NEXT_PATCH=$((PATCH + 1))
-              NEXT_VERSION="v${MAJOR}.${MINOR}.${NEXT_PATCH}"
-
-              echo "Creating $NEXT_VERSION to resolve conflict..."
-              git tag -a "$NEXT_VERSION" -m "chore(release): $NEXT_VERSION [skip ci]"
-              git push origin "$NEXT_VERSION"
-
-              echo "new_release=true" >> $GITHUB_OUTPUT
-              exit 0
-            fi
-          fi
-
-          # Run semantic-release and capture output
-          set +e  # Don't exit on error
-          OUTPUT=$(npx semantic-release 2>&1)
-          EXIT_CODE=$?
-          set -e  # Re-enable exit on error
-
-          # If tag already exists, force increment to next version
-          if [ $EXIT_CODE -eq 128 ] && echo "$OUTPUT" | grep -q "already exists"; then
-            echo "Tag conflict detected, forcing version increment..."
-            # Extract tag name from error message
-            TAG_NAME=$(echo "$OUTPUT" | grep -o "tag '[^']*'" | sed "s/tag '\(.*\)'/\1/")
-            if [ -n "$TAG_NAME" ]; then
-              echo "Conflicting tag: $TAG_NAME"
-
-              # Calculate next version (increment patch)
-              CURRENT_VERSION=$(echo "$TAG_NAME" | sed 's/v//')
-              MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
-              MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
-              PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
-              NEXT_PATCH=$((PATCH + 1))
-              NEXT_VERSION="v${MAJOR}.${MINOR}.${NEXT_PATCH}"
-
-              echo "Forcing next version: $NEXT_VERSION"
-
-              # Create the next version tag manually
-              git tag -a "$NEXT_VERSION" -m "chore(release): $NEXT_VERSION [skip ci]"
-              git push origin "$NEXT_VERSION"
-
-              # Update CHANGELOG
-              echo "Updating CHANGELOG..."
-              CURRENT_DATE=$(date +%Y-%m-%d)
-              sed -i "1a\\\\n## [$NEXT_VERSION](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/$TAG_NAME...$NEXT_VERSION) ($CURRENT_DATE)\\n\\n### 🐛 Bug Fixes\\n\\n* resolve version conflict and force increment\\n" CHANGELOG.md
-
-              git add CHANGELOG.md
-              git commit -m "chore(release): $NEXT_VERSION [skip ci]" || true
-              git push origin main || true
-
-              EXIT_CODE=0
-              echo "new_release=true" >> $GITHUB_OUTPUT
-            fi
-          fi
-
-          echo "$OUTPUT"
-
-          if [ $EXIT_CODE -eq 0 ]; then
+          if [ $? -eq 0 ]; then
             echo "Semantic-release completed successfully"
             echo "new_release=true" >> $GITHUB_OUTPUT
-          elif [ $EXIT_CODE -eq 1 ]; then
+          elif [ $? -eq 1 ]; then
             echo "No release needed (semantic-release exit code 1)"
-            echo "new_release=false" >> $GITHUB_OUTPUT
-          elif [ $EXIT_CODE -eq 128 ] && echo "$OUTPUT" | grep -q "already exists"; then
-            echo "Tag already exists (git exit code 128) - treating as successful (no new release needed)"
             echo "new_release=false" >> $GITHUB_OUTPUT
           elif echo "$OUTPUT" | grep -q "already exists"; then
             echo "Tag already exists - treating as successful (no new release needed)"
