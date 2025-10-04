@@ -451,6 +451,30 @@ class TestWebServiceStack:
         template.has_resource("AWS::ECS::TaskDefinition", {})
 
 
+class TestCertificateStack:
+    """Test Certificate stack for ACM certificates"""
+
+    def test_certificate_creation(self, cdk_app, test_environment):
+        """Test ACM certificate is created for domain"""
+        cert_stack = CertificateStack(
+            cdk_app,
+            "TestCertificateStack",
+            env=test_environment,
+            domain="test.example.com",
+            environment="test",
+        )
+        template = assertions.Template.from_stack(cert_stack)
+
+        # Verify certificate is created
+        template.resource_count_is("AWS::CertificateManager::Certificate", 1)
+
+        # Verify DNS validation
+        template.has_resource_properties(
+            "AWS::CertificateManager::Certificate",
+            {"ValidationMethod": "DNS"},
+        )
+
+
 class TestMultiAlbStack:
     """Test Multi-ALB stack for domain-based load balancing"""
 
