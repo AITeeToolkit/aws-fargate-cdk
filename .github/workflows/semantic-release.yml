@@ -461,17 +461,6 @@ jobs:
           echo "api_tag=$API_TAG" >> $GITHUB_OUTPUT
           echo "web_tag=$WEB_TAG" >> $GITHUB_OUTPUT
 
-
-  build-listener:
-    name: Build & Push Listener Image
-    needs: [test-gate, generate-tag, check-changes, semantic-release]
-    if: always() && github.ref == 'refs/heads/main' && needs.check-changes.outputs.listener_changed == 'true' && (needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped') && (needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped')
-    uses: ./.github/workflows/listener-build.yml
-    with:
-      environment: dev
-      image_tag: ${{ needs.generate-tag.outputs.listener_tag }}
-    secrets: inherit
-
   build-dns-worker:
     name: Build & Push DNS Worker Image
     needs: [test-gate, generate-tag, check-changes, semantic-release]

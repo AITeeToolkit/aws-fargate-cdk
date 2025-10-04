@@ -108,7 +108,6 @@ Thumbs.db
 packaged-template.yaml
 
 # Domain files (generated from database, kept for fallback only)
-*-domains.json
 domains.json
 
 # Listener service (removed - external systems publish to SNS directly)

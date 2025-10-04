@@ -686,12 +686,15 @@ class SQSDNSWorker:
         )
 
         try:
-            # Step 1: Handle domain deactivations atomically (database + hosted zones)
+            successful_operations = False
+
+            # Step 1: Process deactivations first
             if self.pending_deactivations:
                 for domain in self.pending_deactivations:
                     # Update database first
                     db_success = self.update_domain_deactivation(domain)
                     if db_success:
+                        successful_operations = True
                         # Only delete hosted zone if database update succeeded
                         deleted_zones = self.delete_hosted_zones([domain])
                         if deleted_zones:
@@ -703,12 +706,13 @@ class SQSDNSWorker:
                     else:
                         logger.error(f"❌ Failed to deactivate domain in database: {domain}")
 
-            # Step 2: Handle domain activations atomically (database + hosted zones)
+            # Step 2: Process activations
             if self.pending_domains:
                 for domain in self.pending_domains:
                     # Update database first
                     db_success = self.update_domain_activation(domain)
                     if db_success:
+                        successful_operations = True
                         # Only create hosted zone if database update succeeded
                         created_zones = self.ensure_hosted_zones([domain])
                         if created_zones:
@@ -720,10 +724,18 @@ class SQSDNSWorker:
                     else:
                         logger.error(f"❌ Failed to activate domain in database: {domain}")
 
-            # Step 3: Fetch ALL active domains from database (reflects current state)
+            # Step 3: Only trigger workflow if there were successful database operations
+            if not successful_operations:
+                logger.warning("⚠️ No successful operations in batch - skipping workflow trigger")
+                # Clear pending domains even on failure to avoid retry loops
+                self.pending_domains.clear()
+                self.pending_deactivations.clear()
+                return False
+
+            # Step 4: Fetch ALL active domains from database (reflects current state)
             all_active_domains = self.fetch_active_domains_from_db()
 
-            # Step 4: Trigger GitHub workflow
+            # Step 5: Trigger GitHub workflow
             # CDK will read active domains from database and automatically remove stacks
             # for deactivated domains (CloudFormation handles deletion)
             if self.trigger_github_workflow(all_active_domains):
