@@ -316,9 +316,9 @@ class TestSQSStack:
         sqs_stack = SQSStack(cdk_app, "TestSQSStack", env=test_environment, environment="test")
         template = assertions.Template.from_stack(sqs_stack)
 
-        # Should create 8 queues: 6 main queues + 2 DLQs
-        # (main, priority, email, image_processing, order_processing, dns_operations, dlq, fifo_dlq)
-        template.resource_count_is("AWS::SQS::Queue", 8)
+        # Should create 10 queues: 8 main queues + 2 DLQs
+        # (main, priority, email, image_processing, order_processing, database_operations, route53_operations, github_workflow, dlq, fifo_dlq)
+        template.resource_count_is("AWS::SQS::Queue", 10)
 
         # Verify queue has dead letter queue configuration
         template.has_resource_properties(
