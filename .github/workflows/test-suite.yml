@@ -5,11 +5,7 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  pull_request:
-    branches: [main, develop]
-  # Removed push trigger to prevent duplicate runs with semantic-release
-  # push:
-  #   branches: [main, develop]
+  # Only run via workflow_call from semantic-release workflow
   workflow_call:
     inputs:
       environment:
