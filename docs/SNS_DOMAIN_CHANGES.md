@@ -30,10 +30,10 @@ DNS Worker
 
 ### Test Message
 ```bash
-aws sns publish \  --topic-arn arn:aws:sns:us-east-1:156041439702:storefront-dev-domain-changes.fifo \
+aws sns publish --topic-arn arn:aws:sns:us-east-1:156041439702:storefront-staging-domain-changes.fifo \
   --message file://test-deactivation-message.json \
   --message-group-id "domain-changes" \
-  --message-deduplication-id "042322-xyz-activate-$(date +%s)"
+  --message-deduplication-id "040992-xyz-deactivate-$(date +%s)"
 ```
 
 ### Field Descriptions:

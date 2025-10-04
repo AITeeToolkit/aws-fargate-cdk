@@ -305,9 +305,7 @@ class SQSDNSWorker:
         """
         try:
             cur = self.db_connection.cursor()
-            cur.execute(
-                "SELECT DISTINCT full_url FROM purchased_domains WHERE active_domain = 'Y';"
-            )
+            cur.execute("SELECT DISTINCT full_url FROM domains WHERE active_status = 'Y';")
             result = [row[0] for row in cur.fetchall()]
             cur.close()
             logger.info(f"🌐 Fetched {len(result)} active domains from database")
