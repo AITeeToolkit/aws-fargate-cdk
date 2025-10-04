@@ -140,12 +140,10 @@ network_stack = NetworkStack(app, "NetworkStack", env=env)
 # network_stack.add_dependency(iam_stack)
 
 # GitHub Actions self-hosted runner (shared across all environments for database access)
-allowed_ips = app.node.try_get_context("allowed_ips") or {}
 github_runner_stack = GitHubRunnerStack(
     app,
     "GitHubRunnerStack",
     vpc=network_stack.vpc,
-    allowed_ips=allowed_ips,
     env=env,
 )
 

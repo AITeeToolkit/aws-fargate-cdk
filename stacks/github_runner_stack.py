@@ -10,12 +10,12 @@ class GitHubRunnerStack(Stack):
         scope: Construct,
         construct_id: str,
         vpc: ec2.IVpc,
-        allowed_ips: dict = None,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         # Security group for GitHub runner
+        # No inbound rules needed - SSM Session Manager uses outbound HTTPS only
         runner_sg = ec2.SecurityGroup(
             self,
             "RunnerSecurityGroup",
@@ -23,15 +23,6 @@ class GitHubRunnerStack(Stack):
             description="GitHub Actions runner security group - shared across all environments",
             allow_all_outbound=True,
         )
-
-        # Add SSH access from allowed IPs
-        if allowed_ips:
-            for ip, description in allowed_ips.items():
-                runner_sg.add_ingress_rule(
-                    peer=ec2.Peer.ipv4(ip),
-                    connection=ec2.Port.tcp(22),
-                    description=f"SSH from {description}",
-                )
 
         # IAM role for runner
         runner_role = iam.Role(
