@@ -14,6 +14,7 @@ from stacks.domain_dns_stack import DomainDnsStack
 from stacks.ecr_stack import ECRStack
 from stacks.network_stack import NetworkStack
 from stacks.opensearch_stack import OpenSearchStack
+from stacks.redis_stack import RedisStack
 from stacks.shared_stack import SharedStack
 from stacks.sqs_stack import SQSStack
 from stacks.web_multialb_stack import MultiAlbStack
@@ -566,6 +567,28 @@ class TestMultiAlbStack:
                 )
             },
         )
+
+
+class TestRedisStack:
+    """Test Redis Serverless stack"""
+
+    def test_redis_creation(self, cdk_app, test_environment):
+        """Test Redis Serverless cache is created"""
+        network_stack = NetworkStack(cdk_app, "TestNetworkStack", env=test_environment)
+        redis_stack = RedisStack(
+            cdk_app,
+            "TestRedisStack",
+            env=test_environment,
+            vpc=network_stack.vpc,
+            environment="test",
+            max_storage_gb=1,
+            max_ecpu=3000,
+            snapshot_retention=1,
+        )
+        template = assertions.Template.from_stack(redis_stack)
+
+        # Verify Redis Serverless cache is created
+        template.has_resource("AWS::ElastiCache::ServerlessCache", {})
 
 
 class TestDomainDnsStack:
