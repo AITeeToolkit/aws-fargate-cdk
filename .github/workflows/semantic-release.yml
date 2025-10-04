@@ -9,7 +9,6 @@ on:
     branches:
       - main
       - develop
-      - domain-updates
   pull_request:
     branches:
       - main
@@ -80,7 +79,7 @@ env:
 jobs:
   test-gate:
     name: Test Gate
-    if: github.ref_name != 'domain-updates' && github.event_name != 'repository_dispatch' && !contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]') && !contains(github.event.head_commit.message, '[skip tests]') && inputs.skip_tests != true
+    if: github.event_name != 'repository_dispatch' && !contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]') && !contains(github.event.head_commit.message, '[skip tests]') && inputs.skip_tests != true && github.event.client_payload.skip_tests != true
     uses: ./.github/workflows/test-suite.yml
     with:
       environment: ${{ inputs.environment || github.event.client_payload.environment || 'dev' }}
@@ -117,22 +116,16 @@ jobs:
             CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
           fi
           echo " Changed files:"
-          echo "$CHANGED_FILES"
 
           IMAGE_FLAG=false
           INFRA_FLAG=false
           CONTROL_PLANE_FLAG=false
 
-          if [[ "$BRANCH_NAME" == "domain-updates" ]]; then
-            echo " Domain updates branch: only infrastructure changes needed"
-            IMAGE_FLAG=false
-            INFRA_FLAG=true
-            CONTROL_PLANE_FLAG=false
-            echo "images=false" >> $GITHUB_OUTPUT
+          if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
             echo "infra=true" >> $GITHUB_OUTPUT
             echo "control_plane=false" >> $GITHUB_OUTPUT
           else
-            # Check for Control Plane-specific changes
+            # Check for ControlPlane-specific changes
             if echo "$CHANGED_FILES" | grep -E '^apps/control-plane/' > /dev/null; then
               echo " Detected changes in control-plane files"
               CONTROL_PLANE_FLAG=true
@@ -319,10 +312,6 @@ jobs:
             WEB_TAG="${{ github.event.client_payload.web_tag }}"
             echo "🏷️ Using payload - API: $API_TAG, WEB: $WEB_TAG"
             echo "should_deploy=true" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref_name }}" == "domain-updates" ]]; then
-            echo "🔍 Domain updates branch detected - using latest tags without incrementing"
-            echo "🏷️ Using latest tags - API: $API_TAG, WEB: $WEB_TAG, CONTROL_PLANE: $CONTROL_PLANE_TAG"
-            echo "should_deploy=true" >> $GITHUB_OUTPUT
           else
             # REGULAR WORKFLOW: Handle local service changes
             BRANCH_NAME="${{ github.ref_name }}"
@@ -367,7 +356,7 @@ jobs:
       always() && (
         (inputs.control_plane_tag != null && inputs.control_plane_tag != '') ||
         inputs.force_control_plane == true ||
-        ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref_name == 'domain-updates') && needs.check-changes.outputs.control_plane_changed == 'true')
+        ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && needs.check-changes.outputs.control_plane_changed == 'true')
       ) && (
         needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped'
       ) && (
@@ -386,7 +375,7 @@ jobs:
       always() && (
         inputs.force_infra == true ||
         (
-          (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref_name == 'domain-updates' || github.event_name == 'workflow_call') && (
+          (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.event_name == 'workflow_call') && (
             needs.check-changes.outputs.has_infra_changes == 'true' ||
             needs.check-changes.outputs.has_image_changes == 'true' ||
             github.event_name == 'repository_dispatch'

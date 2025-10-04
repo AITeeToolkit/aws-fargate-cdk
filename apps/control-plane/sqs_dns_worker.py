@@ -534,11 +534,12 @@ class SQSDNSWorker:
             # Trigger workflow via repository dispatch
             url = f"https://api.github.com/repos/{self.repo}/dispatches"
             payload = {
-                "event_type": "domain-changes",
+                "event_type": "domain-update",
                 "client_payload": {
                     "environment": self.environment,
                     "domain_count": len(domains),
                     "triggered_at": time.time(),
+                    "skip_tests": True,  # Domain updates don't need tests
                 },
             }
 
@@ -553,79 +554,6 @@ class SQSDNSWorker:
 
         except Exception as e:
             logger.error(f"❌ Failed to trigger GitHub workflow: {e}")
-            return False
-
-    def clear_cdk_context(self) -> bool:
-        """
-        Clear CDK context cache to force fresh hosted zone lookups.
-
-        Returns:
-            bool: True if context cleared successfully
-        """
-        try:
-            headers = {"Authorization": f"token {self.github_token}"}
-
-            # Get current cdk.context.json content from domain-updates branch
-            url = f"https://api.github.com/repos/{self.repo}/contents/cdk.context.json"
-            params = {"ref": "domain-updates"}
-            r = requests.get(url, headers=headers, params=params)
-
-            if r.status_code == 404:
-                logger.info(
-                    "📝 No cdk.context.json found on domain-updates branch, nothing to clear"
-                )
-                return True
-
-            r.raise_for_status()
-            file_info = r.json()
-
-            # Create minimal context (keep availability zones, remove hosted zone cache)
-            minimal_context = {
-                "availability-zones:account=156041439702:region=us-east-1": [
-                    "us-east-1a",
-                    "us-east-1b",
-                    "us-east-1c",
-                    "us-east-1d",
-                    "us-east-1e",
-                    "us-east-1f",
-                ]
-            }
-
-            # Update cdk.context.json with minimal context
-            content_b64 = base64.b64encode(json.dumps(minimal_context, indent=2).encode()).decode()
-
-            payload = {
-                "message": "Clear CDK context cache for fresh hosted zone lookups [skip ci]",
-                "content": content_b64,
-                "sha": file_info["sha"],
-                "branch": "domain-updates",
-            }
-
-            # Retry logic for 409 conflicts
-            max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    r = requests.put(url, headers=headers, json=payload)
-                    r.raise_for_status()
-                    logger.info("✅ Cleared CDK context cache for fresh hosted zone lookups")
-                    return True
-
-                except requests.exceptions.HTTPError as e:
-                    if e.response.status_code == 409 and attempt < max_retries - 1:
-                        logger.warning(
-                            f"⚠️ CDK context conflict (attempt {attempt + 1}/{max_retries}), retrying..."
-                        )
-                        # Get fresh SHA and retry
-                        r_fresh = requests.get(url, headers=headers, params=params)
-                        if r_fresh.status_code == 200:
-                            payload["sha"] = r_fresh.json()["sha"]
-                            continue
-                    raise
-
-            return False
-
-        except Exception as e:
-            logger.error(f"❌ Failed to clear CDK context: {e}")
             return False
 
     def process_batch(self) -> bool:
