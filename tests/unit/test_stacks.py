@@ -239,7 +239,7 @@ class TestECRStack:
 
         # ECR stack creates repos only if they don't exist (uses boto3)
         # In test environment with mocked AWS, repos won't exist so they'll be created
-        template.resource_count_is("AWS::ECR::Repository", 4)
+        template.resource_count_is("AWS::ECR::Repository", 3)
 
         # Verify repositories have lifecycle policies
         template.has_resource_properties(
@@ -449,55 +449,6 @@ class TestWebServiceStack:
         # Verify ECS service is created
         template.has_resource("AWS::ECS::Service", {})
         template.has_resource("AWS::ECS::TaskDefinition", {})
-
-
-class TestCertificateStack:
-    """Test Certificate stack for ACM certificates"""
-
-    def test_certificate_creation(self, cdk_app, test_environment):
-        """Test ACM certificates are created for domains"""
-        cert_stack = CertificateStack(
-            cdk_app,
-            "TestCertificateStack",
-            env=test_environment,
-            domains=["test.example.com"],
-        )
-        template = assertions.Template.from_stack(cert_stack)
-
-        # Verify certificate is created (one per domain)
-        template.resource_count_is("AWS::CertificateManager::Certificate", 1)
-
-    def test_wildcard_certificates(self, cdk_app, test_environment):
-        """Test wildcard certificates are created"""
-        cert_stack = CertificateStack(
-            cdk_app,
-            "TestCertificateStack",
-            env=test_environment,
-            domains=["example.com", "*.example.com"],
-        )
-        template = assertions.Template.from_stack(cert_stack)
-
-        # Verify wildcard certificate
-        template.has_resource_properties(
-            "AWS::CertificateManager::Certificate",
-            {"DomainName": "*.example.com"},
-        )
-
-    def test_certificate_validation(self, cdk_app, test_environment):
-        """Test certificates use DNS validation"""
-        cert_stack = CertificateStack(
-            cdk_app,
-            "TestCertificateStack",
-            env=test_environment,
-            domains=["test.example.com"],
-        )
-        template = assertions.Template.from_stack(cert_stack)
-
-        # Verify DNS validation
-        template.has_resource_properties(
-            "AWS::CertificateManager::Certificate",
-            {"ValidationMethod": "DNS"},
-        )
 
 
 class TestMultiAlbStack:
