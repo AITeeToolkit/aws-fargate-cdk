@@ -172,7 +172,7 @@ for current_env in environments_to_deploy:
     )
 
     # Create per-domain certificate stacks for this environment
-    # Only create for domains that have hosted zones (DNS worker creates these first)
+    # Only create for domains that have hosted zones (Control Plane worker creates these first)
     # Each environment gets its own certificate (no wildcards)
     certificate_arns = {}
 
@@ -193,7 +193,9 @@ for current_env in environments_to_deploy:
                     zone_exists = True
 
             if not zone_exists:
-                print(f"  ⏭️  Skipping {domain} - hosted zone not found (DNS worker will create it)")
+                print(
+                    f"  ⏭️  Skipping {domain} - hosted zone not found (Control Plane will create it)"
+                )
                 continue
 
         except Exception as e:

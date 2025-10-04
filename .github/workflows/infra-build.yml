@@ -19,12 +19,8 @@ on:
         description: "Image tag"
         required: false
         type: string
-      listener_tag:
-        description: "Listener image tag"
-        required: false
-        type: string
-      dns_worker_tag:
-        description: "DNS Worker image tag"
+      control_plane_tag:
+        description: "Control Plane image tag"
         required: false
         type: string
       api_tag:
@@ -144,15 +140,13 @@ jobs:
         run: |
           # Handle both workflow_call inputs and repository_dispatch client_payload
           if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            echo "LISTENER_IMAGE_TAG=skip" >> $GITHUB_ENV
-            echo "DNS_WORKER_IMAGE_TAG=skip" >> $GITHUB_ENV
+            echo "CONTROL_PLANE_IMAGE_TAG=skip" >> $GITHUB_ENV
             echo "API_IMAGE_TAG=${{ github.event.client_payload.api_tag || 'skip' }}" >> $GITHUB_ENV
             echo "WEB_IMAGE_TAG=${{ github.event.client_payload.web_tag || 'skip' }}" >> $GITHUB_ENV
             echo "ENVIRONMENT=${{ github.event.client_payload.environment || 'dev' }}" >> $GITHUB_ENV
           else
             # For workflow_call, use inputs (which may contain repository dispatch payload)
-            echo "LISTENER_IMAGE_TAG=${{ inputs.listener_tag || 'skip' }}" >> $GITHUB_ENV
-            echo "DNS_WORKER_IMAGE_TAG=${{ inputs.dns_worker_tag || 'skip' }}" >> $GITHUB_ENV
+            echo "CONTROL_PLANE_IMAGE_TAG=${{ inputs.control_plane_tag || 'skip' }}" >> $GITHUB_ENV
             echo "API_IMAGE_TAG=${{ inputs.api_tag || 'skip' }}" >> $GITHUB_ENV
             echo "WEB_IMAGE_TAG=${{ inputs.web_tag || 'skip' }}" >> $GITHUB_ENV
             echo "ENVIRONMENT=${{ inputs.environment || 'dev' }}" >> $GITHUB_ENV
@@ -204,14 +198,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "🚀 Deploying with image tags:"
-          echo "  Listener:   $LISTENER_IMAGE_TAG"
-          echo "  DNS Worker: $DNS_WORKER_IMAGE_TAG"
+          echo "  Control Plane: $CONTROL_PLANE_IMAGE_TAG"
           echo "  API:        $API_IMAGE_TAG"
           echo "  Web:      $WEB_IMAGE_TAG"
 
           # Build context parameters
-          CONTEXT="--context listenerTag=$LISTENER_IMAGE_TAG"
-          CONTEXT="$CONTEXT --context dnsWorkerTag=$DNS_WORKER_IMAGE_TAG"
+          CONTEXT="--context controlPlaneTag=$CONTROL_PLANE_IMAGE_TAG"
           CONTEXT="$CONTEXT --context apiTag=$API_IMAGE_TAG"
           CONTEXT="$CONTEXT --context webTag=$WEB_IMAGE_TAG"
 
@@ -245,8 +237,7 @@ jobs:
           echo "## 📋 Deployment Details" >> $GITHUB_STEP_SUMMARY
           echo "| Service | Tag | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|-----|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Listener** | \`$LISTENER_IMAGE_TAG\` | ${{ job.status == 'success' && '✅ Deployed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **DNS Worker** | \`$DNS_WORKER_IMAGE_TAG\` | ${{ job.status == 'success' && '✅ Deployed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Control Plane** | \`$CONTROL_PLANE_IMAGE_TAG\` | ${{ job.status == 'success' && '✅ Deployed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **API** | \`$API_IMAGE_TAG\` | ${{ job.status == 'success' && '✅ Deployed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Web** | \`$WEB_IMAGE_TAG\` | ${{ job.status == 'success' && '✅ Deployed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
