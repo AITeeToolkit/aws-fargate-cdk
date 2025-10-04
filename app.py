@@ -11,7 +11,8 @@ from stacks.database_stack import DatabaseStack
 from stacks.dns_worker_service_stack import DNSWorkerServiceStack
 from stacks.domain_dns_stack import DomainDnsStack
 from stacks.ecr_stack import ECRStack
-from stacks.listener_service_stack import ListenerServiceStack
+
+# Listener service removed - external systems publish directly to SNS
 from stacks.network_stack import NetworkStack
 from stacks.opensearch_stack import OpenSearchStack
 from stacks.redis_stack import RedisStack
@@ -72,31 +73,86 @@ env_config = {
     },
 }
 
-# Load base domains from domains.json
-try:
-    with open("domains.json", "r") as f:
-        domains_data = json.load(f)
-        base_domains = domains_data["domains"]
-except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
-    print(f"⚠️ Could not read domains.json: {e}")
-    base_domains = []
+
+# Function to load domains for a specific environment from database
+def load_domains_for_env(environment: str):
+    """Load domains directly from database for this environment"""
+    # Get database connection parameters from SSM Parameter Store
+    import boto3
+    import psycopg2
+
+    ssm = boto3.client("ssm", region_name="us-east-1")
+
+    try:
+        # Read database connection parameters from SSM
+        db_host = ssm.get_parameter(Name=f"/{environment}/database/host")["Parameter"]["Value"]
+        db_name = ssm.get_parameter(Name=f"/{environment}/database/name")["Parameter"]["Value"]
+        db_user = ssm.get_parameter(Name=f"/{environment}/database/user")["Parameter"]["Value"]
+        db_password = ssm.get_parameter(
+            Name=f"/{environment}/database/password", WithDecryption=True
+        )["Parameter"]["Value"]
+
+        # Connect to database
+        conn = psycopg2.connect(
+            host=db_host, database=db_name, user=db_user, password=db_password, connect_timeout=10
+        )
+
+        cursor = conn.cursor()
+        cursor.execute("SELECT full_url, active_status FROM domains")
+
+        cert_domains = []
+        active_domains = []
+
+        for full_url, active_status in cursor.fetchall():
+            if active_status == "Y":
+                active_domains.append(full_url)
+                cert_domains.append(full_url)
+            else:  # Draining (active_status = 'N')
+                cert_domains.append(full_url)
+
+        cursor.close()
+        conn.close()
+
+        print(
+            f"  📊 Loaded {len(active_domains)} active, {len(cert_domains) - len(active_domains)} draining domains from database"
+        )
+        return cert_domains, active_domains
+
+    except Exception as e:
+        print(f"⚠️ Could not read domains from database for {environment}: {e}")
+        print(f"  Falling back to {environment}-domains.json file")
+
+        # Fallback to file-based approach
+        domains_file = f"{environment}-domains.json"
+        try:
+            with open(domains_file, "r") as f:
+                domains_data = json.load(f)
+                domains_config = domains_data["domains"]
+
+                cert_domains = []
+                active_domains = []
+
+                for d in domains_config:
+                    if isinstance(d, dict):
+                        name = d["name"]
+                        state = d.get("state", "active")
+                        if state == "active":
+                            active_domains.append(name)
+                            cert_domains.append(name)
+                        else:  # draining
+                            cert_domains.append(name)
+                    else:
+                        active_domains.append(d)
+                        cert_domains.append(d)
+
+                return cert_domains, active_domains
+
+        except (FileNotFoundError, json.JSONDecodeError, KeyError) as fallback_error:
+            print(f"⚠️ Fallback also failed: {fallback_error}")
+            return [], []
 
 
-# Function to add environment prefix to domains
-def get_env_domains(base_domains: list[str], environment: str) -> list[str]:
-    """
-    Add environment prefix to domains:
-    - dev: dev.domain.com
-    - staging: staging.domain.com
-    - prod: domain.com (no prefix)
-    """
-    if environment == "prod":
-        return base_domains  # No prefix for prod
-    else:
-        return [f"{environment}.{domain}" for domain in base_domains]
-
-
-listener_tag = resolve_tag("listenerTag", "LISTENER_IMAGE_TAG", app, "listener")
+# Listener service removed - no longer needed
 dns_worker_tag = resolve_tag("dnsWorkerTag", "DNS_WORKER_IMAGE_TAG", app, "dns-worker")
 api_tag = resolve_tag("apiTag", "API_IMAGE_TAG", app, "api")
 web_tag = resolve_tag("webTag", "WEB_IMAGE_TAG", app, "web")
@@ -116,15 +172,7 @@ ecr_stack = ECRStack(
     app,
     "StorefrontECRStack",
     env=env,
-    repository_names=["api", "web", "listener", "dns-worker"],
-)
-
-# Create shared wildcard certificates (one per root domain, shared across all environments)
-certificate_stack = CertificateStack(
-    app,
-    "SharedCertificateStack",
-    env=env,
-    domains=base_domains,
+    repository_names=["api", "web", "dns-worker"],
 )
 
 # Deploy stacks for each environment
@@ -132,24 +180,40 @@ for current_env in environments_to_deploy:
     current_config = env_config.get(current_env, env_config["dev"])
     print(f"🛠️ Creating stacks for {current_env} environment with config: {current_config}")
 
-    # Get environment-specific domains (dev.domain.com, staging.domain.com, or domain.com for prod)
-    env_domains = get_env_domains(base_domains, current_env)
+    # Load domains for this specific environment
+    cert_domains, active_domains = load_domains_for_env(current_env)
+
     print(
-        f"  📋 Domains for {current_env}: {env_domains[:3]}..."
-        if len(env_domains) > 3
-        else f"  📋 Domains for {current_env}: {env_domains}"
+        f"  📋 Domains for {current_env}: {active_domains[:3]}..."
+        if len(active_domains) > 3
+        else f"  📋 Domains for {current_env}: {active_domains}"
     )
 
-    # Multi-ALB stack for this environment (using shared certificates)
+    # Create per-domain certificate stacks for this environment
+    # Only create for active + draining domains (not deleted)
+    certificate_arns = {}
+    for domain in cert_domains:
+        stack_name = f"CertificateStack-{domain.replace('.', '-')}"
+        cert_stack = CertificateStack(
+            app,
+            stack_name,
+            env=env,
+            domain=domain,
+        )
+        # Store ARN for active domains only
+        if domain in active_domains:
+            certificate_arns[domain] = cert_stack.certificate_arn
+        print(f"  📜 Created certificate stack for {domain}")
+
     multi_alb_stack = MultiAlbStack(
         app,
         f"MultiAlbStack-{current_env}",
         env=env,
         vpc=network_stack.vpc,
-        domains=env_domains,
+        domains=active_domains,
         alb_security_group=shared_stack.alb_security_group,
         environment=current_env,
-        certificate_arns=certificate_stack.certificates,
+        certificate_arns=certificate_arns,
     )
 
     # Add mail DNS records automatically for this environment
@@ -214,21 +278,8 @@ for current_env in environments_to_deploy:
     #     api_service_name="api-service"  # This should match your service name
     # )
 
-    # Deploy listener service for this environment
-    listener_service = ListenerServiceStack(
-        app,
-        f"ListenerServiceStack-{current_env}",
-        env=env,
-        vpc=network_stack.vpc,
-        cluster=shared_stack.cluster,
-        image_uri=f"{ecr_stack.repositories['listener'].repository_uri}:{listener_tag}",
-        db_secret=database_stack.secret,
-        environment=current_env,
-        ecs_task_security_group=shared_stack.ecs_task_sg,
-        service_name=f"listener-service-{current_env}",
-        sqs_managed_policy=sqs_stack.sqs_managed_policy,
-        desired_count=current_config["ecs_desired_count"],
-    )
+    # Listener service removed - external systems publish directly to SNS topic
+    # SNS topic → SQS queue → DNS worker handles everything
 
     # Deploy DNS worker service for this environment
     dns_worker_service = DNSWorkerServiceStack(

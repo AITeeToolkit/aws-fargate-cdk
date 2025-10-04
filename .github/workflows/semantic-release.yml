@@ -61,7 +61,7 @@ on:
       GH_TOKEN:
         required: true
   repository_dispatch:
-    types: [api-web-updated]
+    types: [api-web-updated, domain-update]
 
 env:
   AWS_REGION: us-east-1

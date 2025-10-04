@@ -1,7 +1,16 @@
 {
   "domains": [
-    "cidertees.com",
-    "042322.xyz",
-    "042325.xyz"
+    {
+      "name": "cidertees.com",
+      "state": "active"
+    },
+    {
+      "name": "042322.xyz",
+      "state": "active"
+    },
+    {
+      "name": "042325.xyz",
+      "state": "active"
+    }
   ]
 }
