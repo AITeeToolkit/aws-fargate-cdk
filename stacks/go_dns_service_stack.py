@@ -40,9 +40,12 @@ class GoDnsServiceStack(Stack):
             "container_port": 8080,
             "service_name": service_name,
             "environment": go_dns_environment,
-            "security_groups": [ecs_task_security_group] if ecs_task_security_group else None,
             "desired_count": desired_count,
         }
+
+        # Add security groups if provided
+        if ecs_task_security_group:
+            construct_params["security_groups"] = [ecs_task_security_group]
 
         # Add ALB parameters if ALB is provided
         if alb:

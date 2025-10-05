@@ -210,7 +210,12 @@ class SQSDNSWorker:
                 domain_data = message_data
 
             # Validate required fields
-            required_fields = ["full_url", "tenant_id", "active_status", "hosted_zone_id"]
+            required_fields = [
+                "full_url",
+                "tenant_id",
+                "active_status",
+                "hosted_zone_id",
+            ]
             missing_fields = [f for f in required_fields if f not in domain_data]
 
             if missing_fields:

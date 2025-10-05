@@ -109,7 +109,11 @@ class TestServiceHealth:
                 for q in queue_urls
                 if any(
                     x in q.lower()
-                    for x in ["database-operations", "route53-operations", "github-workflow"]
+                    for x in [
+                        "database-operations",
+                        "route53-operations",
+                        "github-workflow",
+                    ]
                 )
             ]
 
