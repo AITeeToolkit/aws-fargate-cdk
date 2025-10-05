@@ -219,7 +219,7 @@ def handler(event, context):
                 "RecordType": record_type,
                 "RecordValues": record_values,
                 "TTL": str(ttl),
-                "ForceUpdate": str(int(time.time())),  # Force update on every deployment
+                "ForceUpdate": f"{int(time.time())}-{id}",  # Unique timestamp per record
             }
             if alias_target:
                 props["AliasTarget"] = alias_target
