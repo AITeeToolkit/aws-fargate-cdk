@@ -160,23 +160,6 @@ ecr_stack = ECRStack(
     repository_names=["api", "web", "go-dns", "control-plane"],
 )
 
-# Deploy go-dns service (single instance, not per environment)
-go_dns_tag = resolve_tag("goDnsTag", "GO_DNS_IMAGE_TAG", app, "go-dns")
-go_dns_service = GoDnsServiceStack(
-    app,
-    "GoDnsServiceStack",
-    env=env,
-    vpc=network_stack.vpc,
-    cluster=shared_stack.cluster,
-    image_uri=f"{ecr_stack.repositories['go-dns'].repository_uri}:{go_dns_tag}",
-    environment="shared",
-    alb=None,  # Will attach to ALB after MultiAlbStack is created
-    alb_security_group=shared_stack.alb_security_group,
-    ecs_task_security_group=shared_stack.ecs_task_sg,
-    service_name="go-dns-service",
-    desired_count=1,
-)
-
 # Deploy stacks for each environment
 for current_env in environments_to_deploy:
     current_config = env_config.get(current_env, env_config["dev"])
@@ -368,6 +351,24 @@ for current_env in environments_to_deploy:
         service=web_service.service,
         port=3000,
     )
+
+    # Deploy go-dns service only for dev environment (single instance)
+    if current_env == "dev":
+        go_dns_tag = resolve_tag("goDnsTag", "GO_DNS_IMAGE_TAG", app, "go-dns")
+        go_dns_service = GoDnsServiceStack(
+            app,
+            "GoDnsServiceStack",
+            env=env,
+            vpc=network_stack.vpc,
+            cluster=shared_stack.cluster,
+            image_uri=f"{ecr_stack.repositories['go-dns'].repository_uri}:{go_dns_tag}",
+            environment="shared",
+            alb=multi_alb_stack.alb,
+            alb_security_group=shared_stack.alb_security_group,
+            ecs_task_security_group=shared_stack.ecs_task_sg,
+            service_name="go-dns-service",
+            desired_count=1,
+        )
 
     print(f"✅ Deployed stacks for {current_env} environment")
 
