@@ -106,7 +106,7 @@ class GitHubWorker(Thread):
         return time_since_last >= self.batch_timeout
 
     def trigger_workflow(self) -> bool:
-        """Trigger GitHub workflow with all active domains"""
+        """Trigger GitHub workflow via repository dispatch"""
         try:
             # Fetch ALL active domains from database (not just pending)
             with self.db_connection.cursor() as cur:
@@ -122,58 +122,24 @@ class GitHubWorker(Thread):
 
             logger.info(f"🔄 [GH] Triggering workflow for {len(all_active_domains)} active domains")
 
-            headers = {"Authorization": f"token {self.github_token}"}
-            branch = "domain-updates"
-
-            # Create tracking file content
-            tracking_content = {
-                "environment": self.environment,
-                "active_domains": all_active_domains,
-                "domain_count": len(all_active_domains),
-                "updated_at": time.time(),
+            headers = {
+                "Authorization": f"token {self.github_token}",
+                "Accept": "application/vnd.github.v3+json",
             }
 
-            # Get main branch SHA
-            url = f"https://api.github.com/repos/{self.repo}/git/refs/heads/main"
-            r = requests.get(url, headers=headers)
-            r.raise_for_status()
-            main_sha = r.json()["object"]["sha"]
-
-            # Create or update domain-updates branch from main
-            url = f"https://api.github.com/repos/{self.repo}/git/refs/heads/{branch}"
-            r = requests.get(url, headers=headers)
-
-            if r.status_code == 404:
-                # Create branch
-                url = f"https://api.github.com/repos/{self.repo}/git/refs"
-                payload = {"ref": f"refs/heads/{branch}", "sha": main_sha}
-                r = requests.post(url, headers=headers, json=payload)
-                r.raise_for_status()
-            else:
-                # Update branch to main SHA
-                payload = {"sha": main_sha, "force": True}
-                r = requests.patch(url, headers=headers, json=payload)
-                r.raise_for_status()
-
-            # Create/update tracking file
-            file_path = f".domain-tracking-{self.environment}.json"
-            url = f"https://api.github.com/repos/{self.repo}/contents/{file_path}"
-
-            # Check if file exists
-            r = requests.get(url, headers=headers, params={"ref": branch})
-            file_sha = r.json().get("sha") if r.status_code == 200 else None
-
-            # Commit file
-            content_b64 = base64.b64encode(json.dumps(tracking_content, indent=2).encode()).decode()
+            # Trigger workflow via repository dispatch
+            url = f"https://api.github.com/repos/{self.repo}/dispatches"
             payload = {
-                "message": f"chore: update domain tracking for {self.environment} [{len(all_active_domains)} domains]",
-                "content": content_b64,
-                "branch": branch,
+                "event_type": "domain-update",
+                "client_payload": {
+                    "environment": self.environment,
+                    "domain_count": len(all_active_domains),
+                    "triggered_at": time.time(),
+                    "skip_tests": True,
+                },
             }
-            if file_sha:
-                payload["sha"] = file_sha
 
-            r = requests.put(url, headers=headers, json=payload)
+            r = requests.post(url, headers=headers, json=payload)
             r.raise_for_status()
 
             self.stats["workflows_triggered"] += 1
