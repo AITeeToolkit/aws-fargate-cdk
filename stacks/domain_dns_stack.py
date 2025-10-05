@@ -83,15 +83,22 @@ def handler(event, context):
             # Always check and create missing records (idempotent)
             if not record_exists:
                 # Create new record
+                # Prepare resource records - TXT records need quotes
+                resource_records = []
+                for value in record_values:
+                    if record_type == 'TXT':
+                        # TXT records must be quoted
+                        resource_records.append({'Value': f'"{value}"'})
+                    else:
+                        resource_records.append({'Value': value})
+
                 change = {
                     'Action': 'CREATE',
                     'ResourceRecordSet': {
                         'Name': record_name,
                         'Type': record_type,
                         'TTL': ttl,
-                        'ResourceRecords': [
-                            {'Value': value} for value in record_values
-                        ]
+                        'ResourceRecords': resource_records
                     }
                 }
                 if record_type == 'A' and 'AliasTarget' in props:
@@ -125,15 +132,21 @@ def handler(event, context):
 
                 if needs_update:
                     # Update the record by replacing it
+                    # Prepare resource records - TXT records need quotes
+                    resource_records = []
+                    for value in record_values:
+                        if record_type == 'TXT':
+                            resource_records.append({'Value': f'"{value}"'})
+                        else:
+                            resource_records.append({'Value': value})
+
                     change = {
                         'Action': 'UPSERT',
                         'ResourceRecordSet': {
                             'Name': record_name,
                             'Type': record_type,
                             'TTL': ttl,
-                            'ResourceRecords': [
-                                {'Value': value} for value in record_values
-                            ]
+                            'ResourceRecords': resource_records
                         }
                     }
                     if record_type == 'A' and 'AliasTarget' in props:
