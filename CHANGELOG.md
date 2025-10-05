@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.83.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.82.0...v1.83.0) (2025-10-05)
+
+
+### 🚀 Features
+
+* load go-dns domain from SSM and add port 8080 ingress rule to ECS task security group ([595034a](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/595034ae35747ba737732d5e109f7c4f72034b55))
+* trigger workflow [skip tests] [deploy-all] ([0ceacfb](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/0ceacfbff466dd3b725563974e69e43cb4e44ca5))
+
 ## [1.82.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.81.0...v1.82.0) (2025-10-05)
 
 
