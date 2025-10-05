@@ -154,10 +154,7 @@ shared_stack = SharedStack(app, "SharedStack", env=env, vpc=network_stack.vpc)
 
 # App container registries - only create one time
 ecr_stack = ECRStack(
-    app,
-    "StorefrontECRStack",
-    env=env,
-    repository_names=["api", "web", "control-plane", "go-dns"],
+    app, "StorefrontECRStack", env=env, repository_names=["api", "web", "go-dns", "control-plane"]
 )
 
 # Deploy go-dns service (single instance, not per environment)
