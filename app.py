@@ -230,26 +230,9 @@ for current_env in environments_to_deploy:
     )
 
     # Add mail DNS records automatically for this environment
-    # Only create for domains with hosted zones
     for domain, alb in multi_alb_stack.domain_to_alb.items():
-        # Check if hosted zone exists
-        try:
-            zones = route53.list_hosted_zones_by_name(DNSName=domain, MaxItems="1")
-            zone_exists = False
-            if zones.get("HostedZones"):
-                zone = zones["HostedZones"][0]
-                if zone["Name"].rstrip(".") == domain:
-                    zone_exists = True
-
-            if not zone_exists:
-                print(f"  ⏭️  Skipping DNS records for {domain} - hosted zone not found")
-                continue
-
-        except Exception as e:
-            print(f"  ⚠️  Error checking zone for {domain}: {e}")
-            continue
-
-        # Zone exists, create DNS stack
+        # Create DNS stack - from_lookup() will handle zone existence check
+        print(f"  📧 Creating DNS stack for {domain} in {current_env}")
         DomainDnsStack(
             app,
             f"DomainDnsStack-{current_env}-{domain.replace('.', '-')}",
