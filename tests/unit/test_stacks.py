@@ -12,6 +12,7 @@ from stacks.control_plane_service_stack import ControlPlaneServiceStack
 from stacks.database_stack import DatabaseStack
 from stacks.domain_dns_stack import DomainDnsStack
 from stacks.ecr_stack import ECRStack
+from stacks.go_dns_service_stack import GoDnsServiceStack
 from stacks.network_stack import NetworkStack
 from stacks.opensearch_stack import OpenSearchStack
 from stacks.redis_stack import RedisStack
@@ -446,6 +447,43 @@ class TestWebServiceStack:
         )
 
         template = assertions.Template.from_stack(web_stack)
+
+        # Verify ECS service is created
+        template.has_resource("AWS::ECS::Service", {})
+        template.has_resource("AWS::ECS::TaskDefinition", {})
+
+
+class TestGoDnsServiceStack:
+    """Test Go DNS service stack"""
+
+    def test_go_dns_service_creation(self, cdk_app, test_environment, test_tags):
+        """Test Go DNS service stack creates ECS service"""
+        # Create dependencies
+        network_stack = NetworkStack(cdk_app, "TestNetworkStack", env=test_environment)
+        shared_stack = SharedStack(
+            cdk_app, "TestSharedStack", env=test_environment, vpc=network_stack.vpc
+        )
+        ecr_stack = ECRStack(
+            cdk_app,
+            "TestECRStack",
+            env=test_environment,
+            repository_names=["api", "web", "control-plane", "go-dns"],
+        )
+
+        # Create Go DNS service (without ALB)
+        go_dns_stack = GoDnsServiceStack(
+            cdk_app,
+            "TestGoDnsStack",
+            env=test_environment,
+            vpc=network_stack.vpc,
+            cluster=shared_stack.cluster,
+            image_uri=f"{ecr_stack.repositories['go-dns'].repository_uri}:latest",
+            environment="test",
+            ecs_task_security_group=shared_stack.ecs_task_sg,
+            service_name="go-dns-service",
+        )
+
+        template = assertions.Template.from_stack(go_dns_stack)
 
         # Verify ECS service is created
         template.has_resource("AWS::ECS::Service", {})

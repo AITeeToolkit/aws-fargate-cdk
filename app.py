@@ -11,6 +11,7 @@ from stacks.control_plane_service_stack import ControlPlaneServiceStack
 from stacks.database_stack import DatabaseStack
 from stacks.domain_dns_stack import DomainDnsStack
 from stacks.ecr_stack import ECRStack
+from stacks.go_dns_service_stack import GoDnsServiceStack
 
 # Listener service removed - external systems publish directly to SNS
 from stacks.network_stack import NetworkStack
@@ -156,7 +157,24 @@ ecr_stack = ECRStack(
     app,
     "StorefrontECRStack",
     env=env,
-    repository_names=["api", "web", "control-plane"],
+    repository_names=["api", "web", "control-plane", "go-dns"],
+)
+
+# Deploy go-dns service (single instance, not per environment)
+go_dns_tag = resolve_tag("goDnsTag", "GO_DNS_IMAGE_TAG", app, "go-dns")
+go_dns_service = GoDnsServiceStack(
+    app,
+    "GoDnsServiceStack",
+    env=env,
+    vpc=network_stack.vpc,
+    cluster=shared_stack.cluster,
+    image_uri=f"{ecr_stack.repositories['go-dns'].repository_uri}:{go_dns_tag}",
+    environment="shared",
+    alb=None,  # Will attach to ALB after MultiAlbStack is created
+    alb_security_group=shared_stack.alb_security_group,
+    ecs_task_security_group=shared_stack.ecs_task_sg,
+    service_name="go-dns-service",
+    desired_count=1,
 )
 
 # Deploy stacks for each environment
@@ -351,4 +369,4 @@ for current_env in environments_to_deploy:
         port=3000,
     )
 
-app.synth()
+    print(f"✅ Deployed stacks for {current_env} environment")

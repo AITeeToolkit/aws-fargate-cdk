@@ -45,6 +45,9 @@ on:
       web_tag:
         required: false
         type: string
+      go_dns_tag:
+        required: false
+        type: string
   workflow_call:
     inputs:
       environment:
@@ -253,6 +256,7 @@ jobs:
       control_plane_tag: ${{ steps.tag.outputs.control_plane_tag }}
       api_tag: ${{ steps.tag.outputs.api_tag }}
       web_tag: ${{ steps.tag.outputs.web_tag }}
+      go_dns_tag: ${{ steps.tag.outputs.go_dns_tag }}
       should_deploy: ${{ steps.tag.outputs.should_deploy }}
     steps:
       - uses: actions/checkout@v4
@@ -368,9 +372,28 @@ jobs:
       image_tag: ${{ needs.generate-tag.outputs.control_plane_tag }}
     secrets: inherit
 
+  build-go-dns:
+    name: Build & Push Go DNS Image
+    needs: [test-gate, generate-tag, check-changes, semantic-release]
+    if: |
+      always() && (
+        (inputs.go_dns_tag != null && inputs.go_dns_tag != '') ||
+        inputs.force_go_dns == true ||
+        ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && needs.check-changes.outputs.go_dns_changed == 'true')
+      ) && (
+        needs.semantic-release.result == 'success' || needs.semantic-release.result == 'skipped'
+      ) && (
+        needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped'
+      )
+    uses: ./.github/workflows/go-dns-build.yml
+    with:
+      environment: dev
+      image_tag: ${{ needs.generate-tag.outputs.go_dns_tag }}
+    secrets: inherit
+
   deploy-infrastructure:
     name: Deploy Infrastructure
-    needs: [test-gate, generate-tag, check-changes, semantic-release, build-control-plane]
+    needs: [test-gate, generate-tag, check-changes, semantic-release, build-control-plane, build-go-dns]
     if: |
       always() && (
         inputs.force_infra == true ||
@@ -387,6 +410,8 @@ jobs:
         needs.test-gate.result == 'success' || needs.test-gate.result == 'skipped'
       ) && (
         needs.build-control-plane.result == 'success' || needs.build-control-plane.result == 'skipped'
+      ) && (
+        needs.build-go-dns.result == 'success' || needs.build-go-dns.result == 'skipped'
       )
     uses: ./.github/workflows/infra-build.yml
     with:
@@ -396,6 +421,7 @@ jobs:
       control_plane_tag: ${{ needs.generate-tag.outputs.control_plane_tag }}
       api_tag: ${{ needs.generate-tag.outputs.api_tag }}
       web_tag: ${{ needs.generate-tag.outputs.web_tag }}
+      go_dns_tag: ${{ needs.generate-tag.outputs.go_dns_tag }}
     secrets: inherit
 
   dev-summary:

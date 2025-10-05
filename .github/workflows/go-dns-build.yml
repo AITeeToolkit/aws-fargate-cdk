@@ -1,0 +1,69 @@
+name: Build Go DNS Image
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      image_tag:
+        required: true
+        type: string
+    secrets:
+      AWS_CODEBUILD_ACCESS_KEY_ID:
+        required: true
+      AWS_CODEBUILD_SECRET_ACCESS_KEY:
+        required: true
+      AWS_ACCOUNT_ID:
+        required: true
+      GH_TOKEN:
+        required: true
+
+jobs:
+  build-go-dns:
+    name: Build & Push Go DNS Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout go-dns repository
+        uses: actions/checkout@v4
+        with:
+          repository: AITeeToolkit/go-dns
+          token: ${{ secrets.GH_TOKEN }}
+          path: go-dns
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_CODEBUILD_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_CODEBUILD_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to ECR
+        run: |
+          ECR_REGISTRY=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/storefront
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_REGISTRY
+          echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
+
+      - name: Build and push Go DNS image
+        run: |
+          cd go-dns
+          docker build -t storefront/go-dns:${{ inputs.image_tag }} .
+          docker tag storefront/go-dns:${{ inputs.image_tag }} ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/storefront/go-dns:${{ inputs.image_tag }}
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/storefront/go-dns:${{ inputs.image_tag }}
+
+      - name: Push latest tag
+        if: github.ref == 'refs/heads/main'
+        run: |
+          cd go-dns
+          docker tag storefront/go-dns:${{ inputs.image_tag }} $ECR_REGISTRY/go-dns:latest
+          docker push $ECR_REGISTRY/go-dns:latest
+
+      - name: Tag Release in go-dns repo
+        if: github.ref == 'refs/heads/main'
+        run: |
+          cd go-dns
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "go-dns-${{ inputs.image_tag }}"
+          git push origin "go-dns-${{ inputs.image_tag }}"
