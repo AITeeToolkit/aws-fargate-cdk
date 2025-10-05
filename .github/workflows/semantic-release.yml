@@ -31,6 +31,11 @@ on:
         required: false
         default: false
         type: boolean
+      force_go_dns:
+        description: Force Go DNS build
+        required: false
+        default: false
+        type: boolean
       skip_tests:
         description: Skip test gate
         required: false
