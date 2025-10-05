@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.81.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.80.0...v1.81.0) (2025-10-05)
+
+
+### 🚀 Features
+
+* add Go DNS service with build workflow and infrastructure integration ([1753644](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/1753644471c992c35f1fae2da0ec21445d8c257d))
+* add go_dns_tag input parameter and env variable to infrastructure build workflow ([f122c08](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/f122c081db7392fb7bc51dd9646ed1f84ebf410c))
+* force DNS record updates by adding timestamp to custom resource properties [skip tests] ([888ef74](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/888ef74ebc8e7555c4c8ec127d48659aa03518f3))
+
+
+### 🐛 Bug Fixes
+
+* add required quotes for TXT record values in Route53 DNS entries [skip tests] ([a950a16](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/a950a16ed6dfefc6a3a234021f199402ec5a8019))
+* make DNS record updates unique by appending record ID to timestamp [skip tests] ([b1d7dd0](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/b1d7dd01a86bd7bbe70204a844dce840de0eaa79))
+
+
+### ♻️ Code Refactoring
+
+* remove domain-updates branch handling and simplify workflow triggers [skip ci] ([b67ed9a](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/b67ed9a2768c21d31fe572093000a78ef24319bf))
+* simplify DNS record creation by using from_lookup() instead of manual zone checks [skip tests] ([fbcbc73](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/fbcbc7373b6603abb08f57729e1c98fdd55a09df))
+
 ## [1.80.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.79.1...v1.80.0) (2025-10-04)
 
 
