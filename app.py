@@ -12,8 +12,6 @@ from stacks.database_stack import DatabaseStack
 from stacks.domain_dns_stack import DomainDnsStack
 from stacks.ecr_stack import ECRStack
 from stacks.go_dns_service_stack import GoDnsServiceStack
-
-# Listener service removed - external systems publish directly to SNS
 from stacks.network_stack import NetworkStack
 from stacks.opensearch_stack import OpenSearchStack
 from stacks.redis_stack import RedisStack
@@ -219,12 +217,17 @@ for current_env in environments_to_deploy:
             certificate_arns[domain] = cert_stack.certificate_arn
         print(f"  📜 Created certificate stack for {domain} in {current_env}")
 
+    # Add go-dns subdomain to active domains for dev environment
+    alb_domains = active_domains.copy()
+    if current_env == "dev":
+        alb_domains.append("dns.042322.xyz")
+
     multi_alb_stack = MultiAlbStack(
         app,
         f"MultiAlbStack-{current_env}",
         env=env,
         vpc=network_stack.vpc,
-        domains=active_domains,
+        domains=alb_domains,
         alb_security_group=shared_stack.alb_security_group,
         environment=current_env,
         certificate_arns=certificate_arns,
@@ -232,6 +235,12 @@ for current_env in environments_to_deploy:
 
     # Add mail DNS records automatically for this environment
     for domain, alb in multi_alb_stack.domain_to_alb.items():
+        # Skip DomainDnsStack for subdomains (they only need A records, which MultiAlbStack creates)
+        domain_parts = domain.split(".")
+        if len(domain_parts) > 2:  # It's a subdomain like dns.042322.xyz
+            print(f"  ⏭️  Skipping DomainDnsStack for subdomain {domain}")
+            continue
+
         # Create DNS stack - from_lookup() will handle zone existence check
         print(f"  📧 Creating DNS stack for {domain} in {current_env}")
         DomainDnsStack(
@@ -248,7 +257,6 @@ for current_env in environments_to_deploy:
             dmarc_policy="quarantine",
         )
         print(f"  📧 Created DNS stack for {domain} in {current_env}")
-
     # RDS instance with Secrets Manager for this environment
     database_stack = DatabaseStack(
         app,
@@ -352,28 +360,56 @@ for current_env in environments_to_deploy:
         port=3000,
     )
 
-    # Deploy go-dns service only for dev environment (single instance, no ALB initially)
+    # Deploy go-dns service only for dev environment (same pattern as web service)
     if current_env == "dev":
+        go_dns_domain = "dns.042322.xyz"
         go_dns_tag = resolve_tag("goDnsTag", "GO_DNS_IMAGE_TAG", app, "go-dns")
-        go_dns_service = GoDnsServiceStack(
-            app,
-            "GoDnsServiceStack",
-            env=env,
-            vpc=network_stack.vpc,
-            cluster=shared_stack.cluster,
-            image_uri=f"{ecr_stack.repositories['go-dns'].repository_uri}:{go_dns_tag}",
-            environment="shared",
-            ecs_task_security_group=shared_stack.ecs_task_sg,
-            service_name="go-dns-service",
-            desired_count=1,
-        )
 
-        # Attach go-dns to ALB with its own domain
-        multi_alb_stack.attach_service(
-            service=go_dns_service.service,
-            port=8080,
-            domain="dns.042322.xyz",
-        )
+        # Only deploy if the domain is in the ALB mapping
+        if go_dns_domain not in multi_alb_stack.domain_to_alb:
+            print(f"⏭️  Skipping go-dns deployment - {go_dns_domain} not in MultiAlbStack")
+        else:
+            go_dns_alb = multi_alb_stack.domain_to_alb[go_dns_domain]
+
+            # Create certificate for subdomain
+            go_dns_cert = CertificateStack(
+                app,
+                "GoDnsCertificateStack",
+                env=env,
+                domain=go_dns_domain,
+                environment="shared",
+            )
+
+            # Add certificate to ALB listener
+            import aws_cdk.aws_elasticloadbalancingv2 as elbv2
+
+            go_dns_listener = multi_alb_stack.listeners[0]
+            go_dns_listener.add_certificates(
+                "GoDnsCert", certificates=[elbv2.ListenerCertificate(go_dns_cert.certificate_arn)]
+            )
+
+            # Create go-dns service (includes Route53 A record)
+            go_dns_service = GoDnsServiceStack(
+                app,
+                "GoDnsServiceStack",
+                env=env,
+                vpc=network_stack.vpc,
+                cluster=shared_stack.cluster,
+                image_uri=f"{ecr_stack.repositories['go-dns'].repository_uri}:{go_dns_tag}",
+                environment="shared",
+                ecs_task_security_group=shared_stack.ecs_task_sg,
+                service_name="go-dns-service",
+                desired_count=1,
+                domain=go_dns_domain,
+                alb=go_dns_alb,
+            )
+
+            # Attach to MultiAlbStack with specific domain (just like web service)
+            multi_alb_stack.attach_service(
+                service=go_dns_service.service.service,
+                port=8080,
+                domain=go_dns_domain,
+            )
 
     print(f"✅ Deployed stacks for {current_env} environment")
 

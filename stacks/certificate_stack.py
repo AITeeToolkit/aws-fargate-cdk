@@ -22,12 +22,15 @@ class CertificateStack(Stack):
     ):
         super().__init__(scope, construct_id, **kwargs)
 
-        # Look up existing hosted zone for the full domain
+        # Look up existing hosted zone
+        # For subdomains (e.g., dns.042322.xyz), look up the root domain (042322.xyz)
         # DNS worker creates these zones before CDK deployment
+        domain_parts = domain.split(".")
+        root_domain = ".".join(domain_parts[-2:]) if len(domain_parts) > 2 else domain
         zone = route53.HostedZone.from_lookup(
             self,
             "Zone",
-            domain_name=domain,
+            domain_name=root_domain,
         )
 
         # Create exact domain certificate (no wildcard)

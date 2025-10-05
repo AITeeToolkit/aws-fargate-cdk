@@ -29,9 +29,12 @@ class DomainDnsStack(Stack):
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # Look up existing hosted zone for the full domain
+        # Look up existing hosted zone
+        # For subdomains (e.g., dns.042322.xyz), look up the root domain (042322.xyz)
         # DNS worker creates these zones before CDK deployment
-        zone = route53.HostedZone.from_lookup(self, "HostedZone", domain_name=domain_name)
+        domain_parts = domain_name.split(".")
+        root_domain = ".".join(domain_parts[-2:]) if len(domain_parts) > 2 else domain_name
+        zone = route53.HostedZone.from_lookup(self, "HostedZone", domain_name=root_domain)
 
         # Lambda function for idempotent Route53 record creation
         route53_record_lambda = _lambda.Function(

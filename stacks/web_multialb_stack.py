@@ -119,29 +119,57 @@ class MultiAlbStack(Stack):
                 export_name=f"{environment}-alb-dns",
             )
 
-    def attach_service(self, service: ecs.FargateService, port: int = 3000):
+    def attach_service(self, service: ecs.FargateService, port: int = 3000, domain: str = None):
         """
-        Attach ECS service to all ALBs/listeners.
-        For now, creates one rule per listener with all hostnames for that ALB.
+        Attach ECS service to all ALBs/listeners, or to a specific domain.
+        If domain is provided, only attach to the ALB that handles that domain.
         """
-        for idx, listener in enumerate(self.listeners, start=1):
-            domains_for_this_listener = [
-                d for d, alb in self.domain_to_alb.items() if alb == listener.load_balancer
-            ]
+        if domain:
+            # Attach to specific domain only
+            if domain not in self.domain_to_alb:
+                raise ValueError(f"Domain {domain} not found in MultiAlbStack")
+
+            alb = self.domain_to_alb[domain]
+            # Find the listener for this ALB
+            listener = next(l for l in self.listeners if l.load_balancer == alb)
+
             listener.add_targets(
-                f"WebTargets-{idx}",
+                f"Targets-{domain.replace('.', '-')}",
                 port=port,
                 protocol=elbv2.ApplicationProtocol.HTTP,
                 targets=[service],
-                conditions=[elbv2.ListenerCondition.host_headers(domains_for_this_listener)],
-                priority=1000 + idx,
+                conditions=[elbv2.ListenerCondition.host_headers([domain])],
+                priority=2000 + len(self.listeners),  # Higher priority to avoid conflicts
                 health_check=elbv2.HealthCheck(
                     enabled=True,
                     path="/health",
-                    healthy_http_codes="200-499",  # Accept any non-5xx response
-                    interval=Duration.seconds(30),  # Normal interval (30 seconds)
-                    timeout=Duration.seconds(5),  # Normal timeout
+                    healthy_http_codes="200-499",
+                    interval=Duration.seconds(30),
+                    timeout=Duration.seconds(5),
                     healthy_threshold_count=2,
-                    unhealthy_threshold_count=3,  # Normal retry count
+                    unhealthy_threshold_count=3,
                 ),
             )
+        else:
+            # Attach to all ALBs with all their domains
+            for idx, listener in enumerate(self.listeners, start=1):
+                domains_for_this_listener = [
+                    d for d, alb in self.domain_to_alb.items() if alb == listener.load_balancer
+                ]
+                listener.add_targets(
+                    f"WebTargets-{idx}",
+                    port=port,
+                    protocol=elbv2.ApplicationProtocol.HTTP,
+                    targets=[service],
+                    conditions=[elbv2.ListenerCondition.host_headers(domains_for_this_listener)],
+                    priority=1000 + idx,
+                    health_check=elbv2.HealthCheck(
+                        enabled=True,
+                        path="/health",
+                        healthy_http_codes="200-499",  # Accept any non-5xx response
+                        interval=Duration.seconds(30),  # Normal interval (30 seconds)
+                        timeout=Duration.seconds(5),  # Normal timeout
+                        healthy_threshold_count=2,
+                        unhealthy_threshold_count=3,  # Normal retry count
+                    ),
+                )
