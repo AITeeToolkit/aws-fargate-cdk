@@ -352,7 +352,7 @@ for current_env in environments_to_deploy:
         port=3000,
     )
 
-    # Deploy go-dns service only for dev environment (single instance)
+    # Deploy go-dns service only for dev environment (single instance, no ALB initially)
     if current_env == "dev":
         go_dns_tag = resolve_tag("goDnsTag", "GO_DNS_IMAGE_TAG", app, "go-dns")
         go_dns_service = GoDnsServiceStack(
@@ -363,11 +363,16 @@ for current_env in environments_to_deploy:
             cluster=shared_stack.cluster,
             image_uri=f"{ecr_stack.repositories['go-dns'].repository_uri}:{go_dns_tag}",
             environment="shared",
-            alb=multi_alb_stack.alb,
-            alb_security_group=shared_stack.alb_security_group,
             ecs_task_security_group=shared_stack.ecs_task_sg,
             service_name="go-dns-service",
             desired_count=1,
+        )
+
+        # Attach go-dns to ALB with its own domain
+        multi_alb_stack.attach_service(
+            service=go_dns_service.service,
+            port=8080,
+            domain="dns.042322.xyz",
         )
 
     print(f"✅ Deployed stacks for {current_env} environment")

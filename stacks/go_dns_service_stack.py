@@ -1,7 +1,6 @@
 from aws_cdk import Stack
 from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_ecs as ecs
-from aws_cdk import aws_elasticloadbalancingv2 as elbv2
 from constructs import Construct
 
 from cdk_constructs.fargate_service_construct import FargateServiceConstruct
@@ -17,8 +16,6 @@ class GoDnsServiceStack(Stack):
         cluster: ecs.ICluster,
         image_uri: str,
         environment: str,
-        alb: elbv2.IApplicationLoadBalancer = None,
-        alb_security_group: ec2.ISecurityGroup = None,
         ecs_task_security_group: ec2.ISecurityGroup = None,
         service_name: str = "go-dns-service",
         desired_count: int = 1,
@@ -32,7 +29,7 @@ class GoDnsServiceStack(Stack):
             "ENVIRONMENT": environment,
         }
 
-        # Create the Fargate service using the construct
+        # Create the Fargate service using the construct (no ALB attachment)
         construct_params = {
             "cluster": cluster,
             "vpc": vpc,
@@ -46,16 +43,5 @@ class GoDnsServiceStack(Stack):
         # Add security groups if provided
         if ecs_task_security_group:
             construct_params["security_groups"] = [ecs_task_security_group]
-
-        # Add ALB parameters if ALB is provided
-        if alb:
-            construct_params.update(
-                {
-                    "alb": alb,
-                    "alb_security_group": alb_security_group,
-                    "health_check_path": "/health",
-                    "listener_priority": 40,  # Unique priority for this service
-                }
-            )
 
         self.service = FargateServiceConstruct(self, "go-dns-service", **construct_params)
