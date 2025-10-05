@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.82.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.81.0...v1.82.0) (2025-10-05)
+
+
+### 🚀 Features
+
+* add force_go_dns workflow parameter to control DNS build behavior ([dd481ad](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/dd481ad0b5af8a6117aec6be5863ebe38a4d2709))
+* add GO_DNS_TAG support to semantic release workflow [skip ci] ([ddc5872](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/ddc58725282ff6aeaec4cc7aaf1f45e9eca65329))
+* add go-dns service with dedicated subdomain and ALB routing in dev environment [skip tests] ([f4f2749](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/f4f2749755004f315cf4140eeadd6504618d61ce))
+
+
+### ♻️ Code Refactoring
+
+* move go-dns ALB attachment to multi-alb stack with custom domain [skip tests] ([ab68a77](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/ab68a775421257dad9938547c89e68d2acef2c8f))
+* move go-dns service deployment to dev environment only and attach to ALB [skip tests] ([609fe7f](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/609fe7f862094f8b9943a8670f64f55b0a539ba4))
+* reorder repository names in ECR stack configuration [skip tests] ([44794df](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/44794df20b1db7f677e5245d4a2a060bc3439d96))
+* replace branch-based workflow trigger with repository dispatch event [skip ci] ([9c7b82c](https://github.com/AITeeToolkit/aws-fargate-cdk/commit/9c7b82ce07bf67e4b76ff87db61db9dd529fe626))
+
 ## [1.81.0](https://github.com/AITeeToolkit/aws-fargate-cdk/compare/v1.80.0...v1.81.0) (2025-10-05)
 
 
