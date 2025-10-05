@@ -1,4 +1,5 @@
 import json
+import time
 
 from aws_cdk import Duration, Stack
 from aws_cdk import aws_elasticloadbalancingv2 as elbv2
@@ -218,6 +219,7 @@ def handler(event, context):
                 "RecordType": record_type,
                 "RecordValues": record_values,
                 "TTL": str(ttl),
+                "ForceUpdate": str(int(time.time())),  # Force update on every deployment
             }
             if alias_target:
                 props["AliasTarget"] = alias_target
