@@ -31,6 +31,10 @@ on:
         description: "Web image tag"
         required: false
         type: string
+      go_dns_tag:
+        description: "Go DNS image tag"
+        required: false
+        type: string
   repository_dispatch:
     types: [deploy-infrastructure]
     secrets:
@@ -152,6 +156,7 @@ jobs:
             echo "CONTROL_PLANE_IMAGE_TAG=${{ inputs.control_plane_tag || 'skip' }}" >> $GITHUB_ENV
             echo "API_IMAGE_TAG=${{ inputs.api_tag || 'skip' }}" >> $GITHUB_ENV
             echo "WEB_IMAGE_TAG=${{ inputs.web_tag || 'skip' }}" >> $GITHUB_ENV
+            echo "GO_DNS_IMAGE_TAG=${{ inputs.go_dns_tag || 'skip' }}" >> $GITHUB_ENV
             echo "ENVIRONMENT=${{ inputs.environment || 'dev' }}" >> $GITHUB_ENV
           fi
 
