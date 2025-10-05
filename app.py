@@ -362,13 +362,26 @@ for current_env in environments_to_deploy:
 
     # Deploy go-dns service only for dev environment (same pattern as web service)
     if current_env == "dev":
-        go_dns_domain = "dns.042322.xyz"
-        go_dns_tag = resolve_tag("goDnsTag", "GO_DNS_IMAGE_TAG", app, "go-dns")
+        # Get go-dns domain from SSM Parameter Store
+        import boto3
 
-        # Only deploy if the domain is in the ALB mapping
-        if go_dns_domain not in multi_alb_stack.domain_to_alb:
+        ssm = boto3.client("ssm", region_name="us-east-1")
+        try:
+            go_dns_domain = ssm.get_parameter(Name=f"/storefront-{current_env}/go-dns/url")[
+                "Parameter"
+            ]["Value"]
+        except ssm.exceptions.ParameterNotFound:
+            print(
+                f"⏭️  Skipping go-dns deployment - parameter /storefront-{current_env}/go-dns/url not found"
+            )
+            go_dns_domain = None
+
+        if go_dns_domain is None:
+            pass  # Skip go-dns deployment
+        elif go_dns_domain not in multi_alb_stack.domain_to_alb:
             print(f"⏭️  Skipping go-dns deployment - {go_dns_domain} not in MultiAlbStack")
         else:
+            go_dns_tag = resolve_tag("goDnsTag", "GO_DNS_IMAGE_TAG", app, "go-dns")
             go_dns_alb = multi_alb_stack.domain_to_alb[go_dns_domain]
 
             # Create certificate for subdomain

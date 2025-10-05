@@ -86,6 +86,12 @@ class SharedStack(Stack):
             description="Allow HTTP traffic from ALB to API service",
         )
 
+        self.ecs_task_sg.add_ingress_rule(
+            peer=self.alb_security_group,
+            connection=ec2.Port.tcp(8080),
+            description="Allow HTTP traffic from ALB to go-dns service",
+        )
+
         # Allow ECS tasks to communicate with each other (service-to-service)
         self.ecs_task_sg.add_ingress_rule(
             peer=self.ecs_task_sg,
