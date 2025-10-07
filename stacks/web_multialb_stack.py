@@ -47,6 +47,22 @@ class MultiAlbStack(Stack):
                 load_balancer_name=f"web-alb-{environment}-{idx}",
             )
 
+            # Add HTTP listener that redirects to HTTPS
+            http_listener = alb.add_listener(
+                f"HttpListener{idx}",
+                port=80,
+                open=True,
+            )
+            http_listener.add_action(
+                f"HttpRedirect{idx}",
+                action=elbv2.ListenerAction.redirect(
+                    protocol="HTTPS",
+                    port="443",
+                    permanent=True,
+                ),
+            )
+
+            # Add HTTPS listener
             listener = alb.add_listener(
                 f"HttpsListener{idx}",
                 port=443,
