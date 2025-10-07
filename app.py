@@ -217,23 +217,12 @@ for current_env in environments_to_deploy:
             certificate_arns[domain] = cert_stack.certificate_arn
         print(f"  📜 Created certificate stack for {domain} in {current_env}")
 
-    # Add go-dns subdomain to active domains if configured in SSM
+    # Add go-dns subdomain to active domains for dev environment
     alb_domains = active_domains.copy()
     if current_env == "dev":
-        import boto3
-
-        ssm_client = boto3.client("ssm", region_name="us-east-1")
-        try:
-            go_dns_domain_param = ssm_client.get_parameter(
-                Name=f"/storefront-{current_env}/go-dns/url"
-            )
-            go_dns_domain = go_dns_domain_param["Parameter"]["Value"]
-            alb_domains.append(go_dns_domain)
-            print(f"  📍 Added go-dns domain from SSM: {go_dns_domain}")
-        except ssm_client.exceptions.ParameterNotFound:
-            print(
-                f"  ⏭️  Skipping go-dns domain - parameter /storefront-{current_env}/go-dns/url not found"
-            )
+        go_dns_domain = "api.042322.xyz"  # Update this to change the go-dns domain
+        alb_domains.append(go_dns_domain)
+        print(f"  📍 Added go-dns domain: {go_dns_domain}")
 
     multi_alb_stack = MultiAlbStack(
         app,
@@ -373,26 +362,12 @@ for current_env in environments_to_deploy:
         port=3000,
     )
 
-    # Deploy go-dns service only for dev environment (same pattern as web service)
+    # Deploy go-dns service only for dev environment
     if current_env == "dev":
-        # Get go-dns domain from SSM Parameter Store
-        import boto3
+        go_dns_domain = "api.042322.xyz"  # Update this to change the go-dns domain
 
-        ssm = boto3.client("ssm", region_name="us-east-1")
-        try:
-            go_dns_domain = ssm.get_parameter(Name=f"/storefront-{current_env}/go-dns/url")[
-                "Parameter"
-            ]["Value"]
-        except ssm.exceptions.ParameterNotFound:
-            print(
-                f"⏭️  Skipping go-dns deployment - parameter /storefront-{current_env}/go-dns/url not found"
-            )
-            go_dns_domain = None
-
-        if go_dns_domain is None:
-            pass  # Skip go-dns deployment
-        elif go_dns_domain not in multi_alb_stack.domain_to_alb:
-            print(f"⏭️  Skipping go-dns deployment - {go_dns_domain} not in MultiAlbStack")
+        if go_dns_domain not in multi_alb_stack.domain_to_alb:
+            print(f"  ⏭️  Skipping go-dns deployment - {go_dns_domain} not in MultiAlbStack")
         else:
             go_dns_tag = resolve_tag("goDnsTag", "GO_DNS_IMAGE_TAG", app, "go-dns")
             go_dns_alb = multi_alb_stack.domain_to_alb[go_dns_domain]
