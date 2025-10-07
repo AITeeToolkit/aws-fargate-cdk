@@ -217,10 +217,23 @@ for current_env in environments_to_deploy:
             certificate_arns[domain] = cert_stack.certificate_arn
         print(f"  📜 Created certificate stack for {domain} in {current_env}")
 
-    # Add go-dns subdomain to active domains for dev environment
+    # Add go-dns subdomain to active domains if configured in SSM
     alb_domains = active_domains.copy()
     if current_env == "dev":
-        alb_domains.append("dns.042322.xyz")
+        import boto3
+
+        ssm_client = boto3.client("ssm", region_name="us-east-1")
+        try:
+            go_dns_domain_param = ssm_client.get_parameter(
+                Name=f"/storefront-{current_env}/go-dns/url"
+            )
+            go_dns_domain = go_dns_domain_param["Parameter"]["Value"]
+            alb_domains.append(go_dns_domain)
+            print(f"  📍 Added go-dns domain from SSM: {go_dns_domain}")
+        except ssm_client.exceptions.ParameterNotFound:
+            print(
+                f"  ⏭️  Skipping go-dns domain - parameter /storefront-{current_env}/go-dns/url not found"
+            )
 
     multi_alb_stack = MultiAlbStack(
         app,
