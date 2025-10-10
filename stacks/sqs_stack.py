@@ -82,6 +82,19 @@ class SQSStack(Stack):
             ),
         )
 
+        # Email queue - handles email sending via postfix-api
+        self.email_queue = sqs.Queue(
+            self,
+            "EmailQueue",
+            queue_name=f"storefront-{environment}-email-queue",
+            fifo=False,  # Standard queue for email processing
+            visibility_timeout=Duration.minutes(5),
+            retention_period=Duration.days(14),
+            removal_policy=(
+                RemovalPolicy.DESTROY if environment == "dev" else RemovalPolicy.RETAIN
+            ),
+        )
+
         # Subscribe all queues to domain changes topic (fan-out pattern)
         self.domain_changes_topic.add_subscription(
             sns_subs.SqsSubscription(
@@ -143,6 +156,14 @@ class SQSStack(Stack):
             description="FIFO Dead Letter Queue URL for failed FIFO messages",
         )
 
+        ssm.StringParameter(
+            self,
+            "EmailQueueUrlParameter",
+            parameter_name="/postfix-api/sqs-email-queue-url",
+            string_value=self.email_queue.queue_url,
+            description="Email queue URL for postfix-api",
+        )
+
         # Create IAM policy for SQS and SNS access
         self.sqs_policy = iam.PolicyDocument(
             statements=[
@@ -160,6 +181,7 @@ class SQSStack(Stack):
                         self.database_operations_queue.queue_arn,
                         self.route53_operations_queue.queue_arn,
                         self.github_workflow_queue.queue_arn,
+                        self.email_queue.queue_arn,
                         self.fifo_dlq.queue_arn,
                     ],
                 ),
@@ -213,4 +235,11 @@ class SQSStack(Stack):
             "DomainChangesTopicArn",
             value=self.domain_changes_topic.topic_arn,
             description="SNS Topic ARN for Domain Changes",
+        )
+
+        cdk.CfnOutput(
+            self,
+            "EmailQueueUrl",
+            value=self.email_queue.queue_url,
+            description="Email Queue URL for postfix-api",
         )
