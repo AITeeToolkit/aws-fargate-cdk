@@ -77,7 +77,7 @@ cdk deploy --all --context env=prod
 
 # Or deploy specific stack with loop
 for env in dev staging prod; do
-  cdk deploy RedisStack-$env --context env=$env --require-approval never
+  cdk deploy --all --context env=$env --require-approval never
 done
 
 # Note: You cannot deploy multiple environment stacks in one command like:

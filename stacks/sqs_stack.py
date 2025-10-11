@@ -82,18 +82,19 @@ class SQSStack(Stack):
             ),
         )
 
-        # Email queue - handles email sending via postfix-api
-        self.email_queue = sqs.Queue(
-            self,
-            "EmailQueue",
-            queue_name=f"storefront-{environment}-email-queue",
-            fifo=False,  # Standard queue for email processing
-            visibility_timeout=Duration.minutes(5),
-            retention_period=Duration.days(14),
-            removal_policy=(
-                RemovalPolicy.DESTROY if environment == "dev" else RemovalPolicy.RETAIN
-            ),
-        )
+        # Email queue - handles email sending via postfix-api (only in dev)
+        if environment == "dev":
+            self.email_queue = sqs.Queue(
+                self,
+                "EmailQueue",
+                queue_name=f"storefront-{environment}-email-queue",
+                fifo=False,  # Standard queue for email processing
+                visibility_timeout=Duration.minutes(5),
+                retention_period=Duration.days(14),
+                removal_policy=RemovalPolicy.DESTROY,
+            )
+        else:
+            self.email_queue = None
 
         # Subscribe all queues to domain changes topic (fan-out pattern)
         self.domain_changes_topic.add_subscription(
@@ -156,15 +157,25 @@ class SQSStack(Stack):
             description="FIFO Dead Letter Queue URL for failed FIFO messages",
         )
 
-        ssm.StringParameter(
-            self,
-            "EmailQueueUrlParameter",
-            parameter_name="/postfix-api/sqs-email-queue-url",
-            string_value=self.email_queue.queue_url,
-            description="Email queue URL for postfix-api",
-        )
+        if environment == "dev":
+            ssm.StringParameter(
+                self,
+                "EmailQueueUrlParameter",
+                parameter_name="/postfix-api/sqs-email-queue-url",
+                string_value=self.email_queue.queue_url,
+                description="Email queue URL for postfix-api",
+            )
 
         # Create IAM policy for SQS and SNS access
+        queue_arns = [
+            self.database_operations_queue.queue_arn,
+            self.route53_operations_queue.queue_arn,
+            self.github_workflow_queue.queue_arn,
+            self.fifo_dlq.queue_arn,
+        ]
+        if self.email_queue:
+            queue_arns.append(self.email_queue.queue_arn)
+
         self.sqs_policy = iam.PolicyDocument(
             statements=[
                 iam.PolicyStatement(
@@ -177,13 +188,7 @@ class SQSStack(Stack):
                         "sqs:GetQueueUrl",
                         "sqs:ChangeMessageVisibility",
                     ],
-                    resources=[
-                        self.database_operations_queue.queue_arn,
-                        self.route53_operations_queue.queue_arn,
-                        self.github_workflow_queue.queue_arn,
-                        self.email_queue.queue_arn,
-                        self.fifo_dlq.queue_arn,
-                    ],
+                    resources=queue_arns,
                 ),
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,
@@ -237,9 +242,10 @@ class SQSStack(Stack):
             description="SNS Topic ARN for Domain Changes",
         )
 
-        cdk.CfnOutput(
-            self,
-            "EmailQueueUrl",
-            value=self.email_queue.queue_url,
-            description="Email Queue URL for postfix-api",
-        )
+        if self.email_queue:
+            cdk.CfnOutput(
+                self,
+                "EmailQueueUrl",
+                value=self.email_queue.queue_url,
+                description="Email Queue URL for postfix-api",
+            )

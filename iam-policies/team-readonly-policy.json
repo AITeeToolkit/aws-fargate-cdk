@@ -1,0 +1,49 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowReadOnlyAccess",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:Describe*",
+        "cloudformation:Get*",
+        "cloudformation:List*",
+        "ecs:Describe*",
+        "ecs:List*",
+        "ec2:Describe*",
+        "rds:Describe*",
+        "rds:List*",
+        "elasticloadbalancing:Describe*",
+        "route53:Get*",
+        "route53:List*",
+        "s3:Get*",
+        "s3:List*",
+        "logs:Describe*",
+        "logs:Get*",
+        "logs:FilterLogEvents",
+        "logs:StartQuery",
+        "logs:StopQuery",
+        "logs:GetQueryResults",
+        "ssm:Describe*",
+        "ssm:Get*",
+        "ssm:List*",
+        "secretsmanager:Describe*",
+        "secretsmanager:List*",
+        "sqs:Get*",
+        "sqs:List*",
+        "sns:Get*",
+        "sns:List*",
+        "ecr:Describe*",
+        "ecr:Get*",
+        "ecr:List*",
+        "ecr:BatchGetImage",
+        "iam:Get*",
+        "iam:List*",
+        "cloudwatch:Describe*",
+        "cloudwatch:Get*",
+        "cloudwatch:List*"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

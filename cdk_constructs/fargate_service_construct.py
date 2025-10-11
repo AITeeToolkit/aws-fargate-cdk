@@ -26,6 +26,8 @@ class FargateServiceConstruct(Construct):
         subnet_type: ec2.SubnetType = ec2.SubnetType.PRIVATE_ISOLATED,
         opensearch_task_role: iam.IRole = None,
         sqs_managed_policy: iam.IManagedPolicy = None,
+        cpu: int = 512,
+        memory_limit_mib: int = 1024,
     ) -> None:
         super().__init__(scope, id)
 
@@ -63,13 +65,13 @@ class FargateServiceConstruct(Construct):
             )
         )
 
-        # Task definition with increased resources for better performance
+        # Task definition with configurable resources
         task_def = ecs.FargateTaskDefinition(
             self,
             f"{id}TaskDef",
             family=f"{id}-taskdef",
-            memory_limit_mib=1024,  # Increased from 512 to 1024 MB
-            cpu=512,  # Increased from 256 to 512 CPU units
+            memory_limit_mib=memory_limit_mib,
+            cpu=cpu,
             execution_role=execution_role,
             task_role=opensearch_task_role
             or iam.Role(

@@ -86,6 +86,8 @@ class WebServiceStack(Stack):
                 dns_record_type=servicediscovery.DnsRecordType.A,
                 dns_ttl=Duration.seconds(10),
             ),
+            cpu=256,
+            memory_limit_mib=512,
         )
 
         # Expose ECS service so other stacks can attach it

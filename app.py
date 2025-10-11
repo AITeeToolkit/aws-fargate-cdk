@@ -281,7 +281,12 @@ for current_env in environments_to_deploy:
     )
 
     # SQS queues for message processing for this environment
-    sqs_stack = SQSStack(app, f"SQSStack-{current_env}", env=env, environment=current_env)
+    sqs_stack = SQSStack(
+        app,
+        f"SQSStack-{current_env}",
+        env=env,
+        environment=current_env,
+    )
 
     # Redis Serverless for caching for this environment
     redis_stack = RedisStack(

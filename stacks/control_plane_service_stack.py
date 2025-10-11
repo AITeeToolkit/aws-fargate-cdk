@@ -71,4 +71,6 @@ class ControlPlaneServiceStack(Stack):
             security_groups=[ecs_task_security_group],
             desired_count=desired_count,
             sqs_managed_policy=sqs_managed_policy,
+            cpu=256,
+            memory_limit_mib=512,
         )

@@ -43,6 +43,8 @@ class GoDnsServiceStack(Stack):
             "service_name": service_name,
             "environment": go_dns_environment,
             "desired_count": desired_count,
+            "cpu": 256,
+            "memory_limit_mib": 512,
         }
 
         # Add security groups if provided
